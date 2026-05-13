@@ -55,12 +55,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error: error ? new Error(error.message) : null };
   }, []);
 
-  const signInWithGoogle = useCallback(async () => {
-    const { lovable } = await import("@/integrations/lovable");
-    await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin + "/dashboard",
+const signInWithGoogle = useCallback(async () => {
+  try {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/dashboard`,
+      },
     });
-  }, []);
+    if (error) throw error;
+  } catch (error) {
+    console.error('Google sign in failed:', error);
+  }
+}, []);
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
