@@ -1,5 +1,31 @@
+# netlify.toml
+
+# Redirect all short links to your Supabase Edge Function
 [[redirects]]
   from = "/*"
-  to = "https://uogiLqdfcskkkamxpdcu.supabase.co/functions/v1/redirect?code=:splat"
+  to = "https://uogilqdfcskkakmxpdcu.supabase.co/functions/v1/redirect?code=:splat"
   status = 200
   force = true
+
+# Make sure your main app still loads for non-short-link routes
+[[redirects]]
+  from = "/dashboard"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/auth"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/settings"
+  to = "/index.html"
+  status = 200
+
+# Fallback to index.html for SPA routing
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+  force = false
