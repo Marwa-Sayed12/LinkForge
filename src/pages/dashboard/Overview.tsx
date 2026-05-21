@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useClerkAuth"
 import { toast } from "sonner";
-import { shortenWithTinyUrl } from "@/lib/shorten";
 
 export default function Overview() {
   const { user } = useAuth();
@@ -55,20 +54,25 @@ export default function Overview() {
     }
     setCreating(true);
     try {
-      const tinyUrl = await shortenWithTinyUrl(quickUrl.trim());
-      const shortCode = tinyUrl.split("/").filter(Boolean).pop() || Math.random().toString(36).substring(2, 8);
+      // Generate random short code
+      const shortCode = Math.random().toString(36).substring(2, 8);
+      
+      // Insert into Supabase
       const { error } = await supabase.from("links").insert({
         user_id: user.id,
         original_url: quickUrl.trim(),
         short_code: shortCode,
-        tiny_url: tinyUrl,
-        title: null,
+        is_active: true,
       });
+      
       if (error) {
         toast.error(error.message);
         return;
       }
-      setLastCreated(tinyUrl);
+      
+      // Create the full short URL
+      const shortUrl = `https://linkforge.devs.surf/${shortCode}`;
+      setLastCreated(shortUrl);
       setQuickUrl("");
       toast.success("Short link created!");
       fetchData();
@@ -201,7 +205,7 @@ export default function Overview() {
               <div key={link.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
                 <div className="min-w-0">
                   <div className="font-mono text-sm text-primary truncate">
-                    {link.tiny_url || `lnk.to/${link.short_code}`}
+                    https://linkforge.devs.surf/{link.short_code}
                   </div>
                   <div className="text-xs text-muted-foreground truncate">{link.original_url}</div>
                 </div>
