@@ -3,7 +3,7 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Link2, Mail, Lock, Eye, EyeOff, ArrowLeft, User, Phone, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/hooks/useClerkAuth"
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { toast } from "sonner";
 

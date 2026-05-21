@@ -9,7 +9,7 @@ import {
 } from "recharts";
 import { useTheme } from "@/components/ThemeProvider";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/hooks/useClerkAuth"
 import { format, subDays, startOfDay } from "date-fns";
 
 function useChartColors() {

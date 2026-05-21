@@ -4,7 +4,7 @@ import { ArrowRight, Link2, QrCode, BarChart3, Copy, Check, Lock } from "lucide-
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { NetworkVisualization } from "./NetworkVisualization";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/hooks/useClerkAuth"
 import { supabase } from "@/integrations/supabase/client";
 import { shortenWithTinyUrl } from "@/lib/shorten";
 import { toast } from "sonner";

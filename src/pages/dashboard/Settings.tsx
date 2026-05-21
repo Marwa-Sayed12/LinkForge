@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { User, Mail, Save, Plus, Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/hooks/useClerkAuth"
 import { toast } from "sonner";
 
 export default function DashboardSettings() {

@@ -4,10 +4,13 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "@/components/ThemeProvider";
-import { AuthProvider } from "@/hooks/useAuth";
+import { ClerkAuthProvider } from "@/hooks/useClerkAuth"
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { LoadingScreen } from "@/components/LoadingScreen";
 import { Suspense, lazy, useState, useEffect } from "react";
+import { HybridAuthProvider } from "@/hooks/useHybridAuth";
+
+
 
 const Index = lazy(() => import("./pages/Index"));
 const Auth = lazy(() => import("./pages/Auth"));
@@ -36,6 +39,7 @@ function AppLoader({ children }: { children: React.ReactNode }) {
 }
 
 const App = () => (
+  <HybridAuthProvider>
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
       <TooltipProvider>
@@ -43,7 +47,7 @@ const App = () => (
         <Sonner />
         <AppLoader>
           <BrowserRouter>
-            <AuthProvider>
+            <ClerkAuthProvider>
               <Suspense fallback={<LoadingScreen />}>
                 <Routes>
                   <Route path="/" element={<Index />} />
@@ -66,12 +70,13 @@ const App = () => (
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </Suspense>
-            </AuthProvider>
+            </ClerkAuthProvider>
           </BrowserRouter>
         </AppLoader>
       </TooltipProvider>
     </ThemeProvider>
   </QueryClientProvider>
+  </HybridAuthProvider>
 );
 
 export default App;

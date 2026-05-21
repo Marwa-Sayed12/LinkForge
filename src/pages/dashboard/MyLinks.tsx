@@ -5,7 +5,7 @@ import { QRCodeSVG } from "qrcode.react";
 import QRCode from "qrcode";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/hooks/useClerkAuth"
 import { toast } from "sonner";
 import { shortenWithTinyUrl } from "@/lib/shorten";
 

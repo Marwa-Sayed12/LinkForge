@@ -4,8 +4,7 @@ import { Menu, X, Link2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "./ThemeToggle";
-import { useAuth } from "@/hooks/useAuth";
-
+import { useAuth } from "@/hooks/useClerkAuth"
 const navLinks = [
   { label: "Home", href: "#" },
   { label: "Features", href: "#features" },
