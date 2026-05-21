@@ -5,9 +5,13 @@ import { QRCodeSVG } from "qrcode.react";
 import QRCode from "qrcode";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useClerkAuth"
+import { useAuth } from "@/hooks/useClerkAuth";
 import { toast } from "sonner";
-import { shortenWithTinyUrl } from "@/lib/shorten";
+
+// Helper function to get the full short URL
+function getShortUrl(shortCode: string) {
+  return `https://linkforge.devs.surf/${shortCode}`;
+}
 
 export default function MyLinks() {
   const { user } = useAuth();
@@ -37,36 +41,68 @@ export default function MyLinks() {
 
   const createLink = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!url || !user) return;
+    if (!url) {
+      toast.error("Please enter a URL");
+      return;
+    }
+    if (!user) {
+      toast.error("Please log in to save links to your dashboard");
+      return;
+    }
+    
     setCreating(true);
     try {
-      const tinyUrl = await shortenWithTinyUrl(url);
-      const shortCode = customAlias || tinyUrl.split("/").pop() || Math.random().toString(36).substring(2, 8);
+      // Validate URL
+      new URL(url);
+      
+      // Use custom alias or generate random code
+      const shortCode = customAlias || Math.random().toString(36).substring(2, 8);
+      
+      // Check if custom alias already exists
+      if (customAlias) {
+        const { data: existing } = await supabase
+          .from("links")
+          .select("id")
+          .eq("short_code", customAlias)
+          .single();
+        
+        if (existing) {
+          toast.error("That alias is already taken. Please choose another.");
+          setCreating(false);
+          return;
+        }
+      }
+      
+      // Insert into Supabase
       const { error } = await supabase.from("links").insert({
         user_id: user.id,
         original_url: url,
         short_code: shortCode,
         custom_alias: customAlias || null,
-        tiny_url: tinyUrl,
-        title: null,
+        is_active: true,
       });
+      
       if (error) {
-        toast.error(error.message.includes("unique") ? "That alias is already taken" : error.message);
+        toast.error(error.message);
       } else {
-        toast.success("Short link created!");
+        toast.success(`Link created: ${getShortUrl(shortCode)}`);
         setUrl("");
         setCustomAlias("");
         setShowCreate(false);
         fetchLinks();
       }
     } catch (err: any) {
-      toast.error(err.message || "Failed to shorten URL");
+      if (err.message?.includes("Invalid URL")) {
+        toast.error("Please enter a valid URL (https://...)");
+      } else {
+        toast.error(err.message || "Failed to create link");
+      }
     }
     setCreating(false);
   };
 
   const downloadQR = async (link: any) => {
-    const target = link.tiny_url || link.original_url;
+    const target = link.original_url;
     try {
       const dataUrl = await QRCode.toDataURL(target, { width: 512, margin: 2 });
       const a = document.createElement("a");
@@ -90,11 +126,25 @@ export default function MyLinks() {
   };
 
   const copyLink = (link: any) => {
-    const target = link.tiny_url || `${window.location.origin}/r/${link.short_code}`;
-    navigator.clipboard.writeText(target);
+    const shortUrl = getShortUrl(link.short_code);
+    navigator.clipboard.writeText(shortUrl);
     setCopiedId(link.id);
     setTimeout(() => setCopiedId(null), 2000);
+    toast.success("Copied to clipboard!");
   };
+
+  if (!user) {
+    return (
+      <div className="glass-card rounded-xl p-12 text-center">
+        <Link2 className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+        <h3 className="font-heading text-lg font-semibold text-foreground mb-2">Please Log In</h3>
+        <p className="text-sm text-muted-foreground mb-4">Sign in to view and manage your shortened links.</p>
+        <Link to="/auth">
+          <Button variant="hero">Sign In</Button>
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -112,7 +162,7 @@ export default function MyLinks() {
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="glass-card rounded-xl p-5">
           <form onSubmit={createLink} className="space-y-4">
             <div>
-              <label className="text-sm font-medium text-foreground mb-1.5 block">URL</label>
+              <label className="text-sm font-medium text-foreground mb-1.5 block">URL to shorten</label>
               <input
                 type="url"
                 value={url}
@@ -125,7 +175,7 @@ export default function MyLinks() {
             <div>
               <label className="text-sm font-medium text-foreground mb-1.5 block">Custom Alias (optional)</label>
               <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground font-mono">lnk.to/</span>
+                <span className="text-sm text-muted-foreground font-mono">linkforge.devs.surf/</span>
                 <input
                   type="text"
                   value={customAlias}
@@ -174,14 +224,14 @@ export default function MyLinks() {
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <a
-                      href={link.tiny_url || link.original_url}
+                      href={getShortUrl(link.short_code)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="font-mono text-sm text-primary font-medium hover:underline truncate"
                     >
-                      {link.tiny_url ? link.tiny_url.replace(/^https?:\/\//, "") : `lnk.to/${link.short_code}`}
+                      {getShortUrl(link.short_code).replace(/^https?:\/\//, "")}
                     </a>
                     <button onClick={() => copyLink(link)} className="text-muted-foreground hover:text-foreground">
                       {copiedId === link.id ? <Check className="w-3.5 h-3.5 text-success" /> : <Copy className="w-3.5 h-3.5" />}
@@ -213,7 +263,7 @@ export default function MyLinks() {
               {showQR === link.id && (
                 <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="mt-4 pt-4 border-t border-border flex flex-col items-center gap-3">
                   <div className="rounded-xl p-3 bg-white">
-                    <QRCodeSVG value={link.tiny_url || link.original_url} size={160} />
+                    <QRCodeSVG value={link.original_url} size={160} />
                   </div>
                   <Button variant="outline" size="sm" onClick={() => downloadQR(link)}>
                     <Download className="w-4 h-4" /> Download PNG

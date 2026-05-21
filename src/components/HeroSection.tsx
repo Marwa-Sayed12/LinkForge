@@ -6,8 +6,29 @@ import { Button } from "@/components/ui/button";
 import { NetworkVisualization } from "./NetworkVisualization";
 import { useAuth } from "@/hooks/useClerkAuth"
 import { supabase } from "@/integrations/supabase/client";
-import { shortenWithTinyUrl } from "@/lib/shorten";
 import { toast } from "sonner";
+
+// Function to create short link using your own backend
+async function createShortLink(originalUrl: string, userId?: string) {
+  // Generate a random short code (6 characters)
+  const shortCode = Math.random().toString(36).substring(2, 8);
+  
+  // Insert into Supabase links table
+  const { data, error } = await supabase
+    .from("links")
+    .insert({
+      original_url: originalUrl,
+      short_code: shortCode,
+      user_id: userId || null,
+      is_active: true
+    })
+    .select();
+  
+  if (error) throw new Error(error.message);
+  
+  // Return YOUR domain with the short code
+  return `https://linkforge.devs.surf/${shortCode}`;
+}
 
 export function HeroSection() {
   const { user } = useAuth();
@@ -28,22 +49,17 @@ export function HeroSection() {
     }
     setLoading(true);
     try {
-      const tinyUrl = await shortenWithTinyUrl(url);
-      const shortCode = tinyUrl.split("/").filter(Boolean).pop() || Math.random().toString(36).substring(2, 8);
-
-      if (user) {
-        await supabase.from("links").insert({
-          user_id: user.id,
-          original_url: url,
-          short_code: shortCode,
-          tiny_url: tinyUrl,
-        });
-      }
-
-      setShortened(tinyUrl);
+      // Create short link using your own function
+      const shortUrl = await createShortLink(url, user?.id);
+      setShortened(shortUrl);
+      
+      // Show signup prompt for non-authenticated users
       if (!user) setShowSignupPrompt(true);
-    } catch (e: any) {
-      toast.error(e.message || "Failed to shorten URL");
+      
+      toast.success("Link shortened successfully!");
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to shorten URL";
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
