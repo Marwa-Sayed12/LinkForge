@@ -1,15 +1,19 @@
 # netlify.toml
 
-# Redirect all short links to your Supabase Edge Function
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# Redirect all short links to Supabase Edge Function
 [[redirects]]
   from = "/*"
-  to = "https://uogilqdfcskkakmxpdcu.supabase.co/functions/v1/redirect?code=:splat"
+  to = "https://uogilqdfcskkakmxpdcu.supabase.co/functions/v1/redirect/:splat"
   status = 200
   force = true
 
-# Make sure your main app still loads for non-short-link routes
+# Your SPA routes - must be AFTER the catch-all redirect
 [[redirects]]
-  from = "/dashboard"
+  from = "/dashboard/*"
   to = "/index.html"
   status = 200
 
@@ -23,7 +27,17 @@
   to = "/index.html"
   status = 200
 
-# Fallback to index.html for SPA routing
+[[redirects]]
+  from = "/features"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/faq"
+  to = "/index.html"
+  status = 200
+
+# Fallback for all other routes
 [[redirects]]
   from = "/*"
   to = "/index.html"
