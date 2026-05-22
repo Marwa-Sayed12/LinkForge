@@ -6,34 +6,37 @@ const corsHeaders = {
 };
 
 Deno.serve(async (req: Request) => {
-  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     const url = new URL(req.url);
-    let shortCode = url.pathname.substring(1);
     
-    // Get short code from path or query param
-    const queryCode = url.searchParams.get("code");
-    if (queryCode) {
-      shortCode = queryCode;
+    // Get short code from query parameter (this is what Netlify sends)
+    let shortCode = url.searchParams.get("code");
+    
+    // If not in query, try path
+    if (!shortCode) {
+      shortCode = url.pathname.substring(1);
     }
     
-    // Clean up
-    shortCode = shortCode.replace(/[/?#]/g, '').trim();
+    // Clean up - remove any extra prefixes
+    if (shortCode) {
+      // Remove any "redirect" prefix if it somehow gets added
+      shortCode = shortCode.replace(/^redirect/, '');
+      shortCode = shortCode.replace(/[/?#]/g, '').trim();
+    }
     
-    console.log("Short code:", shortCode);
+    console.log("Short code received:", shortCode);
 
-    if (!shortCode || shortCode === "favicon.ico") {
+    if (!shortCode || shortCode === "" || shortCode === "favicon.ico") {
       return new Response(JSON.stringify({ error: "Missing short code" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Get Supabase credentials
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
@@ -46,7 +49,6 @@ Deno.serve(async (req: Request) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Search for the short code
     const { data: link, error: linkError } = await supabase
       .from("links")
       .select("id, original_url, is_active")
@@ -62,6 +64,7 @@ Deno.serve(async (req: Request) => {
     }
 
     if (!link) {
+      console.error("Link not found for:", shortCode);
       return new Response(JSON.stringify({ error: "Link not found", code: shortCode }), {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -75,7 +78,8 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Return 302 redirect
+    console.log("Redirecting to:", link.original_url);
+
     return new Response(null, {
       status: 302,
       headers: {
