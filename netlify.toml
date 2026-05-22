@@ -5,9 +5,10 @@
   publish = "dist"
 
 # Redirect all short links to Supabase Edge Function
+# The * will pass the full path to the function
 [[redirects]]
   from = "/*"
-  to = "https://uogilqdfcskkakmxpdcu.supabase.co/functions/v1/redirect/:splat"
+  to = "https://uogilqdfcskkakmxpdcu.supabase.co/functions/v1/redirect"
   status = 200
   force = true
 
@@ -36,10 +37,3 @@
   from = "/faq"
   to = "/index.html"
   status = 200
-
-# Fallback for all other routes
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
-  force = false
