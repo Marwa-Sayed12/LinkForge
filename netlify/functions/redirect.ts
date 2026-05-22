@@ -1,10 +1,11 @@
 import { createClient } from "@supabase/supabase-js";
 
 export const handler = async (event: any) => {
-  // Get the short code from the path (remove the leading slash)
+  // Get the short code from the URL path
   const shortCode = event.path.replace(/^\/|\/$/g, '');
   
-  console.log("Looking for short code:", shortCode);
+  console.log("Function called. Path:", event.path);
+  console.log("Short code:", shortCode);
   
   if (!shortCode || shortCode === "favicon.ico") {
     return {
@@ -15,13 +16,15 @@ export const handler = async (event: any) => {
   
   // Get Supabase credentials from Netlify environment variables
   const supabaseUrl = process.env.VITE_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseKey = process.env.SERVICE_ROLE_KEY;  // Note: no SUPABASE_ prefix
+  
+  console.log("Supabase URL exists:", !!supabaseUrl);
+  console.log("Supabase Key exists:", !!supabaseKey);
   
   if (!supabaseUrl || !supabaseKey) {
-    console.error("Missing Supabase credentials");
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: "Configuration error" })
+      body: JSON.stringify({ error: "Missing configuration", supabaseUrl: !!supabaseUrl, supabaseKey: !!supabaseKey })
     };
   }
   
@@ -29,33 +32,32 @@ export const handler = async (event: any) => {
   
   const { data: link, error } = await supabase
     .from("links")
-    .select("original_url, is_active")
+    .select("original_url")
     .eq("short_code", shortCode)
     .single();
   
-  if (error || !link) {
-    console.error("Link not found:", shortCode);
+  if (error) {
+    console.error("Database error:", error);
     return {
       statusCode: 404,
       body: JSON.stringify({ error: "Link not found", code: shortCode })
     };
   }
   
-  if (!link.is_active) {
+  if (!link) {
     return {
-      statusCode: 410,
-      body: JSON.stringify({ error: "Link is inactive" })
+      statusCode: 404,
+      body: JSON.stringify({ error: "Link not found", code: shortCode })
     };
   }
   
   console.log("Redirecting to:", link.original_url);
   
-  // Return a 302 redirect
   return {
     statusCode: 302,
     headers: {
       Location: link.original_url,
-      "Cache-Control": "no-cache, no-store"
+      "Cache-Control": "no-cache"
     },
     body: ""
   };
