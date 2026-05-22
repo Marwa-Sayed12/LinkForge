@@ -1,11 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.SUPABASE_URL!;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
 export const handler = async (event: any) => {
-  // Get the short code from the path
-  const shortCode = event.path.replace("/", "");
+  // Get the short code from the path (remove the leading slash)
+  const shortCode = event.path.replace(/^\/|\/$/g, '');
   
   console.log("Looking for short code:", shortCode);
   
@@ -13,6 +10,18 @@ export const handler = async (event: any) => {
     return {
       statusCode: 400,
       body: JSON.stringify({ error: "Missing short code" })
+    };
+  }
+  
+  // Get Supabase credentials from Netlify environment variables
+  const supabaseUrl = process.env.VITE_SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  
+  if (!supabaseUrl || !supabaseKey) {
+    console.error("Missing Supabase credentials");
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: "Configuration error" })
     };
   }
   
@@ -28,7 +37,7 @@ export const handler = async (event: any) => {
     console.error("Link not found:", shortCode);
     return {
       statusCode: 404,
-      body: JSON.stringify({ error: "Link not found" })
+      body: JSON.stringify({ error: "Link not found", code: shortCode })
     };
   }
   
@@ -39,12 +48,14 @@ export const handler = async (event: any) => {
     };
   }
   
+  console.log("Redirecting to:", link.original_url);
+  
   // Return a 302 redirect
   return {
     statusCode: 302,
     headers: {
       Location: link.original_url,
-      "Cache-Control": "no-cache"
+      "Cache-Control": "no-cache, no-store"
     },
     body: ""
   };

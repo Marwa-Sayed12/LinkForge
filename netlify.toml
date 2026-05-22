@@ -2,7 +2,9 @@
   command = "npm run build"
   publish = "dist"
 
-# Redirect all short links to the Netlify Function
+[functions]
+  node_bundler = "esbuild"
+
 [[redirects]]
   from = "/*"
   to = "/.netlify/functions/redirect/:splat"
