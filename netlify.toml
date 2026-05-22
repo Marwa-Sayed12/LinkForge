@@ -2,9 +2,9 @@
   command = "npm run build"
   publish = "dist"
 
-# Send the short code as a query parameter
+# Redirect all short links to the Netlify Function
 [[redirects]]
   from = "/*"
-  to = "https://uogilqdfcskkakmxpdcu.supabase.co/functions/v1/redirect?code=:splat"
+  to = "/.netlify/functions/redirect/:splat"
   status = 200
   force = true
