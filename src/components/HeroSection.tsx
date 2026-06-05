@@ -7,28 +7,12 @@ import { NetworkVisualization } from "./NetworkVisualization";
 import { useAuth } from "@/hooks/useClerkAuth"
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { createShortLink } from '@/lib/shortio';
 
-// Function to create short link using your own backend
-async function createShortLink(originalUrl: string, userId?: string) {
-  // Generate a random short code (6 characters)
-  const shortCode = Math.random().toString(36).substring(2, 8);
-  
-  // Insert into Supabase links table
-  const { data, error } = await supabase
-    .from("links")
-    .insert({
-      original_url: originalUrl,
-      short_code: shortCode,
-      user_id: userId || null,
-      is_active: true
-    })
-    .select();
-  
-  if (error) throw new Error(error.message);
-  
-  // Return YOUR domain with the short code
-  return `https://linkforge.devs.surf/${shortCode}`;
-}
+
+
+
+
 
 export function HeroSection() {
   const { user } = useAuth();

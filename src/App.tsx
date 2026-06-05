@@ -8,7 +8,6 @@ import { ClerkAuthProvider } from "@/hooks/useClerkAuth"
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { LoadingScreen } from "@/components/LoadingScreen";
 import { Suspense, lazy, useState, useEffect } from "react";
-import { HybridAuthProvider } from "@/hooks/useHybridAuth";
 
 
 
@@ -39,7 +38,7 @@ function AppLoader({ children }: { children: React.ReactNode }) {
 }
 
 const App = () => (
-  <HybridAuthProvider>
+
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
       <TooltipProvider>
@@ -76,7 +75,7 @@ const App = () => (
       </TooltipProvider>
     </ThemeProvider>
   </QueryClientProvider>
-  </HybridAuthProvider>
+
 );
 
 export default App;

@@ -37,7 +37,7 @@ export function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
   const signUpWithEmail = async (email: string, password: string) => {
     try {
       // Redirect to Clerk's built-in sign-up page
-      redirectToSignIn();({
+      redirectToSignIn({
         redirectUrl: "/dashboard",
       });
       return { error: null };
