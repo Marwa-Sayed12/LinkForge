@@ -14,15 +14,44 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
-  const { isLoaded, user } = useUser();
+  const { isLoaded, user: clerkUser } = useUser();
   const { signOut: clerkSignOut } = useClerk();
   const [loading, setLoading] = useState(true);
+  
+  // Transform Clerk user into a consistent format for your app
+  const [user, setUser] = useState<any | null>(null);
 
   useEffect(() => {
     if (isLoaded) {
       setLoading(false);
+      if (clerkUser) {
+        // Extract user data in a consistent format
+        const email = clerkUser.emailAddresses?.[0]?.emailAddress || 
+                      clerkUser.primaryEmailAddress?.emailAddress || 
+                      null;
+        
+        const firstName = clerkUser.firstName || 
+                          clerkUser.fullName?.split(' ')[0] || 
+                          email?.split('@')[0] || 
+                          null;
+        
+        const lastName = clerkUser.lastName || 
+                         (clerkUser.fullName?.split(' ').slice(1).join(' ') || null);
+        
+        setUser({
+          id: clerkUser.id,
+          email: email,
+          firstName: firstName,
+          lastName: lastName,
+          fullName: clerkUser.fullName || `${firstName || ''} ${lastName || ''}`.trim(),
+          imageUrl: clerkUser.imageUrl,
+          initials: firstName ? firstName.charAt(0).toUpperCase() : (email?.charAt(0).toUpperCase() || "U"),
+        });
+      } else {
+        setUser(null);
+      }
     }
-  }, [isLoaded]);
+  }, [isLoaded, clerkUser]);
 
   const signInWithGoogle = async () => {
     try {
@@ -73,7 +102,7 @@ export function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
   return (
     <AuthContext.Provider
       value={{
-        user: user || null,
+        user,
         loading,
         signUp,
         signIn,
