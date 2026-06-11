@@ -77,7 +77,8 @@ export default function Dashboard() {
         ))}
       </nav>
 
-      <div className="flex items-center gap-3 px-3 py-2">
+      <div className="p-3 border-t border-border space-y-2">
+         <div className="flex items-center gap-3 px-3 py-2">
   <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary overflow-hidden shrink-0">
     {avatarUrl ? (
       <img src={avatarUrl} alt="Avatar" className="w-8 h-8 rounded-full object-cover" />
@@ -95,6 +96,14 @@ export default function Dashboard() {
     </div>
   </div>
 </div>
+        <button
+          onClick={() => signOut()}
+          className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors w-full"
+        >
+          <LogOut className="w-4 h-4" />
+          Sign Out
+        </button>
+      </div>
     </>
   );
 
