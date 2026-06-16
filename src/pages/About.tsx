@@ -92,7 +92,7 @@ export default function About() {
           <div className="rounded-2xl border border-border bg-card p-10 max-w-xl mx-auto">
             <h2 className="font-heading text-2xl font-bold mb-3">Ready to get started?</h2>
             <p className="text-muted-foreground mb-6">Join thousands of users who trust LinkForge for their link management.</p>
-            <Link to="/auth">
+            <Link to="https://accounts.www.linkforge.website/sign-in">
               <Button variant="hero" size="lg">Get Started Free</Button>
             </Link>
           </div>

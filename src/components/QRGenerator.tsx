@@ -22,7 +22,7 @@ const COLOR_PRESETS = [
 ];
 
 export function QRGenerator({ hideHeader = false }: { hideHeader?: boolean } = {}) {
-  const [url, setUrl] = useState("https://lovable.dev");
+  const [url, setUrl] = useState("https://linkforge.website");
   const [fgColor, setFgColor] = useState("#38bdb0");
   const [bgColor, setBgColor] = useState("#0d1526");
   const [size, setSize] = useState(186);

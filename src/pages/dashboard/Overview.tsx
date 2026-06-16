@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useClerkAuth"
 import { toast } from "sonner";
+import { createShortLink } from "@/lib/shortio";
 
 export default function Overview() {
   const { user } = useAuth();
@@ -40,7 +41,6 @@ export default function Overview() {
 
   useEffect(() => {
     fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const handleQuickCreate = async (e: React.FormEvent) => {
@@ -57,11 +57,15 @@ export default function Overview() {
       // Generate random short code
       const shortCode = Math.random().toString(36).substring(2, 8);
       
+      // Create via Short.io
+      const { shortUrl } = await createShortLink(quickUrl.trim(), shortCode);
+      
       // Insert into Supabase
       const { error } = await supabase.from("links").insert({
         user_id: user.id,
         original_url: quickUrl.trim(),
         short_code: shortCode,
+        short_url: shortUrl,
         is_active: true,
       });
       
@@ -70,8 +74,6 @@ export default function Overview() {
         return;
       }
       
-      // Create the full short URL
-      const shortUrl = `https://linkforge.devs.surf/${shortCode}`;
       setLastCreated(shortUrl);
       setQuickUrl("");
       toast.success("Short link created!");
@@ -97,7 +99,7 @@ export default function Overview() {
     { label: "QR Codes", value: stats.links, icon: QrCode, color: "text-accent" },
   ];
 
-  const userName = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "there";
+  const userName = user?.fullName || user?.email?.split("@")[0] || "there";
   const isEmpty = stats.links === 0;
 
   return (
@@ -205,7 +207,7 @@ export default function Overview() {
               <div key={link.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
                 <div className="min-w-0">
                   <div className="font-mono text-sm text-primary truncate">
-                    https://linkforge.devs.surf/{link.short_code}
+                    {link.short_url || `https://s.linkforge.website/${link.short_code}`}
                   </div>
                   <div className="text-xs text-muted-foreground truncate">{link.original_url}</div>
                 </div>

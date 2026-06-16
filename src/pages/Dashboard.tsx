@@ -33,7 +33,7 @@ export default function Dashboard() {
       .from("profiles")
       .select("avatar_url")
       .eq("user_id", user.id)
-      .single()
+      .maybeSingle()  // Changed from .single() to .maybeSingle()
       .then(({ data }) => {
         if (data?.avatar_url) setAvatarUrl(data.avatar_url);
       });
@@ -78,24 +78,24 @@ export default function Dashboard() {
       </nav>
 
       <div className="p-3 border-t border-border space-y-2">
-         <div className="flex items-center gap-3 px-3 py-2">
-  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary overflow-hidden shrink-0">
-    {avatarUrl ? (
-      <img src={avatarUrl} alt="Avatar" className="w-8 h-8 rounded-full object-cover" />
-    ) : (
-      <span className="text-primary text-sm font-medium">
-        {user?.email?.charAt(0)?.toUpperCase() || 
-         user?.firstName?.charAt(0)?.toUpperCase() || 
-         "U"}
-      </span>
-    )}
-  </div>
-  <div className="flex-1 min-w-0">
-    <div className="text-sm font-medium text-foreground truncate">
-      {user?.email || user?.fullName || "User"}
-    </div>
-  </div>
-</div>
+        <div className="flex items-center gap-3 px-3 py-2">
+          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary overflow-hidden shrink-0">
+            {avatarUrl ? (
+              <img src={avatarUrl} alt="Avatar" className="w-8 h-8 rounded-full object-cover" />
+            ) : (
+              <span className="text-primary text-sm font-medium">
+                {user?.email?.charAt(0)?.toUpperCase() || 
+                 user?.firstName?.charAt(0)?.toUpperCase() || 
+                 "U"}
+              </span>
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-medium text-foreground truncate">
+              {user?.fullName || user?.email || "User"}
+            </div>
+          </div>
+        </div>
         <button
           onClick={() => signOut()}
           className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors w-full"

@@ -3,14 +3,16 @@ import { motion } from "framer-motion";
 import { Plus, Link2, Copy, Check, Trash2, QrCode, ExternalLink, Download } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import QRCode from "qrcode";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useClerkAuth";
 import { toast } from "sonner";
+import { createShortLink, getQRCodeUrl } from "@/lib/shortio";
 
 // Helper function to get the full short URL
 function getShortUrl(shortCode: string) {
-  return `https://linkforge.devs.surf/${shortCode}`;
+  return `https://s.linkforge.website/${shortCode}`;
 }
 
 export default function MyLinks() {
@@ -73,19 +75,23 @@ export default function MyLinks() {
         }
       }
       
+      // Create short link via Short.io
+      const { shortUrl, shortCode: shortIoCode } = await createShortLink(url, customAlias);
+      
       // Insert into Supabase
       const { error } = await supabase.from("links").insert({
         user_id: user.id,
         original_url: url,
         short_code: shortCode,
         custom_alias: customAlias || null,
+        short_url: shortUrl,
         is_active: true,
       });
       
       if (error) {
         toast.error(error.message);
       } else {
-        toast.success(`Link created: ${getShortUrl(shortCode)}`);
+        toast.success(`Link created: ${shortUrl}`);
         setUrl("");
         setCustomAlias("");
         setShowCreate(false);
@@ -102,9 +108,10 @@ export default function MyLinks() {
   };
 
   const downloadQR = async (link: any) => {
-    const target = link.original_url;
     try {
-      const dataUrl = await QRCode.toDataURL(target, { width: 512, margin: 2 });
+      const qrCodeUrl = getQRCodeUrl(link.short_code);
+      // For local QR generation fallback
+      const dataUrl = await QRCode.toDataURL(link.original_url, { width: 512, margin: 2 });
       const a = document.createElement("a");
       a.href = dataUrl;
       a.download = `qr-${link.short_code}.png`;
@@ -126,7 +133,7 @@ export default function MyLinks() {
   };
 
   const copyLink = (link: any) => {
-    const shortUrl = getShortUrl(link.short_code);
+    const shortUrl = link.short_url || getShortUrl(link.short_code);
     navigator.clipboard.writeText(shortUrl);
     setCopiedId(link.id);
     setTimeout(() => setCopiedId(null), 2000);
@@ -139,7 +146,7 @@ export default function MyLinks() {
         <Link2 className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
         <h3 className="font-heading text-lg font-semibold text-foreground mb-2">Please Log In</h3>
         <p className="text-sm text-muted-foreground mb-4">Sign in to view and manage your shortened links.</p>
-        <Link to="/auth">
+        <Link to="https://accounts.www.linkforge.website/sign-in">
           <Button variant="hero">Sign In</Button>
         </Link>
       </div>
@@ -175,7 +182,7 @@ export default function MyLinks() {
             <div>
               <label className="text-sm font-medium text-foreground mb-1.5 block">Custom Alias (optional)</label>
               <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground font-mono">linkforge.devs.surf/</span>
+                <span className="text-sm text-muted-foreground font-mono">s.linkforge.website/</span>
                 <input
                   type="text"
                   value={customAlias}
@@ -226,12 +233,12 @@ export default function MyLinks() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <a
-                      href={getShortUrl(link.short_code)}
+                      href={link.short_url || getShortUrl(link.short_code)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="font-mono text-sm text-primary font-medium hover:underline truncate"
                     >
-                      {getShortUrl(link.short_code).replace(/^https?:\/\//, "")}
+                      {(link.short_url || getShortUrl(link.short_code)).replace(/^https?:\/\//, "")}
                     </a>
                     <button onClick={() => copyLink(link)} className="text-muted-foreground hover:text-foreground">
                       {copiedId === link.id ? <Check className="w-3.5 h-3.5 text-success" /> : <Copy className="w-3.5 h-3.5" />}

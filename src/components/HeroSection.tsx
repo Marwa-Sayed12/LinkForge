@@ -91,7 +91,7 @@ export function HeroSection() {
                   </Button>
                 </Link>
               ) : (
-                <Link to="/auth">
+                <Link to="https://accounts.www.linkforge.website/sign-in">
                   <Button variant="hero" size="lg" className="group">
                     Get Started Free
                     <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
@@ -207,7 +207,7 @@ export function HeroSection() {
                     <p className="text-xs text-muted-foreground mb-2">
                       Sign up to save links, view analytics & generate custom QR codes.
                     </p>
-                    <Link to="/auth">
+                    <Link to="https://accounts.www.linkforge.website/sign-in">
                       <Button variant="hero" size="sm">
                         Sign Up Free <ArrowRight className="w-3 h-3" />
                       </Button>
@@ -224,7 +224,7 @@ export function HeroSection() {
                   ].map((f) => (
                     <div
                       key={f.label}
-                      onClick={() => f.locked && navigate("/auth")}
+                      onClick={() => f.locked && navigate("https://accounts.www.linkforge.website/sign-in")}
                       className={`flex items-center gap-1.5 rounded-full border border-border/70 bg-background/40 dark:bg-background/30 backdrop-blur px-3 py-1.5 text-xs text-muted-foreground transition-all ${
                         f.locked ? "cursor-pointer hover:border-primary/50 hover:text-foreground hover:bg-primary/5" : ""
                       }`}

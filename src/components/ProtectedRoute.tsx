@@ -12,7 +12,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (!user) {
-    return <Navigate to="/auth" replace />;
+    return <Navigate to="https://accounts.www.linkforge.website/sign-in" replace />;
   }
 
   return <>{children}</>;

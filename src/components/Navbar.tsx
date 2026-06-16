@@ -40,7 +40,7 @@ export function Navbar() {
               <Button variant="hero" size="sm">Dashboard</Button>
             </Link>
           ) : (
-            <Link to="/auth">
+            <Link to="https://accounts.www.linkforge.website/sign-in">
               <Button variant="hero" size="sm">Get Started</Button>
             </Link>
           )}
@@ -90,7 +90,7 @@ export function Navbar() {
                     <Button variant="hero" size="sm" className="w-full">Dashboard</Button>
                   </Link>
                 ) : (
-                  <Link to="/auth" onClick={() => setOpen(false)}>
+                  <Link to="https://accounts.www.linkforge.website/sign-in" onClick={() => setOpen(false)}>
                     <Button variant="hero" size="sm" className="w-full">Get Started</Button>
                   </Link>
                 )}

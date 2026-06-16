@@ -12,7 +12,6 @@ import { Suspense, lazy, useState, useEffect } from "react";
 
 
 const Index = lazy(() => import("./pages/Index"));
-const Auth = lazy(() => import("./pages/Auth"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -55,7 +54,6 @@ const App = () => (
                   <Route path="/cookies" element={<Cookies />} />
                   <Route path="/careers" element={<Careers />} />
                   <Route path="/about" element={<About />} />
-                  <Route path="/auth" element={<Auth />} />
                   <Route path="/reset-password" element={<ResetPassword />} />
                   <Route
                     path="/dashboard/*"
