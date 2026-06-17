@@ -4,15 +4,10 @@ import { ArrowRight, Link2, QrCode, BarChart3, Copy, Check, Lock } from "lucide-
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { NetworkVisualization } from "./NetworkVisualization";
-import { useAuth } from "@/hooks/useClerkAuth"
+import { useAuth } from "@/hooks/useClerkAuth";  // ✅ FIXED
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { createShortLink } from '@/lib/shortio';
-
-
-
-
-
+import { createShortLink } from '@/lib/shortio';  // ✅ FIXED: Use Short.io
 
 export function HeroSection() {
   const { user } = useAuth();
@@ -31,15 +26,32 @@ export function HeroSection() {
       toast.error("Please enter a valid URL (https://...)");
       return;
     }
+    
+    // Prevent duplicate submissions
+    if (loading) return;
+    
     setLoading(true);
     try {
-      // Create short link using your own function
-      const shortUrl = await createShortLink(url, user?.id);
+      // ✅ FIXED: Use Short.io instead of TinyURL
+      const { shortUrl, shortCode } = await createShortLink(url);
+      
+      // Save to Supabase (only if user is logged in)
+      if (user) {
+        const { error } = await supabase.from("links").insert({
+          user_id: user.id,
+          original_url: url,
+          short_code: shortCode,
+          short_url: shortUrl,
+          is_active: true,
+        });
+        
+        if (error) {
+          console.error("Supabase error:", error);
+        }
+      }
+
       setShortened(shortUrl);
-      
-      // Show signup prompt for non-authenticated users
       if (!user) setShowSignupPrompt(true);
-      
       toast.success("Link shortened successfully!");
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "Failed to shorten URL";
@@ -71,7 +83,6 @@ export function HeroSection() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.7 }}
           >
-
             <h1 className="font-heading text-5xl lg:text-6xl xl:text-7xl font-bold leading-[1.05] mb-6">
               Shorten.{" "}
               <span className="gradient-text">Generate.</span>{" "}
@@ -91,12 +102,13 @@ export function HeroSection() {
                   </Button>
                 </Link>
               ) : (
-                <Link to="https://accounts.www.linkforge.website/sign-in">
+                // ✅ FIXED: Direct Clerk sign-in URL
+                <a href="https://accounts.www.linkforge.website/sign-in">
                   <Button variant="hero" size="lg" className="group">
                     Get Started Free
                     <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
                   </Button>
-                </Link>
+                </a>
               )}
               <a href="#features">
                 <Button variant="hero-outline" size="lg">
@@ -132,9 +144,7 @@ export function HeroSection() {
             transition={{ duration: 0.7, delay: 0.3 }}
             className="w-full min-w-0"
           >
-            {/* Outer glow wrapper */}
             <div className="relative w-full min-w-0">
-              {/* Animated gradient halo */}
               <div className="absolute -inset-[1px] rounded-2xl bg-gradient-to-br from-primary/40 via-accent/30 to-info/40 opacity-70 blur-md pointer-events-none" />
               <div className="absolute -inset-[1px] rounded-2xl bg-gradient-to-br from-primary/60 via-accent/40 to-info/60 pointer-events-none" />
 
@@ -142,10 +152,6 @@ export function HeroSection() {
                               bg-gradient-to-br from-card/95 via-card/90 to-secondary/80
                               dark:from-[hsl(222_40%_10%)]/95 dark:via-[hsl(222_40%_8%)]/90 dark:to-[hsl(222_40%_6%)]/95
                               backdrop-blur-2xl border border-border/60 shadow-[0_20px_60px_-15px_hsl(var(--primary)/0.35)]">
-                {/* Decorative corner accents */}
-                <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
-                <div className="absolute bottom-0 left-0 w-32 h-32 bg-accent/10 rounded-full blur-3xl pointer-events-none" />
-
                 <div className="relative flex items-center gap-2 mb-1">
                   <div className="w-2.5 h-2.5 rounded-full bg-destructive/70 shadow-[0_0_8px_hsl(var(--destructive)/0.6)]" />
                   <div className="w-2.5 h-2.5 rounded-full bg-warning/70 shadow-[0_0_8px_hsl(var(--warning)/0.6)]" />
@@ -153,7 +159,6 @@ export function HeroSection() {
                   <span className="ml-2 text-[11px] sm:text-xs font-mono text-muted-foreground tracking-wider uppercase">try it now</span>
                 </div>
 
-                {/* URL Input + Button - stacks on mobile */}
                 <div className="relative flex flex-col sm:flex-row gap-2 sm:gap-2 w-full min-w-0">
                   <div className="flex-1 min-w-0 flex items-center gap-2 rounded-xl border-2 border-border/70 bg-background/60 dark:bg-background/40 px-3 py-3 sm:py-2.5 focus-within:border-primary/60 focus-within:shadow-[0_0_0_3px_hsl(var(--primary)/0.15)] transition-all">
                     <Link2 className="w-4 h-4 text-primary shrink-0" />
@@ -176,7 +181,6 @@ export function HeroSection() {
                   </Button>
                 </div>
 
-                {/* Result */}
                 {shortened && (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
@@ -207,11 +211,12 @@ export function HeroSection() {
                     <p className="text-xs text-muted-foreground mb-2">
                       Sign up to save links, view analytics & generate custom QR codes.
                     </p>
-                    <Link to="https://accounts.www.linkforge.website/sign-in">
+                    {/* ✅ FIXED: Direct Clerk sign-in URL */}
+                    <a href="https://accounts.www.linkforge.website/sign-in">
                       <Button variant="hero" size="sm">
                         Sign Up Free <ArrowRight className="w-3 h-3" />
                       </Button>
-                    </Link>
+                    </a>
                   </motion.div>
                 )}
 
