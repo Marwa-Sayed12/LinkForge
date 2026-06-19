@@ -7,8 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.4"
   }
@@ -75,6 +73,7 @@ export type Database = {
           password_hash: string | null
           qr_settings: Json | null
           short_code: string
+          short_url: string | null  // ✅ ADDED THIS
           tiny_url: string | null
           title: string | null
           updated_at: string
@@ -90,6 +89,7 @@ export type Database = {
           password_hash?: string | null
           qr_settings?: Json | null
           short_code: string
+          short_url?: string | null  // ✅ ADDED THIS
           tiny_url?: string | null
           title?: string | null
           updated_at?: string
@@ -105,6 +105,7 @@ export type Database = {
           password_hash?: string | null
           qr_settings?: Json | null
           short_code?: string
+          short_url?: string | null  // ✅ ADDED THIS
           tiny_url?: string | null
           title?: string | null
           updated_at?: string
