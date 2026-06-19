@@ -1,5 +1,6 @@
 import { useUser, useClerk } from "@clerk/clerk-react";
 import { createContext, useContext, useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AuthContextValue {
   user: any | null;
@@ -15,48 +16,72 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
   const { isLoaded, user: clerkUser } = useUser();
-  const { signOut: clerkSignOut } = useClerk();
+  const { signOut: clerkSignOut, redirectToSignIn } = useClerk();
   const [loading, setLoading] = useState(true);
-  
-  // Transform Clerk user into a consistent format for your app
   const [user, setUser] = useState<any | null>(null);
 
+  // Sync Clerk user with Supabase profile
   useEffect(() => {
-    if (isLoaded) {
+    if (isLoaded && clerkUser) {
+      const email = clerkUser.emailAddresses?.[0]?.emailAddress || 
+                    clerkUser.primaryEmailAddress?.emailAddress || 
+                    null;
+      
+      // Create or update profile in Supabase
+      const syncProfile = async () => {
+        try {
+          const { data: existingProfile } = await supabase
+            .from("profiles")
+            .select("user_id")
+            .eq("user_id", clerkUser.id)
+            .maybeSingle();
+
+          if (!existingProfile) {
+            await supabase.from("profiles").insert({
+              user_id: clerkUser.id,
+              display_name: clerkUser.fullName || clerkUser.firstName || email?.split('@')[0] || "User",
+              email: email,
+              avatar_url: clerkUser.imageUrl || null,
+            });
+          }
+        } catch (error) {
+          console.error("Error syncing profile:", error);
+        }
+      };
+
+      syncProfile();
+
+      // Format user for app
+      const firstName = clerkUser.firstName || 
+                        clerkUser.fullName?.split(' ')[0] || 
+                        email?.split('@')[0] || 
+                        null;
+      
+      const lastName = clerkUser.lastName || 
+                       (clerkUser.fullName?.split(' ').slice(1).join(' ') || null);
+      
+      setUser({
+        id: clerkUser.id,
+        email: email,
+        firstName: firstName,
+        lastName: lastName,
+        fullName: clerkUser.fullName || `${firstName || ''} ${lastName || ''}`.trim(),
+        imageUrl: clerkUser.imageUrl,
+        initials: firstName ? firstName.charAt(0).toUpperCase() : (email?.charAt(0).toUpperCase() || "U"),
+      });
       setLoading(false);
-      if (clerkUser) {
-        // Extract user data in a consistent format
-        const email = clerkUser.emailAddresses?.[0]?.emailAddress || 
-                      clerkUser.primaryEmailAddress?.emailAddress || 
-                      null;
-        
-        const firstName = clerkUser.firstName || 
-                          clerkUser.fullName?.split(' ')[0] || 
-                          email?.split('@')[0] || 
-                          null;
-        
-        const lastName = clerkUser.lastName || 
-                         (clerkUser.fullName?.split(' ').slice(1).join(' ') || null);
-        
-        setUser({
-          id: clerkUser.id,
-          email: email,
-          firstName: firstName,
-          lastName: lastName,
-          fullName: clerkUser.fullName || `${firstName || ''} ${lastName || ''}`.trim(),
-          imageUrl: clerkUser.imageUrl,
-          initials: firstName ? firstName.charAt(0).toUpperCase() : (email?.charAt(0).toUpperCase() || "U"),
-        });
-      } else {
-        setUser(null);
-      }
+    } else if (isLoaded && !clerkUser) {
+      setUser(null);
+      setLoading(false);
     }
   }, [isLoaded, clerkUser]);
 
+  // Google Sign-In - Redirect to Clerk with return URL
   const signInWithGoogle = async () => {
     try {
-      sessionStorage.setItem("redirect_after_login", "/dashboard");
-      window.location.href = "https://accounts.www.linkforge.website/sign-in";
+      redirectToSignIn({
+        redirectUrl: `${window.location.origin}/dashboard`,
+      });
     } catch (error) {
       console.error("Google sign in failed:", error);
     }
@@ -65,8 +90,7 @@ export function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
   const signUp = async (email: string, password: string) => {
     try {
       sessionStorage.setItem("clerk_signup_email", email);
-      sessionStorage.setItem("redirect_after_login", "/dashboard");
-      window.location.href = "https://accounts.www.linkforge.website/sign-up";
+      window.location.href = `https://accounts.www.linkforge.website/sign-up?redirect_url=${encodeURIComponent(window.location.origin + "/dashboard")}`;
       return { error: null };
     } catch (err: any) {
       return { error: new Error(err.message || "Sign up failed") };
@@ -76,8 +100,7 @@ export function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
   const signIn = async (email: string, password: string) => {
     try {
       sessionStorage.setItem("clerk_signin_email", email);
-      sessionStorage.setItem("redirect_after_login", "/dashboard");
-      window.location.href = "https://accounts.www.linkforge.website/sign-in";
+      window.location.href = `https://accounts.www.linkforge.website/sign-in?redirect_url=${encodeURIComponent(window.location.origin + "/dashboard")}`;
       return { error: null };
     } catch (err: any) {
       return { error: new Error(err.message || "Sign in failed") };
@@ -87,7 +110,7 @@ export function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
   const resetPassword = async (email: string) => {
     try {
       sessionStorage.setItem("clerk_reset_email", email);
-      window.location.href = "https://accounts.www.linkforge.website/sign-in#/reset-password";
+      window.location.href = `https://accounts.www.linkforge.website/sign-in#/reset-password?redirect_url=${encodeURIComponent(window.location.origin + "/dashboard")}`;
       return { error: null };
     } catch (err: any) {
       return { error: new Error(err.message || "Password reset failed") };
