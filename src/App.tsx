@@ -56,7 +56,7 @@ const App = () => (
                   <Route path="/about" element={<About />} />
                   <Route path="/reset-password" element={<ResetPassword />} />
                   <Route
-                    path="/dashboard/*"
+                    path="/dashboard/*" 
                     element={
                       <ProtectedRoute> 
                         <Dashboard />
