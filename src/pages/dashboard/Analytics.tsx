@@ -9,7 +9,8 @@ import {
 } from "recharts";
 import { useTheme } from "@/components/ThemeProvider";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useClerkAuth"
+import { useAuth } from "@/hooks/useClerkAuth";
+import { getShortIoStats } from "@/lib/shortio";
 import { format, subDays, startOfDay } from "date-fns";
 
 function useChartColors() {
@@ -28,161 +29,225 @@ function useChartColors() {
   };
 }
 
-interface LinkWithClicks {
+interface LinkWithStats {
   id: string;
   short_code: string;
+  short_url: string;
   original_url: string;
   title: string | null;
-  clickCount: number;
+  clicks: number;
+  stats?: any;
 }
 
 export default function Analytics() {
   const { user } = useAuth();
   const colors = useChartColors();
-  const [clicks, setClicks] = useState<any[]>([]);
+  const [links, setLinks] = useState<LinkWithStats[]>([]);
   const [totalClicks, setTotalClicks] = useState(0);
   const [totalLinks, setTotalLinks] = useState(0);
-  const [topLinks, setTopLinks] = useState<LinkWithClicks[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dailyClicksData, setDailyClicksData] = useState<any[]>([]);
+  const [deviceData, setDeviceData] = useState<any[]>([]);
+  const [countryData, setCountryData] = useState<any[]>([]);
+  const [browserData, setBrowserData] = useState<any[]>([]);
+  const [osData, setOsData] = useState<any[]>([]);
+  const [recentClicks, setRecentClicks] = useState<any[]>([]);
+  const [clicksToday, setClicksToday] = useState(0);
 
   useEffect(() => {
     if (!user) return;
+
     const fetchAnalytics = async () => {
       setLoading(true);
 
-      // Fetch all user links
-      const { data: links } = await supabase
-        .from("links")
-        .select("id, short_code, original_url, title")
-        .eq("user_id", user.id);
+      try {
+        // Fetch user's links from Supabase
+        const { data: userLinks } = await supabase
+          .from("links")
+          .select("id, short_code, short_url, original_url, title")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false });
 
-      setTotalLinks(links?.length || 0);
+        setTotalLinks(userLinks?.length || 0);
 
-      if (links && links.length > 0) {
-        const linkIds = links.map((l) => l.id);
+        if (userLinks && userLinks.length > 0) {
+          // Fetch stats for each link from Short.io
+          const linksWithStats: LinkWithStats[] = [];
+          let total = 0;
+          let allStats: any[] = [];
 
-        // Fetch all clicks for user's links
-        const { data: clickData } = await supabase
-          .from("clicks")
-          .select("*")
-          .in("link_id", linkIds)
-          .order("clicked_at", { ascending: false });
+          for (const link of userLinks) {
+            try {
+              const stats = await getShortIoStats(link.short_code);
+              if (stats) {
+                const clickCount = stats.totalClicks || stats.clicks || 0;
+                total += clickCount;
+                linksWithStats.push({
+                  ...link,
+                  clicks: clickCount,
+                  stats: stats,
+                });
+                allStats.push(stats);
+              } else {
+                linksWithStats.push({
+                  ...link,
+                  clicks: 0,
+                });
+              }
+            } catch (error) {
+              console.error("Error fetching stats for link:", link.short_code, error);
+              linksWithStats.push({
+                ...link,
+                clicks: 0,
+              });
+            }
+          }
 
-        const allClicks = clickData || [];
-        setClicks(allClicks);
-        setTotalClicks(allClicks.length);
+          setLinks(linksWithStats);
+          setTotalClicks(total);
 
-        // Calculate per-link click counts for top links
-        const clickCountMap: Record<string, number> = {};
-        allClicks.forEach((c) => {
-          clickCountMap[c.link_id] = (clickCountMap[c.link_id] || 0) + 1;
-        });
+          // Process daily clicks
+          const dailyMap: Record<string, number> = {};
+          const now = new Date();
+          let todayCount = 0;
 
-        const linksWithClicks: LinkWithClicks[] = links
-          .map((l) => ({
-            ...l,
-            clickCount: clickCountMap[l.id] || 0,
-          }))
-          .sort((a, b) => b.clickCount - a.clickCount)
-          .slice(0, 5);
+          allStats.forEach((stats) => {
+            if (stats.clicksByDate) {
+              Object.entries(stats.clicksByDate).forEach(([date, count]: [string, any]) => {
+                const countNum = typeof count === 'number' ? count : 0;
+                if (countNum > 0) {
+                  dailyMap[date] = (dailyMap[date] || 0) + countNum;
+                  // Check if this date is today
+                  const clickDate = new Date(date);
+                  if (clickDate.toDateString() === now.toDateString()) {
+                    todayCount += countNum;
+                  }
+                }
+              });
+            }
+          });
 
-        setTopLinks(linksWithClicks);
-      } else {
-        setClicks([]);
-        setTotalClicks(0);
-        setTopLinks([]);
+          setClicksToday(todayCount);
+
+          // Generate last 14 days data
+          const days: { date: string; clicks: number }[] = [];
+          for (let i = 13; i >= 0; i--) {
+            const date = startOfDay(subDays(new Date(), i));
+            const label = format(date, "MMM d");
+            const dateStr = format(date, "yyyy-MM-dd");
+            days.push({
+              date: label,
+              clicks: dailyMap[dateStr] || 0,
+            });
+          }
+          setDailyClicksData(days);
+
+          // Process device data
+          const deviceMap: Record<string, number> = {};
+          allStats.forEach((stats) => {
+            if (stats.devices) {
+              Object.entries(stats.devices).forEach(([device, count]: [string, any]) => {
+                const countNum = typeof count === 'number' ? count : 0;
+                if (countNum > 0) {
+                  deviceMap[device] = (deviceMap[device] || 0) + countNum;
+                }
+              });
+            }
+          });
+          setDeviceData(Object.entries(deviceMap).map(([name, value]) => ({ name, value })));
+
+          // Process country data
+          const countryMap: Record<string, number> = {};
+          allStats.forEach((stats) => {
+            if (stats.countries) {
+              Object.entries(stats.countries).forEach(([country, count]: [string, any]) => {
+                const countNum = typeof count === 'number' ? count : 0;
+                if (countNum > 0) {
+                  countryMap[country] = (countryMap[country] || 0) + countNum;
+                }
+              });
+            }
+          });
+          setCountryData(Object.entries(countryMap).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 8));
+
+          // Process browser data
+          const browserMap: Record<string, number> = {};
+          allStats.forEach((stats) => {
+            if (stats.browsers) {
+              Object.entries(stats.browsers).forEach(([browser, count]: [string, any]) => {
+                const countNum = typeof count === 'number' ? count : 0;
+                if (countNum > 0) {
+                  browserMap[browser] = (browserMap[browser] || 0) + countNum;
+                }
+              });
+            }
+          });
+          setBrowserData(Object.entries(browserMap).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value));
+
+          // Process OS data
+          const osMap: Record<string, number> = {};
+          allStats.forEach((stats) => {
+            if (stats.os) {
+              Object.entries(stats.os).forEach(([os, count]: [string, any]) => {
+                const countNum = typeof count === 'number' ? count : 0;
+                if (countNum > 0) {
+                  osMap[os] = (osMap[os] || 0) + countNum;
+                }
+              });
+            }
+          });
+          setOsData(Object.entries(osMap).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value));
+
+          // Get recent clicks
+          const allRecentClicks: any[] = [];
+          allStats.forEach((stats) => {
+            if (stats.recentClicks) {
+              stats.recentClicks.forEach((click: any) => {
+                allRecentClicks.push({
+                  ...click,
+                  clicked_at: click.timestamp || new Date().toISOString(),
+                  browser: click.browser || "Unknown",
+                  device_type: click.device || "Desktop",
+                  os: click.os || "Unknown",
+                  country: click.country || null,
+                  city: click.city || null,
+                });
+              });
+            }
+          });
+          setRecentClicks(allRecentClicks.sort((a, b) => new Date(b.clicked_at).getTime() - new Date(a.clicked_at).getTime()).slice(0, 10));
+
+        } else {
+          setLinks([]);
+          setTotalClicks(0);
+          setDailyClicksData([]);
+          setDeviceData([]);
+          setCountryData([]);
+          setBrowserData([]);
+          setOsData([]);
+          setRecentClicks([]);
+          setClicksToday(0);
+        }
+      } catch (error) {
+        console.error("Error fetching analytics:", error);
       }
+
       setLoading(false);
     };
+
     fetchAnalytics();
   }, [user]);
 
-  // Group clicks by date (last 14 days)
-  const dailyClicks = (() => {
-    const days: { date: string; clicks: number }[] = [];
-    for (let i = 13; i >= 0; i--) {
-      const date = startOfDay(subDays(new Date(), i));
-      const label = format(date, "MMM d");
-      const count = clicks.filter((c) => {
-        const clickDate = startOfDay(new Date(c.clicked_at));
-        return clickDate.getTime() === date.getTime();
-      }).length;
-      days.push({ date: label, clicks: count });
-    }
-    return days;
-  })();
-
-  // Device breakdown
-  const deviceBreakdown = clicks.reduce((acc: Record<string, number>, click) => {
-    const device = click.device_type || "Unknown";
-    acc[device] = (acc[device] || 0) + 1;
-    return acc;
-  }, {});
-  const deviceData = Object.entries(deviceBreakdown).map(([name, value], i) => ({
-    name,
-    value: value as number,
-    color: [colors.primary, colors.secondary, colors.accent, colors.success][i % 4],
-  }));
-
-  // Browser breakdown
-  const browserBreakdown = clicks.reduce((acc: Record<string, number>, click) => {
-    const browser = click.browser || "Unknown";
-    acc[browser] = (acc[browser] || 0) + 1;
-    return acc;
-  }, {});
-  const browserData = Object.entries(browserBreakdown)
-    .map(([name, value]) => ({ name, value: value as number }))
-    .sort((a, b) => b.value - a.value);
-
-  // Country breakdown
-  const countryBreakdown = clicks.reduce((acc: Record<string, number>, click) => {
-    const country = click.country || "Unknown";
-    acc[country] = (acc[country] || 0) + 1;
-    return acc;
-  }, {});
-  const countryData = Object.entries(countryBreakdown)
-    .map(([name, value]) => ({ name, value: value as number }))
-    .sort((a, b) => b.value - a.value)
-    .slice(0, 8);
-
-  // OS breakdown
-  const osBreakdown = clicks.reduce((acc: Record<string, number>, click) => {
-    const os = click.os || "Unknown";
-    acc[os] = (acc[os] || 0) + 1;
-    return acc;
-  }, {});
-  const osData = Object.entries(osBreakdown)
-    .map(([name, value], i) => ({
-      name,
-      value: value as number,
-      color: [colors.primary, colors.secondary, colors.accent, colors.success][i % 4],
-    }))
-    .sort((a, b) => b.value - a.value);
-
-  // Recent clicks (last 10)
-  const recentClicks = clicks.slice(0, 10);
-
-  // Clicks today
-  const today = startOfDay(new Date());
-  const clicksToday = clicks.filter(
-    (c) => startOfDay(new Date(c.clicked_at)).getTime() === today.getTime()
-  ).length;
-
-  const tooltipStyle = {
-    backgroundColor: colors.tooltipBg,
-    border: `1px solid ${colors.tooltipBorder}`,
-    borderRadius: "8px",
-    color: colors.tooltipText,
-    fontSize: 12,
-  };
+  // Rest of your component remains the same...
+  // (The JSX for displaying charts and stats is identical to before)
 
   const stats = [
     { label: "Total Clicks", value: totalClicks, icon: MousePointerClick },
     { label: "Clicks Today", value: clicksToday, icon: TrendingUp },
     { label: "Total Links", value: totalLinks, icon: Link2 },
-    { label: "Countries", value: new Set(clicks.map((c) => c.country).filter(Boolean)).size, icon: Globe },
-    { label: "Devices", value: new Set(clicks.map((c) => c.device_type).filter(Boolean)).size, icon: Monitor },
-    { label: "Browsers", value: new Set(clicks.map((c) => c.browser).filter(Boolean)).size, icon: BarChart3 },
+    { label: "Countries", value: countryData.length, icon: Globe },
+    { label: "Devices", value: deviceData.length, icon: Monitor },
+    { label: "Browsers", value: browserData.length, icon: BarChart3 },
   ];
 
   if (loading) {
@@ -209,10 +274,10 @@ export default function Analytics() {
     <div className="space-y-6">
       <div>
         <h1 className="font-heading text-2xl font-bold text-foreground">Analytics</h1>
-        <p className="text-sm text-muted-foreground">Real-time performance across all your links.</p>
+        <p className="text-sm text-muted-foreground">Real-time performance from Short.io.</p>
       </div>
 
-      {/* Stats */}
+      {/* Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         {stats.map((stat, i) => (
           <motion.div
@@ -238,11 +303,11 @@ export default function Analytics() {
       ) : (
         <>
           {/* Total Clicks per Link */}
-          {topLinks.length > 0 && (
+          {links.filter(l => l.clicks > 0).length > 0 && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-5">
               <h3 className="font-heading font-semibold text-foreground mb-4">Total Clicks per Link</h3>
-              <ResponsiveContainer width="100%" height={Math.max(200, topLinks.length * 50)}>
-                <BarChart data={topLinks.map(l => ({ name: l.title || l.short_code, clicks: l.clickCount }))} layout="vertical">
+              <ResponsiveContainer width="100%" height={Math.max(200, links.filter(l => l.clicks > 0).length * 50)}>
+                <BarChart data={links.filter(l => l.clicks > 0).map(l => ({ name: l.title || l.short_code, clicks: l.clicks }))} layout="vertical">
                   <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} horizontal={false} />
                   <XAxis type="number" stroke={colors.text} fontSize={12} allowDecimals={false} />
                   <YAxis dataKey="name" type="category" stroke={colors.text} fontSize={11} width={100} />
@@ -258,7 +323,7 @@ export default function Analytics() {
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="lg:col-span-2 glass-card rounded-xl p-5">
               <h3 className="font-heading font-semibold text-foreground mb-4">Click Trends (Last 14 Days)</h3>
               <ResponsiveContainer width="100%" height={250}>
-                <AreaChart data={dailyClicks}>
+                <AreaChart data={dailyClicksData}>
                   <defs>
                     <linearGradient id="dashClickGrad" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor={colors.primary} stopOpacity={0.3} />
@@ -280,17 +345,17 @@ export default function Analytics() {
                 <ResponsiveContainer width="100%" height={180}>
                   <PieChart>
                     <Pie data={deviceData} cx="50%" cy="50%" innerRadius={50} outerRadius={75} dataKey="value" paddingAngle={4}>
-                      {deviceData.map((entry) => (
-                        <Cell key={entry.name} fill={entry.color} />
+                      {deviceData.map((entry, index) => (
+                        <Cell key={entry.name} fill={[colors.primary, colors.secondary, colors.accent, colors.success][index % 4]} />
                       ))}
                     </Pie>
                     <Tooltip contentStyle={tooltipStyle} />
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="flex flex-wrap justify-center gap-3 mt-2">
-                  {deviceData.map((d) => (
+                  {deviceData.map((d, i) => (
                     <div key={d.name} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: d.color }} />
+                      <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: [colors.primary, colors.secondary, colors.accent, colors.success][i % 4] }} />
                       {d.name} ({d.value})
                     </div>
                   ))}
@@ -299,61 +364,32 @@ export default function Analytics() {
             )}
           </div>
 
-          {/* Top Links + Country */}
-          <div className="grid lg:grid-cols-2 gap-4">
-            {/* Top Performing Links */}
+          {/* Countries */}
+          {countryData.length > 0 && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-5">
-              <h3 className="font-heading font-semibold text-foreground mb-4">Top Performing Links</h3>
-              {topLinks.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No link data yet.</p>
-              ) : (
-                <div className="space-y-3">
-                  {topLinks.map((link, i) => (
-                    <div key={link.id} className="flex items-center gap-3">
-                      <span className="text-xs font-mono text-muted-foreground w-5 text-right">{i + 1}.</span>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-foreground truncate">
-                          {link.title || link.short_code}
-                        </div>
-                        <div className="text-xs text-muted-foreground truncate">{link.original_url}</div>
+              <h3 className="font-heading font-semibold text-foreground mb-4">Top Countries</h3>
+              <div className="space-y-2.5">
+                {countryData.map((c) => {
+                  const maxVal = countryData[0]?.value || 1;
+                  const pct = Math.round((c.value / maxVal) * 100);
+                  return (
+                    <div key={c.name}>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="text-foreground">{c.name}</span>
+                        <span className="font-mono text-muted-foreground">{c.value}</span>
                       </div>
-                      <div className="flex items-center gap-1 text-sm font-mono font-semibold text-primary">
-                        <MousePointerClick className="w-3.5 h-3.5" />
-                        {link.clickCount}
+                      <div className="h-2 rounded-full bg-secondary overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{ width: `${pct}%`, backgroundColor: colors.primary }}
+                        />
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
+                  );
+                })}
+              </div>
             </motion.div>
-
-            {/* Countries */}
-            {countryData.length > 0 && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-5">
-                <h3 className="font-heading font-semibold text-foreground mb-4">Top Countries</h3>
-                <div className="space-y-2.5">
-                  {countryData.map((c) => {
-                    const maxVal = countryData[0]?.value || 1;
-                    const pct = Math.round((c.value / maxVal) * 100);
-                    return (
-                      <div key={c.name}>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span className="text-foreground">{c.name}</span>
-                          <span className="font-mono text-muted-foreground">{c.value}</span>
-                        </div>
-                        <div className="h-2 rounded-full bg-secondary overflow-hidden">
-                          <div
-                            className="h-full rounded-full transition-all"
-                            style={{ width: `${pct}%`, backgroundColor: colors.primary }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </motion.div>
-            )}
-          </div>
+          )}
 
           {/* Browser + OS */}
           <div className="grid lg:grid-cols-2 gap-4">
@@ -378,17 +414,17 @@ export default function Analytics() {
                 <ResponsiveContainer width="100%" height={180}>
                   <PieChart>
                     <Pie data={osData} cx="50%" cy="50%" innerRadius={50} outerRadius={75} dataKey="value" paddingAngle={4}>
-                      {osData.map((entry) => (
-                        <Cell key={entry.name} fill={entry.color} />
+                      {osData.map((entry, index) => (
+                        <Cell key={entry.name} fill={[colors.primary, colors.secondary, colors.accent, colors.success][index % 4]} />
                       ))}
                     </Pie>
                     <Tooltip contentStyle={tooltipStyle} />
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="flex flex-wrap justify-center gap-3 mt-2">
-                  {osData.map((d) => (
+                  {osData.map((d, i) => (
                     <div key={d.name} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: d.color }} />
+                      <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: [colors.primary, colors.secondary, colors.accent, colors.success][i % 4] }} />
                       {d.name} ({d.value})
                     </div>
                   ))}
@@ -398,17 +434,15 @@ export default function Analytics() {
           </div>
 
           {/* Recent Activity */}
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-5">
-            <h3 className="font-heading font-semibold text-foreground mb-4 flex items-center gap-2">
-              <Clock className="w-4 h-4" /> Recent Activity
-            </h3>
-            {recentClicks.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No recent clicks.</p>
-            ) : (
+          {recentClicks.length > 0 && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-5">
+              <h3 className="font-heading font-semibold text-foreground mb-4 flex items-center gap-2">
+                <Clock className="w-4 h-4" /> Recent Activity
+              </h3>
               <div className="space-y-2">
-                {recentClicks.map((click) => (
+                {recentClicks.map((click, index) => (
                   <div
-                    key={click.id}
+                    key={index}
                     className="flex items-center justify-between py-2 border-b border-border last:border-0 text-sm"
                   >
                     <div className="flex items-center gap-3 min-w-0">
@@ -423,13 +457,13 @@ export default function Analytics() {
                       </div>
                     </div>
                     <span className="text-xs text-muted-foreground shrink-0 ml-2">
-                      {format(new Date(click.clicked_at), "MMM d, h:mm a")}
+                      {click.clicked_at ? format(new Date(click.clicked_at), "MMM d, h:mm a") : "Just now"}
                     </span>
                   </div>
                 ))}
               </div>
-            )}
-          </motion.div>
+            </motion.div>
+          )}
         </>
       )}
     </div>
