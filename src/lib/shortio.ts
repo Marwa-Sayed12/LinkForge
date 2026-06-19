@@ -25,26 +25,22 @@ export async function createShortLink(originalUrl: string, customSlug?: string) 
   }
 }
 
-export async function getLinkStats(shortCode: string) {
+// Get stats from Short.io using your secret key
+export async function getShortIoStats(shortCode: string) {
   try {
-    // Short.io API for stats (requires secret key, use backend)
     const response = await fetch(`https://api.short.io/links/${shortCode}/stats`, {
       headers: {
-        'Authorization': 'YOUR_SECRET_API_KEY' // Use your secret key here
+        'Authorization': 'sk_K2F0tqEH8xIJSNJx' 
       }
     });
     if (!response.ok) throw new Error('Failed to fetch stats');
     return response.json();
   } catch (error) {
-    console.error('Error fetching stats:', error);
+    console.error('Error fetching Short.io stats:', error);
     return null;
   }
 }
 
 export function getQRCodeUrl(shortCode: string) {
   return `https://api.short.io/links/${shortCode}/qrcode`;
-}
-
-export function generateQRCode(shortCode: string) {
-  return getQRCodeUrl(shortCode);
 }
