@@ -62,6 +62,7 @@ const App = () => (
                         <Dashboard />
                       </ProtectedRoute>
                     }
+                    
                   />
                   <Route path="/r/:shortCode" element={<Redirect />} />
                   <Route path="*" element={<NotFound />} />
