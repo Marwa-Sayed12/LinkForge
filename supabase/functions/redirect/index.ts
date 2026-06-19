@@ -14,7 +14,7 @@ Deno.serve(async (req) => {
     const url = new URL(req.url);
     const shortCode = url.pathname.substring(1);
     
-    console.log("Short code:", shortCode);
+    console.log("Redirecting short code:", shortCode);
 
     if (!shortCode || shortCode === "favicon.ico") {
       return new Response(JSON.stringify({ error: "Missing short code" }), {
@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Parse user agent for analytics
+    // Parse user agent
     const userAgent = req.headers.get("user-agent") || "";
     let browser = "Unknown", os = "Unknown", device_type = "Desktop";
     
@@ -72,8 +72,8 @@ Deno.serve(async (req) => {
     const city = req.headers.get("x-city") || req.headers.get("cf-ipcity") || null;
     const referrer = req.headers.get("referer") || null;
 
-    // Record the click (don't await to speed up redirect)
-    supabase.from("clicks").insert({
+    // Record the click
+    await supabase.from("clicks").insert({
       link_id: link.id,
       browser,
       os,
@@ -83,10 +83,6 @@ Deno.serve(async (req) => {
       ip_address: ip,
       user_agent: userAgent,
       referrer,
-    }).then(() => {
-      console.log("Click recorded");
-    }).catch((err) => {
-      console.error("Failed to record click:", err);
     });
 
     // Return 302 redirect

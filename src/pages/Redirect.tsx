@@ -8,11 +8,13 @@ export default function Redirect() {
 
   useEffect(() => {
     if (!shortCode) return;
+    
+    // Use your own edge function for tracking
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    const redirectUrl = `${supabaseUrl}/functions/v1/redirect?code=${encodeURIComponent(shortCode)}`;
+    const redirectUrl = `${supabaseUrl}/functions/v1/redirect/${shortCode}`;
     window.location.href = redirectUrl;
 
-    // Fallback timeout in case redirect fails
+    // Fallback timeout
     const timer = setTimeout(() => {
       setError("Link not found or has expired.");
     }, 5000);

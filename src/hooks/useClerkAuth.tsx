@@ -16,7 +16,7 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
   const { isLoaded, user: clerkUser } = useUser();
-  const { signOut: clerkSignOut, redirectToSignIn } = useClerk();
+  const { signOut: clerkSignOut, openSignIn } = useClerk();
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any | null>(null);
 
@@ -27,7 +27,6 @@ export function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
                     clerkUser.primaryEmailAddress?.emailAddress || 
                     null;
       
-      // Create or update profile in Supabase
       const syncProfile = async () => {
         try {
           const { data: existingProfile } = await supabase
@@ -51,7 +50,6 @@ export function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
 
       syncProfile();
 
-      // Format user for app
       const firstName = clerkUser.firstName || 
                         clerkUser.fullName?.split(' ')[0] || 
                         email?.split('@')[0] || 
@@ -76,14 +74,18 @@ export function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [isLoaded, clerkUser]);
 
-  // Google Sign-In - Redirect to Clerk with return URL
+  // Google Sign-In - Use openSignIn with afterSignInUrl
   const signInWithGoogle = async () => {
     try {
-      redirectToSignIn({
-        redirectUrl: `${window.location.origin}/dashboard`,
+      await openSignIn({
+        afterSignInUrl: "/dashboard",
+        afterSignUpUrl: "/dashboard",
+        redirectUrl: "/dashboard",
       });
     } catch (error) {
       console.error("Google sign in failed:", error);
+      // Fallback: direct to Clerk sign-in page with redirect
+      window.location.href = `https://accounts.www.linkforge.website/sign-in?redirect_url=${encodeURIComponent(window.location.origin + "/dashboard")}`;
     }
   };
 
