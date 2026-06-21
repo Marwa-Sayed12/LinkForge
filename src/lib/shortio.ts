@@ -25,16 +25,21 @@ export async function createShortLink(originalUrl: string, customSlug?: string) 
   }
 }
 
-// Get stats from Short.io using your secret key
+// ✅ FIXED: Use your Vercel API proxy (NO CORS!)
 export async function getShortIoStats(shortCode: string) {
   try {
-    const response = await fetch(`https://api.short.io/links/${shortCode}/stats`, {
-      headers: {
-        'Authorization': 'sk_K2F0tqEH8xIJSNJx' 
-      }
-    });
-    if (!response.ok) throw new Error('Failed to fetch stats');
-    return response.json();
+    // Use your Vercel API endpoint - NOT direct Short.io
+    const response = await fetch(`/api/shortio-stats/${shortCode}`);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('API error:', errorText);
+      throw new Error('Failed to fetch stats');
+    }
+    
+    const data = await response.json();
+    console.log('Stats data:', data);
+    return data;
   } catch (error) {
     console.error('Error fetching Short.io stats:', error);
     return null;
