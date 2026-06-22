@@ -1,8 +1,12 @@
-import { VercelRequest, VercelResponse } from '@vercel/node';
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+
+// ✅ Add this export to specify Node.js runtime
+export const config = {
+  runtime: 'nodejs22.x',
+};
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Enable CORS
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
@@ -25,6 +29,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Short.io API error (${response.status}):`, errorText);
       throw new Error(`Short.io API error: ${response.status}`);
     }
 
@@ -32,6 +38,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json(data);
   } catch (error) {
     console.error('Error fetching Short.io stats:', error);
-    return res.status(500).json({ error: 'Failed to fetch stats' });
+    return res.status(500).json({ 
+      error: 'Failed to fetch stats',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 }
