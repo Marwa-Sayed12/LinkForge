@@ -11,10 +11,11 @@ import {
 import { useTheme } from "@/components/ThemeProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useClerkAuth";
-import { getShortIoStats } from "@/lib/shortio-client"; // Use the new client
+import { getShortIoStats } from "@/lib/shortio-client"; 
 import { format, subDays, startOfDay, formatDistance } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+
 
 // Type definitions
 interface ShortIoStats {
