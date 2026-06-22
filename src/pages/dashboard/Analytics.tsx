@@ -61,29 +61,39 @@ export default function Analytics() {
       setLoading(true);
 
       try {
-        // Fetch user's links from Supabase
-        const { data: userLinks } = await supabase
+        // 1. Fetch user's links from Supabase (just to know which links exist)
+        const { data: userLinks, error: linksError } = await supabase
           .from("links")
-          .select("id, short_code, short_url, original_url, title")
+          .select("id, short_code, original_url, title")
           .eq("user_id", user.id)
           .order("created_at", { ascending: false });
+
+        if (linksError) {
+          console.error("Error fetching links:", linksError);
+          setLoading(false);
+          return;
+        }
 
         setTotalLinks(userLinks?.length || 0);
 
         if (userLinks && userLinks.length > 0) {
-          // Fetch stats for each link from Short.io
           const linksWithStats: LinkWithStats[] = [];
           let total = 0;
           let allStats: any[] = [];
 
+          // 2. For each link, fetch stats from Short.io API
           for (const link of userLinks) {
             try {
+              const shortUrl = `https://s.linkforge.website/${link.short_code}`;
               const stats = await getShortIoStats(link.short_code);
+              
               if (stats) {
+                // Short.io returns: { totalClicks, clicksByDate, devices, countries, browsers, os, recentClicks }
                 const clickCount = stats.totalClicks || stats.clicks || 0;
                 total += clickCount;
                 linksWithStats.push({
                   ...link,
+                  short_url: shortUrl,
                   clicks: clickCount,
                   stats: stats,
                 });
@@ -91,6 +101,7 @@ export default function Analytics() {
               } else {
                 linksWithStats.push({
                   ...link,
+                  short_url: shortUrl,
                   clicks: 0,
                 });
               }
@@ -98,6 +109,7 @@ export default function Analytics() {
               console.error("Error fetching stats for link:", link.short_code, error);
               linksWithStats.push({
                 ...link,
+                short_url: `https://s.linkforge.website/${link.short_code}`,
                 clicks: 0,
               });
             }
@@ -106,7 +118,7 @@ export default function Analytics() {
           setLinks(linksWithStats);
           setTotalClicks(total);
 
-          // Process daily clicks
+          // 3. Process daily clicks from Short.io data
           const dailyMap: Record<string, number> = {};
           const now = new Date();
           let todayCount = 0;
@@ -117,7 +129,6 @@ export default function Analytics() {
                 const countNum = typeof count === 'number' ? count : 0;
                 if (countNum > 0) {
                   dailyMap[date] = (dailyMap[date] || 0) + countNum;
-                  // Check if this date is today
                   const clickDate = new Date(date);
                   if (clickDate.toDateString() === now.toDateString()) {
                     todayCount += countNum;
@@ -142,7 +153,7 @@ export default function Analytics() {
           }
           setDailyClicksData(days);
 
-          // Process device data
+          // 4. Process device data from Short.io
           const deviceMap: Record<string, number> = {};
           allStats.forEach((stats) => {
             if (stats.devices) {
@@ -156,7 +167,7 @@ export default function Analytics() {
           });
           setDeviceData(Object.entries(deviceMap).map(([name, value]) => ({ name, value })));
 
-          // Process country data
+          // 5. Process country data from Short.io
           const countryMap: Record<string, number> = {};
           allStats.forEach((stats) => {
             if (stats.countries) {
@@ -170,7 +181,7 @@ export default function Analytics() {
           });
           setCountryData(Object.entries(countryMap).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 8));
 
-          // Process browser data
+          // 6. Process browser data from Short.io
           const browserMap: Record<string, number> = {};
           allStats.forEach((stats) => {
             if (stats.browsers) {
@@ -184,7 +195,7 @@ export default function Analytics() {
           });
           setBrowserData(Object.entries(browserMap).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value));
 
-          // Process OS data
+          // 7. Process OS data from Short.io
           const osMap: Record<string, number> = {};
           allStats.forEach((stats) => {
             if (stats.os) {
@@ -198,7 +209,7 @@ export default function Analytics() {
           });
           setOsData(Object.entries(osMap).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value));
 
-          // Get recent clicks
+          // 8. Get recent clicks from Short.io
           const allRecentClicks: any[] = [];
           allStats.forEach((stats) => {
             if (stats.recentClicks) {
@@ -238,9 +249,6 @@ export default function Analytics() {
     fetchAnalytics();
   }, [user]);
 
-  // Rest of your component remains the same...
-  // (The JSX for displaying charts and stats is identical to before)
-
   const stats = [
     { label: "Total Clicks", value: totalClicks, icon: MousePointerClick },
     { label: "Clicks Today", value: clicksToday, icon: TrendingUp },
@@ -270,6 +278,14 @@ export default function Analytics() {
     );
   }
 
+  const tooltipStyle = {
+    backgroundColor: colors.tooltipBg,
+    border: `1px solid ${colors.tooltipBorder}`,
+    borderRadius: "8px",
+    color: colors.tooltipText,
+    fontSize: 12,
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -277,7 +293,6 @@ export default function Analytics() {
         <p className="text-sm text-muted-foreground">Real-time performance from Short.io.</p>
       </div>
 
-      {/* Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         {stats.map((stat, i) => (
           <motion.div
@@ -302,7 +317,6 @@ export default function Analytics() {
         </div>
       ) : (
         <>
-          {/* Total Clicks per Link */}
           {links.filter(l => l.clicks > 0).length > 0 && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-5">
               <h3 className="font-heading font-semibold text-foreground mb-4">Total Clicks per Link</h3>
@@ -318,7 +332,6 @@ export default function Analytics() {
             </motion.div>
           )}
 
-          {/* Click Trends + Devices */}
           <div className="grid lg:grid-cols-3 gap-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="lg:col-span-2 glass-card rounded-xl p-5">
               <h3 className="font-heading font-semibold text-foreground mb-4">Click Trends (Last 14 Days)</h3>
@@ -364,7 +377,6 @@ export default function Analytics() {
             )}
           </div>
 
-          {/* Countries */}
           {countryData.length > 0 && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-5">
               <h3 className="font-heading font-semibold text-foreground mb-4">Top Countries</h3>
@@ -391,7 +403,6 @@ export default function Analytics() {
             </motion.div>
           )}
 
-          {/* Browser + OS */}
           <div className="grid lg:grid-cols-2 gap-4">
             {browserData.length > 0 && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-5">
@@ -433,7 +444,6 @@ export default function Analytics() {
             )}
           </div>
 
-          {/* Recent Activity */}
           {recentClicks.length > 0 && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-5">
               <h3 className="font-heading font-semibold text-foreground mb-4 flex items-center gap-2">
@@ -462,7 +472,6 @@ export default function Analytics() {
                   </div>
                 ))}
               </div>
-              
             </motion.div>
           )}
         </>
