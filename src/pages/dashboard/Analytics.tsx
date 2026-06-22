@@ -2,19 +2,65 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import {
   BarChart3, MousePointerClick, Globe, Monitor, TrendingUp, Clock, Link2,
-  Download, Filter, ChevronDown, Calendar,
+  Download, Filter, ChevronDown,
 } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, BarChart, Bar, Legend,
+  PieChart, Pie, Cell,
 } from "recharts";
 import { useTheme } from "@/components/ThemeProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useClerkAuth";
-import { getShortIoStats } from "@/lib/shortio";
+import { getShortIoStats } from "@/lib/shortio-client"; // Use the new client
 import { format, subDays, startOfDay, formatDistance } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+
+// Type definitions
+interface ShortIoStats {
+  totalClicks?: number;
+  clicks?: number;
+  humanClicks?: number;
+  clicksByDate?: Record<string, number>;
+  devices?: Record<string, number>;
+  countries?: Record<string, number>;
+  browsers?: Record<string, number>;
+  os?: Record<string, number>;
+  referrers?: Record<string, number>;
+  recentClicks?: RecentClick[];
+}
+
+interface RecentClick {
+  timestamp?: string;
+  browser?: string;
+  device?: string;
+  os?: string;
+  country?: string;
+  city?: string;
+  clicked_at?: string; // Add this for compatibility
+  device_type?: string; // Add this for compatibility
+}
+
+interface DailyClickData {
+  date: string;
+  clicks: number;
+  formattedDate: string;
+}
+
+interface ChartDataItem {
+  name: string;
+  value: number;
+}
+
+interface LinkWithStats {
+  id: string;
+  short_code: string;
+  short_url: string;
+  original_url: string;
+  title: string | null;
+  clicks: number;
+  stats?: ShortIoStats;
+}
 
 function useChartColors() {
   const { resolvedTheme } = useTheme();
@@ -33,16 +79,6 @@ function useChartColors() {
   };
 }
 
-interface LinkWithStats {
-  id: string;
-  short_code: string;
-  short_url: string;
-  original_url: string;
-  title: string | null;
-  clicks: number;
-  stats?: any;
-}
-
 export default function Analytics() {
   const { user } = useAuth();
   const colors = useChartColors();
@@ -50,16 +86,16 @@ export default function Analytics() {
   const [totalClicks, setTotalClicks] = useState(0);
   const [totalLinks, setTotalLinks] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [dailyClicksData, setDailyClicksData] = useState<any[]>([]);
-  const [deviceData, setDeviceData] = useState<any[]>([]);
-  const [countryData, setCountryData] = useState<any[]>([]);
-  const [browserData, setBrowserData] = useState<any[]>([]);
-  const [osData, setOsData] = useState<any[]>([]);
-  const [recentClicks, setRecentClicks] = useState<any[]>([]);
+  const [dailyClicksData, setDailyClicksData] = useState<DailyClickData[]>([]);
+  const [deviceData, setDeviceData] = useState<ChartDataItem[]>([]);
+  const [countryData, setCountryData] = useState<ChartDataItem[]>([]);
+  const [browserData, setBrowserData] = useState<ChartDataItem[]>([]);
+  const [osData, setOsData] = useState<ChartDataItem[]>([]);
+  const [recentClicks, setRecentClicks] = useState<RecentClick[]>([]);
   const [clicksToday, setClicksToday] = useState(0);
   const [isExporting, setIsExporting] = useState(false);
   const [totalHumanClicks, setTotalHumanClicks] = useState(0);
-  const [referrerData, setReferrerData] = useState<any[]>([]);
+  const [referrerData, setReferrerData] = useState<ChartDataItem[]>([]);
 
   useEffect(() => {
     if (!user) return;
@@ -68,7 +104,6 @@ export default function Analytics() {
       setLoading(true);
 
       try {
-        // Fetch user's links from Supabase
         const { data: userLinks, error: linksError } = await supabase
           .from("links")
           .select("id, short_code, original_url, title")
@@ -87,16 +122,14 @@ export default function Analytics() {
           const linksWithStats: LinkWithStats[] = [];
           let total = 0;
           let humanTotal = 0;
-          let allStats: any[] = [];
+          const allStats: ShortIoStats[] = [];
 
-          // For each link, fetch stats from Short.io API
           for (const link of userLinks) {
             try {
               const shortUrl = `https://s.linkforge.website/${link.short_code}`;
               const stats = await getShortIoStats(link.short_code);
               
               if (stats) {
-                // ✅ Short.io API returns: totalClicks, clicksByDate, devices, countries, browsers, os, referrers
                 const clickCount = stats.totalClicks || stats.clicks || 0;
                 const humanClicks = stats.humanClicks || clickCount;
                 total += clickCount;
@@ -129,14 +162,13 @@ export default function Analytics() {
           setTotalClicks(total);
           setTotalHumanClicks(humanTotal);
 
-          // Process daily clicks
           const dailyMap: Record<string, number> = {};
           const now = new Date();
           let todayCount = 0;
 
           allStats.forEach((stats) => {
             if (stats.clicksByDate) {
-              Object.entries(stats.clicksByDate).forEach(([date, count]: [string, any]) => {
+              Object.entries(stats.clicksByDate).forEach(([date, count]) => {
                 const countNum = typeof count === 'number' ? count : 0;
                 if (countNum > 0) {
                   dailyMap[date] = (dailyMap[date] || 0) + countNum;
@@ -151,8 +183,7 @@ export default function Analytics() {
 
           setClicksToday(todayCount);
 
-          // Generate last 30 days data
-          const days: { date: string; clicks: number; formattedDate: string }[] = [];
+          const days: DailyClickData[] = [];
           for (let i = 29; i >= 0; i--) {
             const date = startOfDay(subDays(new Date(), i));
             const label = format(date, "MMM d");
@@ -165,11 +196,11 @@ export default function Analytics() {
           }
           setDailyClicksData(days);
 
-          // ✅ Process device data
+          // Process device data
           const deviceMap: Record<string, number> = {};
           allStats.forEach((stats) => {
             if (stats.devices) {
-              Object.entries(stats.devices).forEach(([device, count]: [string, any]) => {
+              Object.entries(stats.devices).forEach(([device, count]) => {
                 const countNum = typeof count === 'number' ? count : 0;
                 if (countNum > 0) {
                   deviceMap[device] = (deviceMap[device] || 0) + countNum;
@@ -184,11 +215,11 @@ export default function Analytics() {
               .slice(0, 8)
           );
 
-          // ✅ Process country data
+          // Process country data
           const countryMap: Record<string, number> = {};
           allStats.forEach((stats) => {
             if (stats.countries) {
-              Object.entries(stats.countries).forEach(([country, count]: [string, any]) => {
+              Object.entries(stats.countries).forEach(([country, count]) => {
                 const countNum = typeof count === 'number' ? count : 0;
                 if (countNum > 0) {
                   countryMap[country] = (countryMap[country] || 0) + countNum;
@@ -203,11 +234,11 @@ export default function Analytics() {
               .slice(0, 8)
           );
 
-          // ✅ Process browser data
+          // Process browser data
           const browserMap: Record<string, number> = {};
           allStats.forEach((stats) => {
             if (stats.browsers) {
-              Object.entries(stats.browsers).forEach(([browser, count]: [string, any]) => {
+              Object.entries(stats.browsers).forEach(([browser, count]) => {
                 const countNum = typeof count === 'number' ? count : 0;
                 if (countNum > 0) {
                   browserMap[browser] = (browserMap[browser] || 0) + countNum;
@@ -222,11 +253,11 @@ export default function Analytics() {
               .slice(0, 8)
           );
 
-          // ✅ Process OS data
+          // Process OS data
           const osMap: Record<string, number> = {};
           allStats.forEach((stats) => {
             if (stats.os) {
-              Object.entries(stats.os).forEach(([os, count]: [string, any]) => {
+              Object.entries(stats.os).forEach(([os, count]) => {
                 const countNum = typeof count === 'number' ? count : 0;
                 if (countNum > 0) {
                   osMap[os] = (osMap[os] || 0) + countNum;
@@ -241,11 +272,11 @@ export default function Analytics() {
               .slice(0, 8)
           );
 
-          // ✅ Process referrer data
+          // Process referrer data
           const referrerMap: Record<string, number> = {};
           allStats.forEach((stats) => {
             if (stats.referrers) {
-              Object.entries(stats.referrers).forEach(([referrer, count]: [string, any]) => {
+              Object.entries(stats.referrers).forEach(([referrer, count]) => {
                 const countNum = typeof count === 'number' ? count : 0;
                 if (countNum > 0) {
                   referrerMap[referrer] = (referrerMap[referrer] || 0) + countNum;
@@ -260,26 +291,22 @@ export default function Analytics() {
               .slice(0, 8)
           );
 
-          // ✅ Get recent clicks
-          const allRecentClicks: any[] = [];
+          // Get recent clicks
+          const allRecentClicks: RecentClick[] = [];
           allStats.forEach((stats) => {
             if (stats.recentClicks) {
-              stats.recentClicks.forEach((click: any) => {
+              stats.recentClicks.forEach((click) => {
                 allRecentClicks.push({
                   ...click,
                   clicked_at: click.timestamp || new Date().toISOString(),
-                  browser: click.browser || "Unknown",
                   device_type: click.device || "Desktop",
-                  os: click.os || "Unknown",
-                  country: click.country || null,
-                  city: click.city || null,
                 });
               });
             }
           });
           setRecentClicks(
             allRecentClicks
-              .sort((a, b) => new Date(b.clicked_at).getTime() - new Date(a.clicked_at).getTime())
+              .sort((a, b) => new Date(b.clicked_at || '').getTime() - new Date(a.clicked_at || '').getTime())
               .slice(0, 10)
           );
 
@@ -357,7 +384,6 @@ export default function Analytics() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="font-heading text-2xl md:text-3xl font-bold text-foreground">Analytics</h1>
@@ -375,7 +401,6 @@ export default function Analytics() {
         </div>
       </div>
 
-      {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {stats.map((stat, i) => (
           <motion.div
@@ -404,7 +429,6 @@ export default function Analytics() {
         </div>
       ) : (
         <>
-          {/* Clicks Chart */}
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-5">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-heading font-semibold text-foreground">Clicks Over Time</h3>
@@ -437,7 +461,6 @@ export default function Analytics() {
             </ResponsiveContainer>
           </motion.div>
 
-          {/* Top Links + Devices */}
           <div className="grid lg:grid-cols-2 gap-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-5">
               <h3 className="font-heading font-semibold text-foreground mb-4">Top Performing Links</h3>
@@ -486,19 +509,12 @@ export default function Analytics() {
                       ))}
                     </Pie>
                     <Tooltip contentStyle={tooltipStyle} />
-                    <Legend 
-                      layout="vertical" 
-                      align="right" 
-                      verticalAlign="middle"
-                      wrapperStyle={{ fontSize: 11 }}
-                    />
                   </PieChart>
                 </ResponsiveContainer>
               </motion.div>
             )}
           </div>
 
-          {/* Countries, Browsers, OS, Referrers */}
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
             {countryData.length > 0 && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-5">
@@ -605,7 +621,6 @@ export default function Analytics() {
             )}
           </div>
 
-          {/* Recent Activity */}
           {recentClicks.length > 0 && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-5">
               <h3 className="font-heading font-semibold text-foreground mb-4 flex items-center gap-2">

@@ -25,7 +25,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const response = await fetch(`https://api.short.io/links/${shortCode}/stats`, {
       headers: {
-        'Authorization': `sk_K2F0tqEH8xIJSNJx`
+        'Authorization': 'sk_K2F0tqEH8xIJSNJx'
       }
     });
 
