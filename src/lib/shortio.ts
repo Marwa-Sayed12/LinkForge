@@ -49,4 +49,5 @@ export async function getShortIoStats(shortCode: string) {
 export function getQRCodeUrl(shortCode: string) {
   return `https://api.short.io/links/${shortCode}/qrcode`;
   
+
 }
