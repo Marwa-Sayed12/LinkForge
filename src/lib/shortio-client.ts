@@ -3,52 +3,79 @@
 const SHORTIO_API_KEY = import.meta.env.VITE_SHORTIO_API_KEY;
 const SHORTIO_DOMAIN = import.meta.env.VITE_SHORTIO_DOMAIN || 's.linkforge.website';
 
+// Define types for API responses
+interface ShortIoLink {
+  id: string;
+  path: string;
+  domain: string;
+  originalURL: string;
+  title?: string;
+  clicks?: number;
+  [key: string]: unknown;
+}
+
+interface ShortIoBrowserStats {
+  score: number;
+  browser: string;
+}
+
+interface ShortIoCountryStats {
+  score: number;
+  country: string;
+  countryName: string;
+}
+
+interface ShortIoCityStats {
+  score: number;
+  city: string;
+  name: string;
+}
+
+interface ShortIoOsStats {
+  score: number;
+  os: string;
+}
+
+interface ShortIoRefererStats {
+  score: number;
+  referer: string;
+}
+
+interface ShortIoClickDataset {
+  data?: number[];
+  label?: string;
+}
+
+interface ShortIoClickStatistics {
+  datasets: ShortIoClickDataset[];
+}
+
+interface ShortIoInterval {
+  startDate: string | null;
+  endDate: string | null;
+  prevStartDate: string | null;
+  prevEndDate: string | null;
+}
+
+// Main export interface for our app
 export interface ShortIoStats {
   totalClicks?: number;
   humanClicks?: number;
   clicks?: number;
   totalClicksChange?: string;
   humanClicksChange?: string;
-  clickStatistics?: {
-    datasets: Array<{
-      data?: any[];
-      label?: string;
-    }>;
-  };
-  interval?: {
-    startDate: string | null;
-    endDate: string | null;
-    prevStartDate: string | null;
-    prevEndDate: string | null;
-  };
-  referer?: Array<{
-    score: number;
-    referer: string;
-  }>;
-  social?: Array<any>;
-  browser?: Array<{
-    score: number;
-    browser: string;
-  }>;
-  country?: Array<{
-    score: number;
-    country: string;
-    countryName: string;
-  }>;
-  city?: Array<{
-    score: number;
-    city: string;
-    name: string;
-  }>;
-  os?: Array<{
-    score: number;
-    os: string;
-  }>;
-  // Legacy fields for backward compatibility
+  clickStatistics?: ShortIoClickStatistics;
+  interval?: ShortIoInterval;
+  referer?: ShortIoRefererStats[];
+  browser?: ShortIoBrowserStats[];
+  country?: ShortIoCountryStats[];
+  city?: ShortIoCityStats[];
+  os?: ShortIoOsStats[];
+  // Legacy fields for backward compatibility with Analytics.tsx
   devices?: Record<string, number>;
   countries?: Record<string, number>;
   browsers?: Record<string, number>;
-  os?: Record<string, number>;
+  oss?: Record<string, number>;  // Changed from 'os' to avoid duplicate
   referrers?: Record<string, number>;
   recentClicks?: Array<{
     timestamp?: string;
@@ -62,7 +89,6 @@ export interface ShortIoStats {
 
 /**
  * Get the link ID from a short code
- * First, you need to get the link ID from the short code
  */
 export async function getLinkId(shortCode: string): Promise<string | null> {
   if (!SHORTIO_API_KEY) {
@@ -71,7 +97,6 @@ export async function getLinkId(shortCode: string): Promise<string | null> {
   }
 
   try {
-    // First, try to find the link by path
     const url = `https://api.short.io/api/links?domain=${SHORTIO_DOMAIN}`;
     
     const response = await fetch(url, {
@@ -87,10 +112,10 @@ export async function getLinkId(shortCode: string): Promise<string | null> {
       return null;
     }
 
-    const links = await response.json();
+    const links: ShortIoLink[] = await response.json();
     
     // Find the link with matching short code
-    const link = links.find((l: any) => l.path === shortCode);
+    const link = links.find((l: ShortIoLink) => l.path === shortCode);
     
     if (!link) {
       console.warn(`Link with short code "${shortCode}" not found`);
@@ -171,37 +196,36 @@ export async function getShortIoStats(
       clickStatistics: data.clickStatistics || { datasets: [] },
       interval: data.interval || { startDate: null, endDate: null, prevStartDate: null, prevEndDate: null },
       
-      // Convert array format to object format for backward compatibility
-      referrers: data.referer?.reduce((acc: Record<string, number>, item: any) => {
-        acc[item.referer] = item.score;
-        return acc;
-      }, {}),
-      
-      browsers: data.browser?.reduce((acc: Record<string, number>, item: any) => {
-        acc[item.browser] = item.score;
-        return acc;
-      }, {}),
-      
-      countries: data.country?.reduce((acc: Record<string, number>, item: any) => {
-        acc[item.country] = item.score;
-        return acc;
-      }, {}),
-      
-      os: data.os?.reduce((acc: Record<string, number>, item: any) => {
-        acc[item.os] = item.score;
-        return acc;
-      }, {}),
-      
-      devices: {}, // Device data might need to be derived from other fields
-      
-      recentClicks: [], // Recent clicks might need a separate endpoint
-      
-      // Keep raw data for reference
+      // Keep raw arrays for direct access
       referer: data.referer || [],
       browser: data.browser || [],
       country: data.country || [],
       city: data.city || [],
       os: data.os || [],
+      
+      // Convert array format to Record format for backward compatibility
+      referrers: data.referer?.reduce((acc: Record<string, number>, item: ShortIoRefererStats) => {
+        acc[item.referer] = item.score;
+        return acc;
+      }, {}),
+      
+      browsers: data.browser?.reduce((acc: Record<string, number>, item: ShortIoBrowserStats) => {
+        acc[item.browser] = item.score;
+        return acc;
+      }, {}),
+      
+      countries: data.country?.reduce((acc: Record<string, number>, item: ShortIoCountryStats) => {
+        acc[item.country] = item.score;
+        return acc;
+      }, {}),
+      
+      oss: data.os?.reduce((acc: Record<string, number>, item: ShortIoOsStats) => {
+        acc[item.os] = item.score;
+        return acc;
+      }, {}),
+      
+      devices: {}, // Device data might need to be derived from other fields
+      recentClicks: [], // Recent clicks might need a separate endpoint
     };
   } catch (error) {
     console.error('Error fetching Short.io stats:', error);
@@ -257,29 +281,35 @@ export async function getShortIoStatsCustomPeriod(
       humanClicksChange: data.humanClicksChange || '0',
       clickStatistics: data.clickStatistics || { datasets: [] },
       interval: data.interval || { startDate: null, endDate: null, prevStartDate: null, prevEndDate: null },
-      referrers: data.referer?.reduce((acc: Record<string, number>, item: any) => {
-        acc[item.referer] = item.score;
-        return acc;
-      }, {}),
-      browsers: data.browser?.reduce((acc: Record<string, number>, item: any) => {
-        acc[item.browser] = item.score;
-        return acc;
-      }, {}),
-      countries: data.country?.reduce((acc: Record<string, number>, item: any) => {
-        acc[item.country] = item.score;
-        return acc;
-      }, {}),
-      os: data.os?.reduce((acc: Record<string, number>, item: any) => {
-        acc[item.os] = item.score;
-        return acc;
-      }, {}),
-      devices: {},
-      recentClicks: [],
+      
       referer: data.referer || [],
       browser: data.browser || [],
       country: data.country || [],
       city: data.city || [],
       os: data.os || [],
+      
+      referrers: data.referer?.reduce((acc: Record<string, number>, item: ShortIoRefererStats) => {
+        acc[item.referer] = item.score;
+        return acc;
+      }, {}),
+      
+      browsers: data.browser?.reduce((acc: Record<string, number>, item: ShortIoBrowserStats) => {
+        acc[item.browser] = item.score;
+        return acc;
+      }, {}),
+      
+      countries: data.country?.reduce((acc: Record<string, number>, item: ShortIoCountryStats) => {
+        acc[item.country] = item.score;
+        return acc;
+      }, {}),
+      
+      oss: data.os?.reduce((acc: Record<string, number>, item: ShortIoOsStats) => {
+        acc[item.os] = item.score;
+        return acc;
+      }, {}),
+      
+      devices: {},
+      recentClicks: [],
     };
   } catch (error) {
     console.error('Error fetching Short.io stats for custom period:', error);
@@ -297,7 +327,6 @@ export async function testShortIoConnection(): Promise<boolean> {
   }
 
   try {
-    // Try to get a list of links as a health check
     const url = `https://api.short.io/api/links?domain=${SHORTIO_DOMAIN}&limit=1`;
     
     const response = await fetch(url, {
@@ -321,7 +350,9 @@ export async function testShortIoConnection(): Promise<boolean> {
   }
 }
 
-// Helper function to get total clicks (for backward compatibility)
+/**
+ * Get total clicks for a short code
+ */
 export async function getShortIoTotalClicks(shortCode: string): Promise<number> {
   const stats = await getShortIoStats(shortCode);
   return stats?.totalClicks || 0;

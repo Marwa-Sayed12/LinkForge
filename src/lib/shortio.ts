@@ -1,51 +1,53 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { createClient } from '@short.io/client-browser';
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Set CORS headers for all responses
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+const client = createClient({
+  publicKey: 'pk_oWipAuN2BvoaIHFi'
+});
 
-  // Handle preflight OPTIONS request
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+const DOMAIN = 's.linkforge.website';
 
-  // Only allow GET requests
-  if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  const { shortCode } = req.query;
-
-  if (!shortCode || Array.isArray(shortCode)) {
-    return res.status(400).json({ error: 'Missing or invalid short code' });
-  }
-
+export async function createShortLink(originalUrl: string, customSlug?: string) {
   try {
-    const response = await fetch(`https://api.short.io/links/${shortCode}/stats`, {
-      headers: {
-        'Authorization': 'sk_K2F0tqEH8xIJSNJx'
-      }
+    const result = await client.createLink({
+      domain: DOMAIN,
+      originalURL: originalUrl,
+      path: customSlug || undefined
     });
+    
+    return {
+      shortUrl: result.shortURL,
+      shortCode: result.path || result.shortURL.split('/').pop(),
+      id: result.id,
+    };
+  } catch (error) {
+    console.error('Short.io error:', error);
+    throw new Error('Failed to create short link');
+  }
+}
 
+// ✅ FIXED: Use your Vercel API proxy (NO CORS!)
+export async function getShortIoStats(shortCode: string) {
+  try {
+    // Use your Vercel API endpoint - NOT direct Short.io
+    const response = await fetch(`/api/shortio-stats/${shortCode}`);
+    
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`Short.io API error (${response.status}):`, errorText);
-      throw new Error(`Short.io API error: ${response.status} - ${errorText}`);
+      console.error('API error:', errorText);
+      throw new Error('Failed to fetch stats');
     }
-
+    
     const data = await response.json();
-    
-    // Log success for debugging
-    console.log(`Successfully fetched stats for shortCode: ${shortCode}`);
-    
-    return res.status(200).json(data);
+    console.log('Stats data:', data);
+    return data;
   } catch (error) {
     console.error('Error fetching Short.io stats:', error);
-    return res.status(500).json({ 
-      error: 'Failed to fetch stats',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    });
+    return null;
   }
+}
+
+export function getQRCodeUrl(shortCode: string) {
+  return `https://api.short.io/links/${shortCode}/qrcode`;
+  
+
 }
