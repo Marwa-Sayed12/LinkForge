@@ -1,12 +1,14 @@
+// src/pages/dashboard/Analytics.tsx
+
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import {
   BarChart3, MousePointerClick, Globe, Monitor, TrendingUp, Clock, Link2,
-  Download, Filter, ChevronDown, Calendar,
+  Download, Filter, ChevronDown,
 } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, BarChart, Bar, Legend,
+  PieChart, Pie, Cell,
 } from "recharts";
 import { useTheme } from "@/components/ThemeProvider";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,8 +17,6 @@ import { getShortIoStats } from "@/lib/shortio";
 import { format, subDays, startOfDay, formatDistance } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-
-
 
 function useChartColors() {
   const { resolvedTheme } = useTheme();
@@ -98,7 +98,6 @@ export default function Analytics() {
               const stats = await getShortIoStats(link.short_code);
               
               if (stats) {
-                // ✅ Short.io API returns: totalClicks, clicksByDate, devices, countries, browsers, os, referrers
                 const clickCount = stats.totalClicks || stats.clicks || 0;
                 const humanClicks = stats.humanClicks || clickCount;
                 total += clickCount;
@@ -167,7 +166,7 @@ export default function Analytics() {
           }
           setDailyClicksData(days);
 
-          // ✅ Process device data
+          // Process device data
           const deviceMap: Record<string, number> = {};
           allStats.forEach((stats) => {
             if (stats.devices) {
@@ -186,7 +185,7 @@ export default function Analytics() {
               .slice(0, 8)
           );
 
-          // ✅ Process country data
+          // Process country data
           const countryMap: Record<string, number> = {};
           allStats.forEach((stats) => {
             if (stats.countries) {
@@ -205,7 +204,7 @@ export default function Analytics() {
               .slice(0, 8)
           );
 
-          // ✅ Process browser data
+          // Process browser data
           const browserMap: Record<string, number> = {};
           allStats.forEach((stats) => {
             if (stats.browsers) {
@@ -224,11 +223,11 @@ export default function Analytics() {
               .slice(0, 8)
           );
 
-          // ✅ Process OS data
+          // ✅ FIXED: Process OS data - using 'oss' instead of 'os'
           const osMap: Record<string, number> = {};
           allStats.forEach((stats) => {
-            if (stats.os) {
-              Object.entries(stats.os).forEach(([os, count]: [string, any]) => {
+            if (stats.oss) {  // ✅ Changed from 'os' to 'oss'
+              Object.entries(stats.oss).forEach(([os, count]: [string, any]) => {
                 const countNum = typeof count === 'number' ? count : 0;
                 if (countNum > 0) {
                   osMap[os] = (osMap[os] || 0) + countNum;
@@ -243,7 +242,7 @@ export default function Analytics() {
               .slice(0, 8)
           );
 
-          // ✅ Process referrer data
+          // Process referrer data
           const referrerMap: Record<string, number> = {};
           allStats.forEach((stats) => {
             if (stats.referrers) {
@@ -262,7 +261,7 @@ export default function Analytics() {
               .slice(0, 8)
           );
 
-          // ✅ Get recent clicks
+          // Get recent clicks
           const allRecentClicks: any[] = [];
           allStats.forEach((stats) => {
             if (stats.recentClicks) {
@@ -488,12 +487,6 @@ export default function Analytics() {
                       ))}
                     </Pie>
                     <Tooltip contentStyle={tooltipStyle} />
-                    <Legend 
-                      layout="vertical" 
-                      align="right" 
-                      verticalAlign="middle"
-                      wrapperStyle={{ fontSize: 11 }}
-                    />
                   </PieChart>
                 </ResponsiveContainer>
               </motion.div>
@@ -623,7 +616,7 @@ export default function Analytics() {
                       <MousePointerClick className="w-3.5 h-3.5 text-primary shrink-0" />
                       <div className="min-w-0">
                         <span className="text-foreground">
-                          {click.browser || "Unknown"} · {click.device_type || "Unknown"} · {click.os || "Unknown"}
+                          {click.browser || "Unknown"} · {click.device_type || "Desktop"} · {click.os || "Unknown"}
                         </span>
                         {click.country && (
                           <span className="text-muted-foreground"> · {click.city ? `${click.city}, ` : ""}{click.country}</span>

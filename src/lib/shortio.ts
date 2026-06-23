@@ -1,3 +1,5 @@
+// src/lib/shortio.ts
+
 import { createClient } from '@short.io/client-browser';
 
 const client = createClient({
@@ -25,20 +27,20 @@ export async function createShortLink(originalUrl: string, customSlug?: string) 
   }
 }
 
-// ✅ FIXED: Use your Vercel API proxy (NO CORS!)
+// ✅ This calls your Vercel API route (no CORS issues)
 export async function getShortIoStats(shortCode: string) {
   try {
-    // Use your Vercel API endpoint - NOT direct Short.io
-    const response = await fetch(`/api/shortio-stats/${shortCode}`);
+    console.log(`Fetching stats for short code: ${shortCode}`);
+    const response = await fetch(`/api/${shortCode}`);
     
     if (!response.ok) {
       const errorText = await response.text();
       console.error('API error:', errorText);
-      throw new Error('Failed to fetch stats');
+      return null;
     }
     
     const data = await response.json();
-    console.log('Stats data:', data);
+    console.log('Stats data from API:', data);
     return data;
   } catch (error) {
     console.error('Error fetching Short.io stats:', error);
@@ -48,6 +50,4 @@ export async function getShortIoStats(shortCode: string) {
 
 export function getQRCodeUrl(shortCode: string) {
   return `https://api.short.io/links/${shortCode}/qrcode`;
-  
-
 }
