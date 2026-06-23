@@ -2,9 +2,7 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-export const config = {
-  runtime: 'nodejs22.x',
-};
+
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Enable CORS
