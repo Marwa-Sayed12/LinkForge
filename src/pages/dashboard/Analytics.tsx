@@ -13,7 +13,8 @@ import {
 import { useTheme } from "@/components/ThemeProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useClerkAuth";
-import { getShortIoStats } from "@/lib/shortio";
+import { getShortIoStatsDirect } from "@/lib/shortio-direct";
+
 import { format, subDays, startOfDay, formatDistance } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -95,7 +96,7 @@ export default function Analytics() {
           for (const link of userLinks) {
             try {
               const shortUrl = `https://s.linkforge.website/${link.short_code}`;
-              const stats = await getShortIoStats(link.short_code);
+                 const stats = await getShortIoStatsDirect(link.short_code);
               
               if (stats) {
                 const clickCount = stats.totalClicks || stats.clicks || 0;
