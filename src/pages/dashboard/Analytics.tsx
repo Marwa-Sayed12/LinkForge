@@ -13,7 +13,7 @@ import {
 import { useTheme } from "@/components/ThemeProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useClerkAuth";
-import { getShortIoStatsDirect } from "@/lib/shortio-direct";
+import { getShortIoStatsDirect } from "@/lib/shortio-direct"; 
 
 import { format, subDays, startOfDay, formatDistance } from "date-fns";
 import { Button } from "@/components/ui/button";
