@@ -10,8 +10,14 @@ lerna-debug.log*
 .env
 .env/
 
+supabase/.temp/
+
+# Logs
+*.log
+npm-debug.log*
 
 node_modules
+package-lock.json/
 dist
 dist-ssr
 *.local
