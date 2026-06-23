@@ -16,6 +16,7 @@ import { format, subDays, startOfDay, formatDistance } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
+
 function useChartColors() {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
