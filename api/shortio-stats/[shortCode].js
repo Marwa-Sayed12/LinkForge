@@ -1,4 +1,4 @@
-// api/[shortCode].ts
+// api/[shortCode].js
 
 export default async function handler(req, res) {
   // Enable CORS
