@@ -1,0 +1,44 @@
+﻿# Dependencies
+node_modules/
+bun.lock
+package-lock.json
+yarn.lock
+
+# Build outputs
+dist/
+build/
+.vite/
+*.tsbuildinfo
+
+# Environment
+.env
+.env.local
+.env.production
+.env.*.local
+
+# Vercel
+.vercel
+.vercel_output
+
+# Supabase
+supabase/.temp/
+supabase/temp/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# OS
+Thumbs.db
+
+# API keys
+*.key
+*.pem

@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/favicon.ico">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LinkForge — Shorten, Generate, Analyze</title>
+    <meta name="description" content="Transform long URLs into powerful short links and stunning QR codes. Track every click with real-time analytics.">
+    <meta name="author" content="LinkForge" />
+    
+    
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <script>
+      (function() {
+        var t = localStorage.getItem('linkforge-theme');
+        var r = t === 'light' ? 'light' : 'dark';
+        document.documentElement.classList.add(r);
+      })();
+    </script>
+    <meta property="og:title" content="LinkForge — Shorten, Generate, Analyze">
+  <meta name="twitter:title" content="LinkForge — Shorten, Generate, Analyze">
+  <meta property="og:description" content="Transform long URLs into powerful short links and stunning QR codes. Track every click with real-time analytics.">
+  <meta name="twitter:description" content="Transform long URLs into powerful short links and stunning QR codes. Track every click with real-time analytics.">
+</head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
