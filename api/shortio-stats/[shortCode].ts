@@ -1,10 +1,6 @@
 // api/[shortCode].ts
 
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-
-
-
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req, res) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
@@ -29,8 +25,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(500).json({ error: 'API key not configured' });
     }
 
-    // STEP 1: Get the link info by path (short code)
-    // Using: GET /links/expand?domain={domain}&path={shortCode}
+    // STEP 1: Get link info by path
     console.log(`Fetching link info for path: ${shortCode}`);
     const linkInfoResponse = await fetch(
       `https://api.short.io/links/expand?domain=${domain}&path=${shortCode}`,
@@ -56,19 +51,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const linkData = await linkInfoResponse.json();
-    console.log('Link info:', linkData);
-
-    // Get the link ID from the response
     const linkId = linkData.id;
+
     if (!linkId) {
       return res.status(404).json({ error: 'Link ID not found' });
     }
 
-    console.log(`Found link ID: ${linkId} for short code: ${shortCode}`);
+    console.log(`Found link ID: ${linkId}`);
 
-    // STEP 2: Get statistics using the link ID
-    // Using: GET /statistics/link/{linkID}?period=total&tzOffset=0
-    console.log(`Fetching stats for link ID: ${linkId}`);
+    // STEP 2: Get statistics
     const statsResponse = await fetch(
       `https://api-v2.short.io/statistics/link/${linkId}?period=total&tzOffset=0`,
       {
@@ -89,18 +80,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const statsData = await statsResponse.json();
-    console.log('Stats data received:', JSON.stringify(statsData, null, 2));
 
-    // STEP 3: Transform the response for the frontend
+    // STEP 3: Transform the response
     const transformedData = {
-      // Basic stats
       totalClicks: statsData.totalClicks || 0,
       humanClicks: statsData.humanClicks || 0,
       clicks: statsData.totalClicks || 0,
       totalClicksChange: statsData.totalClicksChange || '0',
       humanClicksChange: statsData.humanClicksChange || '0',
-      
-      // Click statistics for charts
       clickStatistics: statsData.clickStatistics || { datasets: [] },
       interval: statsData.interval || { 
         startDate: null, 
@@ -109,37 +96,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         prevEndDate: null 
       },
       
-      // Raw arrays from API (as documented)
-      // Returns: { score: number, browser: string }[]
       browser: statsData.browser || [],
       country: statsData.country || [],
       city: statsData.city || [],
       os: statsData.os || [],
       referer: statsData.referer || [],
       
-      // Convert to Record format for frontend
-      // The frontend expects { "Chrome": 6, "Firefox": 1 } format
-      browsers: statsData.browser?.reduce((acc: any, item: any) => {
+      browsers: statsData.browser?.reduce((acc, item) => {
         acc[item.browser] = item.score;
         return acc;
       }, {}) || {},
       
-      countries: statsData.country?.reduce((acc: any, item: any) => {
+      countries: statsData.country?.reduce((acc, item) => {
         acc[item.country] = item.score;
         return acc;
       }, {}) || {},
       
-      oss: statsData.os?.reduce((acc: any, item: any) => {
+      oss: statsData.os?.reduce((acc, item) => {
         acc[item.os] = item.score;
         return acc;
       }, {}) || {},
       
-      referrers: statsData.referer?.reduce((acc: any, item: any) => {
+      referrers: statsData.referer?.reduce((acc, item) => {
         acc[item.referer] = item.score;
         return acc;
       }, {}) || {},
       
-      // Device data (not directly available, we'll use empty)
       devices: {},
       recentClicks: [],
     };
@@ -149,7 +131,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.error('Error fetching Short.io stats:', error);
     return res.status(500).json({ 
       error: 'Failed to fetch stats',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      details: error.message || 'Unknown error'
     });
   }
 }
