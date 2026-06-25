@@ -69,7 +69,38 @@ export default function Analytics() {
 
     const fetchAnalytics = async () => {
       setLoading(true);
-
+        if (stats) {
+  const clickCount = stats.totalClicks || stats.clicks || 0;
+  const humanClicks = stats.humanClicks || clickCount;
+  
+  console.log('Processing stats for link:', link.short_code, stats);
+  
+  total += clickCount;
+  humanTotal += humanClicks;
+  
+  linksWithStats.push({
+    ...link,
+    short_url: shortUrl,
+    clicks: clickCount,
+    stats: stats,
+  });
+  
+  // ✅ Only push stats if they exist (not just empty objects)
+  if (stats.browser?.length > 0 || stats.country?.length > 0 || stats.os?.length > 0) {
+    allStats.push(stats);
+  } else {
+    // If all stats are empty, create a minimal stats object
+    allStats.push({
+      clicksByDate: {},
+      devices: {},
+      countries: {},
+      browsers: {},
+      oss: {},
+      referrers: {},
+      recentClicks: [],
+    });
+  }
+}
       try {
         // Fetch user's links from Supabase
         const { data: userLinks, error: linksError } = await supabase
@@ -131,6 +162,13 @@ export default function Analytics() {
           setTotalClicks(total);
           setTotalHumanClicks(humanTotal);
 
+          console.log('Links with stats:', linksWithStats);
+console.log('Total clicks:', total);
+
+
+
+
+
           // Process daily clicks
           const dailyMap: Record<string, number> = {};
           const now = new Date();
@@ -149,6 +187,7 @@ export default function Analytics() {
                 }
               });
             }
+            console.log('Daily clicks data:', dailyMap);
           });
 
           setClicksToday(todayCount);
@@ -185,6 +224,8 @@ export default function Analytics() {
               .sort((a, b) => b.value - a.value)
               .slice(0, 8)
           );
+          
+
 
           // Process country data
           const countryMap: Record<string, number> = {};
@@ -197,6 +238,7 @@ export default function Analytics() {
                 }
               });
             }
+console.log('Device data:', deviceMap);
           });
           setCountryData(
             Object.entries(countryMap)
@@ -204,44 +246,49 @@ export default function Analytics() {
               .sort((a, b) => b.value - a.value)
               .slice(0, 8)
           );
+          console.log('Country data:', countryMap);
+
 
           // Process browser data
-          const browserMap: Record<string, number> = {};
-          allStats.forEach((stats) => {
-            if (stats.browsers) {
-              Object.entries(stats.browsers).forEach(([browser, count]: [string, any]) => {
-                const countNum = typeof count === 'number' ? count : 0;
-                if (countNum > 0) {
-                  browserMap[browser] = (browserMap[browser] || 0) + countNum;
-                }
-              });
-            }
-          });
-          setBrowserData(
-            Object.entries(browserMap)
-              .map(([name, value]) => ({ name, value }))
-              .sort((a, b) => b.value - a.value)
-              .slice(0, 8)
-          );
+    // Process browser data - handle undefined or empty
+const browserMap: Record<string, number> = {};
+allStats.forEach((stats) => {
+  if (stats.browsers && Object.keys(stats.browsers).length > 0) {
+    Object.entries(stats.browsers).forEach(([browser, count]: [string, any]) => {
+      const countNum = typeof count === 'number' ? count : 0;
+      if (countNum > 0) {
+        browserMap[browser] = (browserMap[browser] || 0) + countNum;
+      }
+    });
+  }
+});
+setBrowserData(
+  Object.entries(browserMap)
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 8)
+);
+console.log('Browser data:', browserMap);
 
-          // ✅ FIXED: Process OS data - using 'oss' instead of 'os'
-          const osMap: Record<string, number> = {};
-          allStats.forEach((stats) => {
-            if (stats.oss) {  // ✅ Changed from 'os' to 'oss'
-              Object.entries(stats.oss).forEach(([os, count]: [string, any]) => {
-                const countNum = typeof count === 'number' ? count : 0;
-                if (countNum > 0) {
-                  osMap[os] = (osMap[os] || 0) + countNum;
-                }
-              });
-            }
-          });
-          setOsData(
-            Object.entries(osMap)
-              .map(([name, value]) => ({ name, value }))
-              .sort((a, b) => b.value - a.value)
-              .slice(0, 8)
-          );
+// Process OS data - using 'oss'
+const osMap: Record<string, number> = {};
+allStats.forEach((stats) => {
+  if (stats.oss && Object.keys(stats.oss).length > 0) {
+    Object.entries(stats.oss).forEach(([os, count]: [string, any]) => {
+      const countNum = typeof count === 'number' ? count : 0;
+      if (countNum > 0) {
+        osMap[os] = (osMap[os] || 0) + countNum;
+      }
+    });
+  }
+});
+setOsData(
+  Object.entries(osMap)
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 8)
+);
+console.log('OS data:', osMap);
 
           // Process referrer data
           const referrerMap: Record<string, number> = {};
@@ -261,6 +308,7 @@ export default function Analytics() {
               .sort((a, b) => b.value - a.value)
               .slice(0, 8)
           );
+          console.log('Referrer data:', referrerMap);
 
           // Get recent clicks
           const allRecentClicks: any[] = [];
@@ -300,6 +348,7 @@ export default function Analytics() {
         }
       } catch (error) {
         console.error("Error fetching analytics:", error);
+        
       }
 
       setLoading(false);
@@ -356,6 +405,8 @@ export default function Analytics() {
     fontSize: 12,
     padding: "8px 12px",
   };
+
+  
 
   return (
     <div className="space-y-6">
