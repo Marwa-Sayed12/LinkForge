@@ -13,8 +13,7 @@ import {
 import { useTheme } from "@/components/ThemeProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useClerkAuth";
-import { getShortIoStats } from "@/lib/shortio"; 
-
+import { getShortIoStats } from "@/lib/shortio";
 import { format, subDays, startOfDay, formatDistance } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -69,38 +68,7 @@ export default function Analytics() {
 
     const fetchAnalytics = async () => {
       setLoading(true);
-        if (stats) {
-  const clickCount = stats.totalClicks || stats.clicks || 0;
-  const humanClicks = stats.humanClicks || clickCount;
-  
-  console.log('Processing stats for link:', link.short_code, stats);
-  
-  total += clickCount;
-  humanTotal += humanClicks;
-  
-  linksWithStats.push({
-    ...link,
-    short_url: shortUrl,
-    clicks: clickCount,
-    stats: stats,
-  });
-  
-  // ✅ Only push stats if they exist (not just empty objects)
-  if (stats.browser?.length > 0 || stats.country?.length > 0 || stats.os?.length > 0) {
-    allStats.push(stats);
-  } else {
-    // If all stats are empty, create a minimal stats object
-    allStats.push({
-      clicksByDate: {},
-      devices: {},
-      countries: {},
-      browsers: {},
-      oss: {},
-      referrers: {},
-      recentClicks: [],
-    });
-  }
-}
+
       try {
         // Fetch user's links from Supabase
         const { data: userLinks, error: linksError } = await supabase
@@ -115,32 +83,52 @@ export default function Analytics() {
           return;
         }
 
+        console.log('User links from Supabase:', userLinks);
         setTotalLinks(userLinks?.length || 0);
 
         if (userLinks && userLinks.length > 0) {
           const linksWithStats: LinkWithStats[] = [];
           let total = 0;
           let humanTotal = 0;
-          let allStats: any[] = [];
+          const allStats: any[] = [];
 
           // For each link, fetch stats from Short.io API
           for (const link of userLinks) {
             try {
               const shortUrl = `https://s.linkforge.website/${link.short_code}`;
-                 const stats = await getShortIoStats(link.short_code);
+              console.log(`Fetching stats for short code: ${link.short_code}`);
+              
+              const stats = await getShortIoStats(link.short_code);
               
               if (stats) {
                 const clickCount = stats.totalClicks || stats.clicks || 0;
                 const humanClicks = stats.humanClicks || clickCount;
                 total += clickCount;
                 humanTotal += humanClicks;
+                
                 linksWithStats.push({
                   ...link,
                   short_url: shortUrl,
                   clicks: clickCount,
                   stats: stats,
                 });
-                allStats.push(stats);
+                
+                // Only push stats if there's meaningful data
+                if (stats.browser?.length > 0 || stats.country?.length > 0 || stats.os?.length > 0) {
+                  allStats.push(stats);
+                } else {
+                  // Push minimal stats for click count tracking
+                  allStats.push({
+                    clicksByDate: {},
+                    devices: {},
+                    countries: {},
+                    browsers: {},
+                    oss: {},
+                    referrers: {},
+                    recentClicks: [],
+                    ...stats // Keep any existing data
+                  });
+                }
               } else {
                 linksWithStats.push({
                   ...link,
@@ -163,11 +151,7 @@ export default function Analytics() {
           setTotalHumanClicks(humanTotal);
 
           console.log('Links with stats:', linksWithStats);
-console.log('Total clicks:', total);
-
-
-
-
+          console.log('Total clicks:', total);
 
           // Process daily clicks
           const dailyMap: Record<string, number> = {};
@@ -187,7 +171,6 @@ console.log('Total clicks:', total);
                 }
               });
             }
-            console.log('Daily clicks data:', dailyMap);
           });
 
           setClicksToday(todayCount);
@@ -224,8 +207,6 @@ console.log('Total clicks:', total);
               .sort((a, b) => b.value - a.value)
               .slice(0, 8)
           );
-          
-
 
           // Process country data
           const countryMap: Record<string, number> = {};
@@ -238,7 +219,6 @@ console.log('Total clicks:', total);
                 }
               });
             }
-console.log('Device data:', deviceMap);
           });
           setCountryData(
             Object.entries(countryMap)
@@ -246,49 +226,44 @@ console.log('Device data:', deviceMap);
               .sort((a, b) => b.value - a.value)
               .slice(0, 8)
           );
-          console.log('Country data:', countryMap);
-
 
           // Process browser data
-    // Process browser data - handle undefined or empty
-const browserMap: Record<string, number> = {};
-allStats.forEach((stats) => {
-  if (stats.browsers && Object.keys(stats.browsers).length > 0) {
-    Object.entries(stats.browsers).forEach(([browser, count]: [string, any]) => {
-      const countNum = typeof count === 'number' ? count : 0;
-      if (countNum > 0) {
-        browserMap[browser] = (browserMap[browser] || 0) + countNum;
-      }
-    });
-  }
-});
-setBrowserData(
-  Object.entries(browserMap)
-    .map(([name, value]) => ({ name, value }))
-    .sort((a, b) => b.value - a.value)
-    .slice(0, 8)
-);
-console.log('Browser data:', browserMap);
+          const browserMap: Record<string, number> = {};
+          allStats.forEach((stats) => {
+            if (stats.browsers) {
+              Object.entries(stats.browsers).forEach(([browser, count]: [string, any]) => {
+                const countNum = typeof count === 'number' ? count : 0;
+                if (countNum > 0) {
+                  browserMap[browser] = (browserMap[browser] || 0) + countNum;
+                }
+              });
+            }
+          });
+          setBrowserData(
+            Object.entries(browserMap)
+              .map(([name, value]) => ({ name, value }))
+              .sort((a, b) => b.value - a.value)
+              .slice(0, 8)
+          );
 
-// Process OS data - using 'oss'
-const osMap: Record<string, number> = {};
-allStats.forEach((stats) => {
-  if (stats.oss && Object.keys(stats.oss).length > 0) {
-    Object.entries(stats.oss).forEach(([os, count]: [string, any]) => {
-      const countNum = typeof count === 'number' ? count : 0;
-      if (countNum > 0) {
-        osMap[os] = (osMap[os] || 0) + countNum;
-      }
-    });
-  }
-});
-setOsData(
-  Object.entries(osMap)
-    .map(([name, value]) => ({ name, value }))
-    .sort((a, b) => b.value - a.value)
-    .slice(0, 8)
-);
-console.log('OS data:', osMap);
+          // Process OS data - using 'oss'
+          const osMap: Record<string, number> = {};
+          allStats.forEach((stats) => {
+            if (stats.oss) {
+              Object.entries(stats.oss).forEach(([os, count]: [string, any]) => {
+                const countNum = typeof count === 'number' ? count : 0;
+                if (countNum > 0) {
+                  osMap[os] = (osMap[os] || 0) + countNum;
+                }
+              });
+            }
+          });
+          setOsData(
+            Object.entries(osMap)
+              .map(([name, value]) => ({ name, value }))
+              .sort((a, b) => b.value - a.value)
+              .slice(0, 8)
+          );
 
           // Process referrer data
           const referrerMap: Record<string, number> = {};
@@ -308,7 +283,6 @@ console.log('OS data:', osMap);
               .sort((a, b) => b.value - a.value)
               .slice(0, 8)
           );
-          console.log('Referrer data:', referrerMap);
 
           // Get recent clicks
           const allRecentClicks: any[] = [];
@@ -348,10 +322,9 @@ console.log('OS data:', osMap);
         }
       } catch (error) {
         console.error("Error fetching analytics:", error);
-        
+      } finally {
+        setLoading(false);
       }
-
-      setLoading(false);
     };
 
     fetchAnalytics();
@@ -406,8 +379,6 @@ console.log('OS data:', osMap);
     padding: "8px 12px",
   };
 
-  
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -447,7 +418,7 @@ console.log('OS data:', osMap);
         ))}
       </div>
 
-      {totalClicks === 0 ? (
+      {totalClicks === 0 && links.length === 0 ? (
         <div className="glass-card rounded-xl p-12 text-center">
           <BarChart3 className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
           <h3 className="font-heading text-lg font-semibold text-foreground mb-2">No analytics yet</h3>
