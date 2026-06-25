@@ -1,4 +1,4 @@
-// api/[shortCode].js
+// api/shortcode.js
 
 export default async function handler(req, res) {
   // Enable CORS
@@ -10,25 +10,25 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
+  // Get shortCode from query parameter (not from URL path)
   const { shortCode } = req.query;
 
   if (!shortCode || Array.isArray(shortCode)) {
-    return res.status(400).json({ error: 'Missing or invalid short code' });
+    return res.status(400).json({ error: 'Missing short code' });
   }
 
   try {
+    console.log(`API called for shortCode: ${shortCode}`);
+    
     const apiKey = process.env.SHORTIO_API_KEY || process.env.VITE_SHORTIO_API_KEY;
     const domain = process.env.VITE_SHORTIO_DOMAIN || 's.linkforge.website';
 
     if (!apiKey) {
-      console.error('Short.io API key is missing');
-      return res.status(500).json({ error: 'API key not configured' });
+      console.error('API key missing');
+      return res.status(500).json({ error: 'API key missing' });
     }
 
-
-    
-
-    // STEP 1: Get link info by path
+    // Step 1: Get link info
     const linkInfoResponse = await fetch(
       `https://api.short.io/links/expand?domain=${domain}&path=${shortCode}`,
       {
@@ -41,14 +41,10 @@ export default async function handler(req, res) {
 
     if (!linkInfoResponse.ok) {
       const errorText = await linkInfoResponse.text();
-      console.error('Failed to fetch link info:', errorText);
-      
-      if (linkInfoResponse.status === 404) {
-        return res.status(404).json({ error: 'Link not found' });
-      }
+      console.error('Link info error:', errorText);
       return res.status(linkInfoResponse.status).json({ 
-        error: 'Failed to fetch link info',
-        details: errorText 
+        error: 'Link not found',
+        details: errorText
       });
     }
 
@@ -59,7 +55,7 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: 'Link ID not found' });
     }
 
-    // STEP 2: Get statistics
+    // Step 2: Get statistics
     const statsResponse = await fetch(
       `https://api-v2.short.io/statistics/link/${linkId}?period=total&tzOffset=0`,
       {
@@ -72,16 +68,16 @@ export default async function handler(req, res) {
 
     if (!statsResponse.ok) {
       const errorText = await statsResponse.text();
-      console.error(`Short.io API error (${statsResponse.status}):`, errorText);
+      console.error('Stats error:', errorText);
       return res.status(statsResponse.status).json({ 
         error: 'Failed to fetch stats',
-        details: errorText 
+        details: errorText
       });
     }
 
     const statsData = await statsResponse.json();
 
-    // STEP 3: Transform the response
+    // Transform data
     const transformedData = {
       totalClicks: statsData.totalClicks || 0,
       humanClicks: statsData.humanClicks || 0,
@@ -89,49 +85,38 @@ export default async function handler(req, res) {
       totalClicksChange: statsData.totalClicksChange || '0',
       humanClicksChange: statsData.humanClicksChange || '0',
       clickStatistics: statsData.clickStatistics || { datasets: [] },
-      interval: statsData.interval || { 
-        startDate: null, 
-        endDate: null, 
-        prevStartDate: null, 
-        prevEndDate: null 
-      },
-      
+      interval: statsData.interval || { startDate: null, endDate: null, prevStartDate: null, prevEndDate: null },
       browser: statsData.browser || [],
       country: statsData.country || [],
       city: statsData.city || [],
       os: statsData.os || [],
       referer: statsData.referer || [],
-      
       browsers: statsData.browser?.reduce((acc, item) => {
         acc[item.browser] = item.score;
         return acc;
       }, {}) || {},
-      
       countries: statsData.country?.reduce((acc, item) => {
         acc[item.country] = item.score;
         return acc;
       }, {}) || {},
-      
       oss: statsData.os?.reduce((acc, item) => {
         acc[item.os] = item.score;
         return acc;
       }, {}) || {},
-      
       referrers: statsData.referer?.reduce((acc, item) => {
         acc[item.referer] = item.score;
         return acc;
       }, {}) || {},
-      
       devices: {},
       recentClicks: [],
     };
 
     return res.status(200).json(transformedData);
   } catch (error) {
-    console.error('Error fetching Short.io stats:', error);
+    console.error('Error:', error);
     return res.status(500).json({ 
-      error: 'Failed to fetch stats',
-      details: error.message || 'Unknown error'
+      error: 'Internal server error',
+      details: error.message
     });
   }
 }
