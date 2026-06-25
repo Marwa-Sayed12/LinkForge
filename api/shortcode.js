@@ -10,25 +10,45 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
-  // Get shortCode from query parameter (not from URL path)
-  const { shortCode } = req.query;
+  // ✅ FIX: Get shortCode from query OR from URL path
+  let shortCode = req.query.shortCode;
+  
+  // If no shortCode in query, extract from URL path
+  if (!shortCode) {
+    // Get the path after /api/
+    const urlPath = req.url.split('?')[0]; // Remove query params
+    const pathParts = urlPath.split('/').filter(Boolean);
+    
+    // If the first part is 'api', get the second part
+    if (pathParts[0] === 'api' && pathParts.length > 1) {
+      shortCode = pathParts[1];
+    }
+    // If the first part is not 'api', use it directly
+    else if (pathParts.length > 0 && pathParts[0] !== 'shortcode') {
+      shortCode = pathParts[0];
+    }
+  }
 
+  // If still no shortCode, return error
   if (!shortCode || Array.isArray(shortCode)) {
-    return res.status(400).json({ error: 'Missing short code' });
+    return res.status(400).json({ 
+      error: 'Missing short code',
+      hint: 'Use /api/shortcode?shortCode=xxx or /api/xxx'
+    });
   }
 
   try {
-    console.log(`API called for shortCode: ${shortCode}`);
+    console.log(`Processing shortCode: ${shortCode}`);
     
     const apiKey = process.env.SHORTIO_API_KEY || process.env.VITE_SHORTIO_API_KEY;
     const domain = process.env.VITE_SHORTIO_DOMAIN || 's.linkforge.website';
 
     if (!apiKey) {
       console.error('API key missing');
-      return res.status(500).json({ error: 'API key missing' });
+      return res.status(500).json({ error: 'API key not configured' });
     }
 
-    // Step 1: Get link info
+    // Step 1: Get link info from Short.io
     const linkInfoResponse = await fetch(
       `https://api.short.io/links/expand?domain=${domain}&path=${shortCode}`,
       {
@@ -41,9 +61,10 @@ export default async function handler(req, res) {
 
     if (!linkInfoResponse.ok) {
       const errorText = await linkInfoResponse.text();
-      console.error('Link info error:', errorText);
+      console.error('Link info error:', linkInfoResponse.status, errorText);
       return res.status(linkInfoResponse.status).json({ 
         error: 'Link not found',
+        shortCode: shortCode,
         details: errorText
       });
     }
@@ -52,8 +73,13 @@ export default async function handler(req, res) {
     const linkId = linkData.id;
 
     if (!linkId) {
-      return res.status(404).json({ error: 'Link ID not found' });
+      return res.status(404).json({ 
+        error: 'Link ID not found',
+        shortCode: shortCode
+      });
     }
+
+    console.log(`Found link ID: ${linkId} for shortCode: ${shortCode}`);
 
     // Step 2: Get statistics
     const statsResponse = await fetch(
@@ -68,7 +94,7 @@ export default async function handler(req, res) {
 
     if (!statsResponse.ok) {
       const errorText = await statsResponse.text();
-      console.error('Stats error:', errorText);
+      console.error('Stats error:', statsResponse.status, errorText);
       return res.status(statsResponse.status).json({ 
         error: 'Failed to fetch stats',
         details: errorText
@@ -77,7 +103,7 @@ export default async function handler(req, res) {
 
     const statsData = await statsResponse.json();
 
-    // Transform data
+    // Transform data for frontend
     const transformedData = {
       totalClicks: statsData.totalClicks || 0,
       humanClicks: statsData.humanClicks || 0,

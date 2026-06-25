@@ -27,15 +27,24 @@ export async function createShortLink(originalUrl: string, customSlug?: string) 
   }
 }
 
-// ✅ Use Vercel API route (no CORS issues!)
+// src/lib/shortio.ts
+
 export async function getShortIoStats(shortCode: string) {
   try {
     console.log(`Fetching stats for short code: ${shortCode}`);
-    const response = await fetch(`/api/${shortCode}`);
+    
+    // ✅ Try both formats: query param and path
+    let response = await fetch(`/api/shortcode?shortCode=${shortCode}`);
+    
+    // If that fails, try the path format
+    if (!response.ok) {
+      console.log('Trying path format...');
+      response = await fetch(`/api/${shortCode}`);
+    }
     
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('API error:', errorText);
+      console.error('API error:', response.status, errorText);
       return null;
     }
     
