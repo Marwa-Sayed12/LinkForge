@@ -92,6 +92,8 @@ export default async function handler(req, res) {
 
     const statsData = await statsResponse.json();
     console.log('Stats data received');
+    console.log('Raw clicksByDate:', statsData.clicksByDate);
+
 
     // Country name mapping
     const countryNames = {
@@ -314,6 +316,15 @@ export default async function handler(req, res) {
       'Unknown': '❓'
     };
 
+    // Transform clicksByDate to ensure it's in the right format
+const clicksByDate = statsData.clicksByDate || {};
+const formattedClicksByDate = {};
+Object.entries(clicksByDate).forEach(([date, count]) => {
+  // Ensure date is in YYYY-MM-DD format
+  const formattedDate = format(new Date(date), 'yyyy-MM-dd');
+  formattedClicksByDate[formattedDate] = count;
+});
+
     // Transform data for frontend
     const transformedData = {
       totalClicks: statsData.totalClicks || 0,
@@ -322,6 +333,7 @@ export default async function handler(req, res) {
       totalClicksChange: statsData.totalClicksChange || '0',
       humanClicksChange: statsData.humanClicksChange || '0',
       clickStatistics: statsData.clickStatistics || { datasets: [] },
+        clicksByDate: formattedClicksByDate,
       interval: statsData.interval || { startDate: null, endDate: null, prevStartDate: null, prevEndDate: null },
       
       // Raw data

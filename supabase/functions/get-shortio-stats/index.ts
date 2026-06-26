@@ -1,4 +1,5 @@
 // supabase/functions/get-shortio-stats/index.ts
+// @ts-expect-error - Deno import for Supabase Edge Functions
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 

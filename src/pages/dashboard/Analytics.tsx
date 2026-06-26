@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, BarChart, Bar,
+  PieChart, Pie, Cell,
 } from "recharts";
 import { useTheme } from "@/components/ThemeProvider";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,26 +18,22 @@ import { format, subDays, startOfDay, formatDistance } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
-// Flag component using emoji flags
-const Flag = ({ code }: { code: string }) => {
-  const getFlagEmoji = (countryCode: string) => {
+// ✅ Flag function at top level
+const getFlagEmoji = (countryCode: string) => {
+  try {
     const codePoints = countryCode
       .toUpperCase()
       .split('')
       .map(char => 127397 + char.charCodeAt(0));
     return String.fromCodePoint(...codePoints);
-  };
-  
-  try {
-    return <span className="text-2xl mr-2">{getFlagEmoji(code)}</span>;
   } catch {
-    return <span className="text-2xl mr-2">🌍</span>;
+    return '🌍';
   }
 };
 
 // OS Icon mapping with proper emojis
 const OS_ICONS: Record<string, string> = {
-  'Windows': '🪟',
+  'Windows': '../../../public/grid-2x2.png',
   'Mac OS X': '🍎',
   'macOS': '🍎',
   'Linux': '🐧',
@@ -189,7 +185,7 @@ export default function Analytics() {
               Object.entries(stats.clicksByDate).forEach(([date, count]: [string, any]) => {
                 const countNum = typeof count === 'number' ? count : 0;
                 if (countNum > 0) {
-                  const formattedDate = format(new Date(date), "yyyy-MM-dd");
+                  const formattedDate = format(new Date(date), 'yyyy-MM-dd');
                   dailyMap[formattedDate] = (dailyMap[formattedDate] || 0) + countNum;
                   const clickDate = new Date(date);
                   if (clickDate.toDateString() === now.toDateString()) {
@@ -200,9 +196,15 @@ export default function Analytics() {
             }
           });
 
+          // If no clicks yet, show today with total
+          if (Object.keys(dailyMap).length === 0 && total > 0) {
+            const todayStr = format(now, 'yyyy-MM-dd');
+            dailyMap[todayStr] = total;
+          }
+
           setClicksToday(todayCount);
 
-          // Generate last 30 days data - FIXED to include today
+          // Generate last 30 days data
           const days: { date: string; clicks: number; formattedDate: string }[] = [];
           for (let i = 29; i >= 0; i--) {
             const date = startOfDay(subDays(new Date(), i));
@@ -235,7 +237,7 @@ export default function Analytics() {
               .slice(0, 8)
           );
 
-          // Process country data with flags - FIXED to show correctly
+          // Process country data with flags
           const countryMap: Record<string, { count: number; code: string }> = {};
           allStats.forEach((stats) => {
             if (stats.countries) {
@@ -533,7 +535,7 @@ export default function Analytics() {
         </div>
       ) : (
         <>
-          {/* Clicks Chart - Bigger and with bars */}
+          {/* Clicks Chart */}
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-heading font-semibold text-foreground text-lg">Clicks Over Time</h3>
@@ -564,13 +566,12 @@ export default function Analytics() {
                 />
               </AreaChart>
             </ResponsiveContainer>
-            {/* Show total clicks summary */}
             <div className="text-center mt-2 text-sm text-muted-foreground">
               Total clicks: {totalClicks} | Today: {clicksToday}
             </div>
           </motion.div>
 
-          {/* Two Cards in One Line - Bigger */}
+          {/* Two Cards in One Line */}
           <div className="grid lg:grid-cols-2 gap-6">
             {/* Top Links */}
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-6">
@@ -627,9 +628,9 @@ export default function Analytics() {
             )}
           </div>
 
-          {/* Countries, Browsers, OS, Referrers - All with bigger cards */}
+          {/* Countries, Browsers, OS, Referrers */}
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {/* Countries with Flag and Map */}
+            {/* Countries with Flags */}
             {countryData.length > 0 && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-6">
                 <h3 className="font-heading font-semibold text-foreground mb-4 text-lg flex items-center gap-2">
@@ -637,17 +638,17 @@ export default function Analytics() {
                   Top Countries
                 </h3>
                 <div className="space-y-3">
-                  {countryData.slice(0, 6).map((c) => {
+                  {countryData.slice(0, 6).map((country) => {
                     const maxVal = countryData[0]?.value || 1;
-                    const pct = Math.round((c.value / maxVal) * 100);
+                    const pct = Math.round((country.value / maxVal) * 100);
                     return (
-                      <div key={c.name}>
+                      <div key={country.name}>
                         <div className="flex justify-between text-sm mb-1">
                           <span className="text-foreground flex items-center gap-2">
-                            {c.code && <Flag code={c.code} />}
-                            {c.name}
+                            <span className="text-2xl">{getFlagEmoji(country.code || '')}</span>
+                            {country.name}
                           </span>
-                          <span className="font-mono text-muted-foreground">{c.value.toLocaleString()}</span>
+                          <span className="font-mono text-muted-foreground">{country.value.toLocaleString()}</span>
                         </div>
                         <div className="h-2 rounded-full bg-secondary overflow-hidden">
                           <div
@@ -655,10 +656,9 @@ export default function Analytics() {
                             style={{ width: `${pct}%`, backgroundColor: colors.primary }}
                           />
                         </div>
-                        {/* Mini map indicator */}
                         <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
                           <MapPin className="w-3 h-3" />
-                          {c.name}
+                          {country.name}
                         </div>
                       </div>
                     );
@@ -700,7 +700,7 @@ export default function Analytics() {
               </motion.div>
             )}
 
-            {/* OS with Icons - Fixed Windows Icon */}
+            {/* OS with Icons */}
             {osData.length > 0 && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-6">
                 <h3 className="font-heading font-semibold text-foreground mb-4 text-lg flex items-center gap-2">
@@ -784,7 +784,7 @@ export default function Analytics() {
                         </span>
                         {click.country && (
                           <span className="text-muted-foreground ml-1">
-                            <Flag code={click.country} />
+                            <span className="text-lg">{getFlagEmoji(click.country)}</span>
                             {click.city ? `${click.city}, ` : ""}{click.country}
                           </span>
                         )}
