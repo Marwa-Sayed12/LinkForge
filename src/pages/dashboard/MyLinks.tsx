@@ -1,6 +1,8 @@
+// src/pages/dashboard/MyLinks.tsx
+
 import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Plus, Link2, Copy, Check, Trash2, QrCode, ExternalLink, Download } from "lucide-react";
+import { Plus, Link2, Copy, Check, Trash2, QrCode, ExternalLink, Download, MousePointerClick } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import QRCode from "qrcode";
 import { Link } from "react-router-dom";
@@ -248,8 +250,13 @@ export default function MyLinks() {
                     <ExternalLink className="w-3 h-3 shrink-0" />
                     <span className="truncate">{link.original_url}</span>
                   </div>
-                  <div className="text-xs text-muted-foreground mt-2">
-                    Created {new Date(link.created_at).toLocaleDateString()}
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground mt-2">
+                    <span>Created {new Date(link.created_at).toLocaleDateString()}</span>
+                    {/* ✅ Added click count display */}
+                    <span className="flex items-center gap-1 text-primary">
+                      <MousePointerClick className="w-3 h-3" />
+                      {link.clicks || 0} clicks
+                    </span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
