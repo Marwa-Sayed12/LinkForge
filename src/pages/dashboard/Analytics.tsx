@@ -18,6 +18,49 @@ import { format, subDays, startOfDay, formatDistance } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
+// Flag component using emoji flags (no external library needed)
+const Flag = ({ code }: { code: string }) => {
+  const getFlagEmoji = (countryCode: string) => {
+    const codePoints = countryCode
+      .toUpperCase()
+      .split('')
+      .map(char => 127397 + char.charCodeAt(0));
+    return String.fromCodePoint(...codePoints);
+  };
+  
+  try {
+    return <span className="text-xl mr-1">{getFlagEmoji(code)}</span>;
+  } catch {
+    return <span className="text-xl mr-1">🌍</span>;
+  }
+};
+
+// OS Icon mapping
+const OS_ICONS: Record<string, string> = {
+  'Windows': '🪟',
+  'Mac OS X': '🍎',
+  'macOS': '🍎',
+  'Linux': '🐧',
+  'Ubuntu': '🐧',
+  'iOS': '📱',
+  'Android': '🤖',
+  'Chrome OS': '🌐',
+  'Unknown': '💻'
+};
+
+// Browser Icon mapping
+const BROWSER_ICONS: Record<string, string> = {
+  'Chrome': '🌐',
+  'Firefox': '🦊',
+  'Safari': '🧭',
+  'Edge': '📘',
+  'Opera': '🅾️',
+  'Internet Explorer': '💀',
+  'Mobile Safari': '📱',
+  'Chrome Mobile': '📱',
+  'Unknown': '🌐'
+};
+
 function useChartColors() {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
@@ -113,22 +156,7 @@ export default function Analytics() {
                   stats: stats,
                 });
                 
-                // Only push stats if there's meaningful data
-                if (stats.browser?.length > 0 || stats.country?.length > 0 || stats.os?.length > 0) {
-                  allStats.push(stats);
-                } else {
-                  // Push minimal stats for click count tracking
-                  allStats.push({
-                    clicksByDate: {},
-                    devices: {},
-                    countries: {},
-                    browsers: {},
-                    oss: {},
-                    referrers: {},
-                    recentClicks: [],
-                    ...stats // Keep any existing data
-                  });
-                }
+                allStats.push(stats);
               } else {
                 linksWithStats.push({
                   ...link,
@@ -208,59 +236,84 @@ export default function Analytics() {
               .slice(0, 8)
           );
 
-          // Process country data
-          const countryMap: Record<string, number> = {};
+          // Process country data with flags
+          const countryMap: Record<string, { count: number; code: string }> = {};
           allStats.forEach((stats) => {
             if (stats.countries) {
-              Object.entries(stats.countries).forEach(([country, count]: [string, any]) => {
-                const countNum = typeof count === 'number' ? count : 0;
+              Object.entries(stats.countries).forEach(([country, data]: [string, any]) => {
+                const countNum = typeof data === 'number' ? data : data?.count || 0;
+                const countryCode = typeof data === 'object' ? data.code : country;
                 if (countNum > 0) {
-                  countryMap[country] = (countryMap[country] || 0) + countNum;
+                  const fullName = country;
+                  if (!countryMap[fullName]) {
+                    countryMap[fullName] = { count: 0, code: countryCode };
+                  }
+                  countryMap[fullName].count += countNum;
                 }
               });
             }
           });
           setCountryData(
             Object.entries(countryMap)
-              .map(([name, value]) => ({ name, value }))
+              .map(([name, data]) => ({ 
+                name, 
+                value: data.count,
+                code: data.code 
+              }))
               .sort((a, b) => b.value - a.value)
               .slice(0, 8)
           );
 
-          // Process browser data
-          const browserMap: Record<string, number> = {};
+          // Process browser data with icons
+          const browserMap: Record<string, { count: number; icon: string }> = {};
           allStats.forEach((stats) => {
             if (stats.browsers) {
-              Object.entries(stats.browsers).forEach(([browser, count]: [string, any]) => {
-                const countNum = typeof count === 'number' ? count : 0;
+              Object.entries(stats.browsers).forEach(([browser, data]: [string, any]) => {
+                const countNum = typeof data === 'number' ? data : data?.count || 0;
+                const icon = typeof data === 'object' ? data.icon : BROWSER_ICONS[browser] || '🌐';
                 if (countNum > 0) {
-                  browserMap[browser] = (browserMap[browser] || 0) + countNum;
+                  if (!browserMap[browser]) {
+                    browserMap[browser] = { count: 0, icon };
+                  }
+                  browserMap[browser].count += countNum;
                 }
               });
             }
           });
           setBrowserData(
             Object.entries(browserMap)
-              .map(([name, value]) => ({ name, value }))
+              .map(([name, data]) => ({ 
+                name, 
+                value: data.count,
+                icon: data.icon 
+              }))
               .sort((a, b) => b.value - a.value)
               .slice(0, 8)
           );
 
-          // Process OS data - using 'oss'
-          const osMap: Record<string, number> = {};
+          // Process OS data with icons
+          const osMap: Record<string, { count: number; icon: string }> = {};
           allStats.forEach((stats) => {
             if (stats.oss) {
-              Object.entries(stats.oss).forEach(([os, count]: [string, any]) => {
-                const countNum = typeof count === 'number' ? count : 0;
+              Object.entries(stats.oss).forEach(([os, data]: [string, any]) => {
+                const countNum = typeof data === 'number' ? data : data?.count || 0;
+                const icon = typeof data === 'object' ? data.icon : OS_ICONS[os] || '💻';
                 if (countNum > 0) {
-                  osMap[os] = (osMap[os] || 0) + countNum;
+                  if (!osMap[os]) {
+                    osMap[os] = { count: 0, icon };
+                  }
+                  osMap[os].count += countNum;
                 }
               });
             }
           });
           setOsData(
             Object.entries(osMap)
-              .map(([name, value]) => ({ name, value }))
+              .map(([name, data]) => ({ 
+                name, 
+                value: data.count,
+                icon: data.icon 
+              }))
               .sort((a, b) => b.value - a.value)
               .slice(0, 8)
           );
@@ -270,7 +323,7 @@ export default function Analytics() {
           allStats.forEach((stats) => {
             if (stats.referrers) {
               Object.entries(stats.referrers).forEach(([referrer, count]: [string, any]) => {
-                const countNum = typeof count === 'number' ? count : 0;
+                const countNum = typeof count === 'number' ? count : count?.count || 0;
                 if (countNum > 0) {
                   referrerMap[referrer] = (referrerMap[referrer] || 0) + countNum;
                 }
@@ -379,6 +432,23 @@ export default function Analytics() {
     padding: "8px 12px",
   };
 
+  // Custom tooltip for charts with icons
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div style={tooltipStyle}>
+          <p className="font-semibold">{label}</p>
+          {payload.map((entry: any, index: number) => (
+            <p key={index} style={{ color: entry.color }}>
+              {entry.name}: {entry.value} clicks
+            </p>
+          ))}
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -448,7 +518,7 @@ export default function Analytics() {
                 <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />
                 <XAxis dataKey="date" stroke={colors.text} fontSize={11} />
                 <YAxis stroke={colors.text} fontSize={11} allowDecimals={false} />
-                <Tooltip contentStyle={tooltipStyle} />
+                <Tooltip content={<CustomTooltip />} />
                 <Area 
                   type="monotone" 
                   dataKey="clicks" 
@@ -509,7 +579,7 @@ export default function Analytics() {
                         <Cell key={entry.name} fill={colors.chartColors[index % colors.chartColors.length]} />
                       ))}
                     </Pie>
-                    <Tooltip contentStyle={tooltipStyle} />
+                    <Tooltip content={<CustomTooltip />} />
                   </PieChart>
                 </ResponsiveContainer>
               </motion.div>
@@ -528,7 +598,10 @@ export default function Analytics() {
                     return (
                       <div key={c.name}>
                         <div className="flex justify-between text-sm mb-0.5">
-                          <span className="text-foreground">{c.name}</span>
+                          <span className="text-foreground flex items-center gap-1">
+                            {c.code && <Flag code={c.code} />}
+                            {c.name}
+                          </span>
                           <span className="font-mono text-muted-foreground">{c.value.toLocaleString()}</span>
                         </div>
                         <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
@@ -554,7 +627,10 @@ export default function Analytics() {
                     return (
                       <div key={b.name}>
                         <div className="flex justify-between text-sm mb-0.5">
-                          <span className="text-foreground">{b.name}</span>
+                          <span className="text-foreground flex items-center gap-1">
+                            <span>{b.icon || '🌐'}</span>
+                            {b.name}
+                          </span>
                           <span className="font-mono text-muted-foreground">{b.value.toLocaleString()}</span>
                         </div>
                         <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
@@ -580,7 +656,10 @@ export default function Analytics() {
                     return (
                       <div key={o.name}>
                         <div className="flex justify-between text-sm mb-0.5">
-                          <span className="text-foreground">{o.name}</span>
+                          <span className="text-foreground flex items-center gap-1">
+                            <span>{o.icon || '💻'}</span>
+                            {o.name}
+                          </span>
                           <span className="font-mono text-muted-foreground">{o.value.toLocaleString()}</span>
                         </div>
                         <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
@@ -642,7 +721,10 @@ export default function Analytics() {
                           {click.browser || "Unknown"} · {click.device_type || "Desktop"} · {click.os || "Unknown"}
                         </span>
                         {click.country && (
-                          <span className="text-muted-foreground"> · {click.city ? `${click.city}, ` : ""}{click.country}</span>
+                          <span className="text-muted-foreground">
+                            {click.country && <Flag code={click.country} />}
+                            {click.city ? `${click.city}, ` : ""}{click.country}
+                          </span>
                         )}
                       </div>
                     </div>
