@@ -150,8 +150,25 @@ export default function Analytics() {
                   stats: stats,
                 });
                 
-                allStats.push(stats);
+                // ✅ Only push stats if they exist
+                if (stats.totalClicks > 0 || stats.clicks > 0 || Object.keys(stats.browser || {}).length > 0) {
+                  allStats.push(stats);
+                } else {
+                  // Push minimal stats for display
+                  allStats.push({
+                    clicksByDate: {},
+                    devices: {},
+                    countries: {},
+                    browsers: {},
+                    oss: {},
+                    referrers: {},
+                    recentClicks: [],
+                    totalClicks: 0,
+                    humanClicks: 0,
+                  });
+                }
               } else {
+                // ✅ Only push once with 0 clicks
                 linksWithStats.push({
                   ...link,
                   short_url: shortUrl,
@@ -175,7 +192,7 @@ export default function Analytics() {
           console.log('Links with stats:', linksWithStats);
           console.log('Total clicks:', total);
 
-          // Process daily clicks - FIXED to show today's clicks
+          // Process daily clicks
           const dailyMap: Record<string, number> = {};
           const now = new Date();
           let todayCount = 0;
@@ -218,7 +235,7 @@ export default function Analytics() {
           }
           setDailyClicksData(days);
 
-          // ✅ FIXED: Process device data with mobile support
+          // Process device data with mobile support
           const deviceMap: Record<string, number> = {};
           allStats.forEach((stats) => {
             const deviceData = stats.devices || stats.device || stats.device_stats || {};
@@ -383,7 +400,7 @@ export default function Analytics() {
               .slice(0, 8)
           );
 
-          // ✅ FIXED: Get recent clicks with mobile support
+          // Get recent clicks with mobile support
           const allRecentClicks: any[] = [];
           allStats.forEach((stats) => {
             if (stats.recentClicks) {
@@ -606,7 +623,7 @@ export default function Analytics() {
 
           {/* Two Cards in One Line */}
           <div className="grid lg:grid-cols-2 gap-6">
-            {/* ✅ FIXED: Top Links - Shows ALL links with clicks */}
+            {/* Top Links - Shows ALL links with clicks */}
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-6">
               <h3 className="font-heading font-semibold text-foreground mb-4 text-lg">Top Performing Links</h3>
               <div className="space-y-3">
@@ -801,7 +818,7 @@ export default function Analytics() {
             )}
           </div>
 
-          {/* ✅ FIXED: Recent Activity with Mobile Support */}
+          {/* Recent Activity with Mobile Support */}
           {recentClicks.length > 0 && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-6">
               <h3 className="font-heading font-semibold text-foreground mb-4 text-lg flex items-center gap-2">

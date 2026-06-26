@@ -17,6 +17,11 @@ function getShortUrl(shortCode: string) {
   return `https://s.linkforge.website/${shortCode}`;
 }
 
+// Generate a random short code
+function generateRandomCode() {
+  return Math.random().toString(36).substring(2, 8);
+}
+
 export default function MyLinks() {
   const { user } = useAuth();
   const [links, setLinks] = useState<any[]>([]);
@@ -27,6 +32,7 @@ export default function MyLinks() {
   const [showCreate, setShowCreate] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showQR, setShowQR] = useState<string | null>(null);
+  const [suggestedAlias, setSuggestedAlias] = useState("");
 
   const fetchLinks = useCallback(async () => {
     if (!user) return;
@@ -42,6 +48,16 @@ export default function MyLinks() {
   useEffect(() => {
     fetchLinks();
   }, [fetchLinks]);
+
+  // Check if alias exists in Supabase
+  const checkAliasExists = async (alias: string): Promise<boolean> => {
+    const { data } = await supabase
+      .from("links")
+      .select("id")
+      .eq("short_code", alias)
+      .single();
+    return !!data;
+  };
 
   const createLink = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,48 +76,59 @@ export default function MyLinks() {
       new URL(url);
       
       // Use custom alias or generate random code
-      const shortCode = customAlias || Math.random().toString(36).substring(2, 8);
+      const shortCode = customAlias.trim() || generateRandomCode();
       
-      // Check if custom alias already exists
-      if (customAlias) {
-        const { data: existing } = await supabase
-          .from("links")
-          .select("id")
-          .eq("short_code", customAlias)
-          .single();
-        
-        if (existing) {
-          toast.error("That alias is already taken. Please choose another.");
+      // If custom alias is provided, check if it exists in Supabase
+      if (customAlias.trim()) {
+        const exists = await checkAliasExists(shortCode);
+        if (exists) {
+          // Generate a suggestion
+          const suggestion = `${shortCode}-${generateRandomCode().substring(0, 3)}`;
+          setSuggestedAlias(suggestion);
+          toast.error(
+            `Alias "${shortCode}" is already taken. Try "${suggestion}" instead.`,
+            { duration: 5000 }
+          );
           setCreating(false);
           return;
         }
       }
       
       // Create short link via Short.io
-      const { shortUrl, shortCode: shortIoCode } = await createShortLink(url, customAlias);
+      const result = await createShortLink(url, shortCode);
       
       // Insert into Supabase
       const { error } = await supabase.from("links").insert({
         user_id: user.id,
         original_url: url,
         short_code: shortCode,
-        custom_alias: customAlias || null,
-        short_url: shortUrl,
+        custom_alias: customAlias.trim() || null,
+        short_url: result.shortUrl,
         is_active: true,
+        clicks: 0,
       });
       
       if (error) {
         toast.error(error.message);
       } else {
-        toast.success(`Link created: ${shortUrl}`);
+        toast.success(`✅ Link created: ${result.shortUrl}`);
         setUrl("");
         setCustomAlias("");
+        setSuggestedAlias("");
         setShowCreate(false);
         fetchLinks();
       }
     } catch (err: any) {
       if (err.message?.includes("Invalid URL")) {
         toast.error("Please enter a valid URL (https://...)");
+      } else if (err.message?.includes("already exists")) {
+        // Handle Short.io duplicate error
+        const suggestion = `${customAlias || generateRandomCode()}-${generateRandomCode().substring(0, 3)}`;
+        setSuggestedAlias(suggestion);
+        toast.error(
+          `This alias is already taken. Try "${suggestion}" instead.`,
+          { duration: 5000 }
+        );
       } else {
         toast.error(err.message || "Failed to create link");
       }
@@ -111,8 +138,6 @@ export default function MyLinks() {
 
   const downloadQR = async (link: any) => {
     try {
-      const qrCodeUrl = getQRCodeUrl(link.short_code);
-      // For local QR generation fallback
       const dataUrl = await QRCode.toDataURL(link.original_url, { width: 512, margin: 2 });
       const a = document.createElement("a");
       a.href = dataUrl;
@@ -142,13 +167,21 @@ export default function MyLinks() {
     toast.success("Copied to clipboard!");
   };
 
+  // Use suggested alias if available
+  const handleUseSuggested = () => {
+    if (suggestedAlias) {
+      setCustomAlias(suggestedAlias);
+      setSuggestedAlias("");
+    }
+  };
+
   if (!user) {
     return (
       <div className="glass-card rounded-xl p-12 text-center">
         <Link2 className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
         <h3 className="font-heading text-lg font-semibold text-foreground mb-2">Please Log In</h3>
         <p className="text-sm text-muted-foreground mb-4">Sign in to view and manage your shortened links.</p>
-        <Link to="https://accounts.www.linkforge.website/sign-in">
+        <Link to="/sign-in">
           <Button variant="hero">Sign In</Button>
         </Link>
       </div>
@@ -188,11 +221,26 @@ export default function MyLinks() {
                 <input
                   type="text"
                   value={customAlias}
-                  onChange={(e) => setCustomAlias(e.target.value.replace(/[^a-zA-Z0-9-_]/g, ""))}
+                  onChange={(e) => {
+                    setCustomAlias(e.target.value.replace(/[^a-zA-Z0-9-_]/g, ""));
+                    setSuggestedAlias("");
+                  }}
                   placeholder="my-custom-link"
                   className="flex-1 rounded-lg border border-border bg-secondary/50 px-3 py-2.5 text-sm font-mono text-foreground outline-none focus:border-primary/50"
                 />
               </div>
+              {suggestedAlias && (
+                <div className="mt-2 flex items-center gap-2 text-sm">
+                  <span className="text-muted-foreground">Try:</span>
+                  <button
+                    type="button"
+                    onClick={handleUseSuggested}
+                    className="text-primary hover:underline font-mono"
+                  >
+                    {suggestedAlias}
+                  </button>
+                </div>
+              )}
             </div>
             <div className="flex gap-2">
               <Button variant="hero" disabled={creating}>
@@ -252,7 +300,6 @@ export default function MyLinks() {
                   </div>
                   <div className="flex items-center gap-3 text-xs text-muted-foreground mt-2">
                     <span>Created {new Date(link.created_at).toLocaleDateString()}</span>
-                    {/* ✅ Added click count display */}
                     <span className="flex items-center gap-1 text-primary">
                       <MousePointerClick className="w-3 h-3" />
                       {link.clicks || 0} clicks

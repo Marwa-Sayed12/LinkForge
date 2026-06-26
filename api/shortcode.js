@@ -1,5 +1,7 @@
 // api/shortcode.js
 
+import { format } from "date-fns";
+
 export default async function handler(req, res) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -94,9 +96,8 @@ export default async function handler(req, res) {
     console.log('Stats data received');
     console.log('Raw clicksByDate:', statsData.clicksByDate);
 
-
     // Country name mapping
-    const countryNames = {
+const countryNames = {
       'AF': 'Afghanistan',
       'AL': 'Albania',
       'DZ': 'Algeria',
@@ -300,7 +301,7 @@ export default async function handler(req, res) {
       'iOS': '📱',
       'Android': '🤖',
       'Chrome OS': '🌐',
-      'Unknown': '❓'
+      'Unknown': '💻'
     };
 
     // Browser Icon mapping
@@ -313,17 +314,23 @@ export default async function handler(req, res) {
       'Internet Explorer': '💀',
       'Mobile Safari': '📱',
       'Chrome Mobile': '📱',
-      'Unknown': '❓'
+      'Unknown': '🌐'
     };
 
     // Transform clicksByDate to ensure it's in the right format
-const clicksByDate = statsData.clicksByDate || {};
-const formattedClicksByDate = {};
-Object.entries(clicksByDate).forEach(([date, count]) => {
-  // Ensure date is in YYYY-MM-DD format
-  const formattedDate = format(new Date(date), 'yyyy-MM-dd');
-  formattedClicksByDate[formattedDate] = count;
-});
+    const clicksByDate = statsData.clicksByDate || {};
+    const formattedClicksByDate = {};
+    Object.entries(clicksByDate).forEach(([date, count]) => {
+      try {
+        const parsedDate = new Date(date);
+        if (!isNaN(parsedDate.getTime())) {
+          const formattedDate = format(parsedDate, 'yyyy-MM-dd');
+          formattedClicksByDate[formattedDate] = count;
+        }
+      } catch (e) {
+        console.warn('Could not parse date:', date);
+      }
+    });
 
     // Transform data for frontend
     const transformedData = {
@@ -333,7 +340,7 @@ Object.entries(clicksByDate).forEach(([date, count]) => {
       totalClicksChange: statsData.totalClicksChange || '0',
       humanClicksChange: statsData.humanClicksChange || '0',
       clickStatistics: statsData.clickStatistics || { datasets: [] },
-        clicksByDate: formattedClicksByDate,
+      clicksByDate: formattedClicksByDate,
       interval: statsData.interval || { startDate: null, endDate: null, prevStartDate: null, prevEndDate: null },
       
       // Raw data
@@ -374,7 +381,6 @@ Object.entries(clicksByDate).forEach(([date, count]) => {
         return acc;
       }, {}) || {},
       
-      // Keep raw country data with full names
       countryFull: statsData.country?.map(item => ({
         ...item,
         countryName: countryNames[item.country] || item.country || item.countryName || 'Unknown',
@@ -393,4 +399,6 @@ Object.entries(clicksByDate).forEach(([date, count]) => {
       details: error.message
     });
   }
-}
+}  
+
+
