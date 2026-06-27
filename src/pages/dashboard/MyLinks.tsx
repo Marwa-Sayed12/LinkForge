@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Plus, Link2, Copy, Check, Trash2, QrCode, ExternalLink, Download, MousePointerClick } from "lucide-react";
+import { Plus, Link2, Copy, Check, Trash2, QrCode, ExternalLink, Download, MousePointerClick, RefreshCw } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import QRCode from "qrcode";
 import { Link } from "react-router-dom";
@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useClerkAuth";
 import { toast } from "sonner";
-import { createShortLink, getQRCodeUrl } from "@/lib/shortio";
+import { createShortLink, getQRCodeUrl, getShortIoStats } from "@/lib/shortio";
 
 // Helper function to get the full short URL
 function getShortUrl(shortCode: string) {
@@ -26,6 +26,7 @@ export default function MyLinks() {
   const { user } = useAuth();
   const [links, setLinks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [url, setUrl] = useState("");
   const [customAlias, setCustomAlias] = useState("");
   const [creating, setCreating] = useState(false);
@@ -33,6 +34,7 @@ export default function MyLinks() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showQR, setShowQR] = useState<string | null>(null);
   const [suggestedAlias, setSuggestedAlias] = useState("");
+  const [clickCounts, setClickCounts] = useState<Record<string, number>>({});
 
   const fetchLinks = useCallback(async () => {
     if (!user) return;
@@ -43,7 +45,43 @@ export default function MyLinks() {
       .order("created_at", { ascending: false });
     setLinks(data || []);
     setLoading(false);
+    
+    // ✅ Fetch click counts from Short.io for each link
+    if (data && data.length > 0) {
+      const counts: Record<string, number> = {};
+      for (const link of data) {
+        try {
+          const stats = await getShortIoStats(link.short_code);
+          counts[link.id] = stats?.totalClicks || 0;
+        } catch (e) {
+          counts[link.id] = 0;
+        }
+      }
+      setClickCounts(counts);
+    }
   }, [user]);
+
+  // ✅ Refresh click counts only
+  const refreshClicks = useCallback(async () => {
+    if (!links.length) return;
+    setRefreshing(true);
+    try {
+      const counts: Record<string, number> = {};
+      for (const link of links) {
+        try {
+          const stats = await getShortIoStats(link.short_code);
+          counts[link.id] = stats?.totalClicks || 0;
+        } catch (e) {
+          counts[link.id] = 0;
+        }
+      }
+      setClickCounts(counts);
+      toast.success("Click counts updated!");
+    } catch (e) {
+      toast.error("Failed to refresh clicks");
+    }
+    setRefreshing(false);
+  }, [links]);
 
   useEffect(() => {
     fetchLinks();
@@ -72,13 +110,10 @@ export default function MyLinks() {
     
     setCreating(true);
     try {
-      // Validate URL
       new URL(url);
       
-      // Use custom alias or generate random code
       const shortCode = customAlias.trim() || generateRandomCode();
       
-      // If custom alias is provided, check if it exists in Supabase
       if (customAlias.trim()) {
         const exists = await checkAliasExists(shortCode);
         if (exists) {
@@ -93,10 +128,8 @@ export default function MyLinks() {
         }
       }
       
-      // Create short link via Short.io
       const result = await createShortLink(url, shortCode);
       
-      // Insert into Supabase - REMOVED clicks field
       const { error } = await supabase.from("links").insert({
         user_id: user.id,
         original_url: url,
@@ -104,7 +137,6 @@ export default function MyLinks() {
         custom_alias: customAlias.trim() || null,
         short_url: result.shortUrl,
         is_active: true,
-        // ✅ clicks is NOT inserted here - it's managed by the database trigger
       });
       
       if (error) {
@@ -165,7 +197,6 @@ export default function MyLinks() {
     toast.success("Copied to clipboard!");
   };
 
-  // Use suggested alias if available
   const handleUseSuggested = () => {
     if (suggestedAlias) {
       setCustomAlias(suggestedAlias);
@@ -188,14 +219,25 @@ export default function MyLinks() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h1 className="font-heading text-2xl font-bold text-foreground">My Links</h1>
           <p className="text-sm text-muted-foreground">{links.length} links created</p>
         </div>
-        <Button variant="hero" size="sm" onClick={() => setShowCreate(!showCreate)}>
-          <Plus className="w-4 h-4" /> New Link
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={refreshClicks} 
+            disabled={refreshing}
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+            {refreshing ? "Updating..." : "Refresh Clicks"}
+          </Button>
+          <Button variant="hero" size="sm" onClick={() => setShowCreate(!showCreate)}>
+            <Plus className="w-4 h-4" /> New Link
+          </Button>
+        </div>
       </div>
 
       {showCreate && (
@@ -298,9 +340,10 @@ export default function MyLinks() {
                   </div>
                   <div className="flex items-center gap-3 text-xs text-muted-foreground mt-2">
                     <span>Created {new Date(link.created_at).toLocaleDateString()}</span>
-                    <span className="flex items-center gap-1 text-primary">
+                    <span className="flex items-center gap-1 text-primary font-semibold">
                       <MousePointerClick className="w-3 h-3" />
-                      {link.clicks || 0} clicks
+                      {/* ✅ Show click count from Short.io API */}
+                      {clickCounts[link.id] !== undefined ? clickCounts[link.id] : '...'} clicks
                     </span>
                   </div>
                 </div>

@@ -8,6 +8,10 @@ const client = createClient({
 
 const DOMAIN = 's.linkforge.website';
 
+// ✅ Simple cache for stats
+const statsCache = new Map<string, { data: any; timestamp: number }>();
+const CACHE_DURATION = 30000; // 30 seconds cache
+
 export async function createShortLink(originalUrl: string, customSlug?: string) {
   try {
     const result = await client.createLink({
@@ -27,9 +31,15 @@ export async function createShortLink(originalUrl: string, customSlug?: string) 
   }
 }
 
-// ✅ Fixed: Handles 404 gracefully by returning empty stats
 export async function getShortIoStats(shortCode: string) {
   try {
+    // Check cache
+    const cached = statsCache.get(shortCode);
+    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+      console.log(`Using cached stats for: ${shortCode}`);
+      return cached.data;
+    }
+
     console.log(`Fetching stats for short code: ${shortCode}`);
     
     let response = await fetch(`/api/shortcode?shortCode=${shortCode}`);
@@ -43,9 +53,8 @@ export async function getShortIoStats(shortCode: string) {
       const errorText = await response.text();
       console.error('API error:', response.status, errorText);
       
-      // ✅ Return empty stats for 404 instead of null
       if (response.status === 404) {
-        return {
+        const emptyStats = {
           totalClicks: 0,
           humanClicks: 0,
           clicks: 0,
@@ -57,12 +66,17 @@ export async function getShortIoStats(shortCode: string) {
           referrers: {},
           recentClicks: [],
         };
+        statsCache.set(shortCode, { data: emptyStats, timestamp: Date.now() });
+        return emptyStats;
       }
       return null;
     }
     
     const data = await response.json();
     console.log('Stats data from API:', data);
+    
+    // Cache the result
+    statsCache.set(shortCode, { data: data, timestamp: Date.now() });
     return data;
   } catch (error) {
     console.error('Error fetching Short.io stats:', error);
