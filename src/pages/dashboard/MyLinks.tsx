@@ -343,7 +343,7 @@ export default function MyLinks() {
                     <span className="flex items-center gap-1 text-primary font-semibold">
                       <MousePointerClick className="w-3 h-3" />
                       {/* ✅ Show click count from Short.io API */}
-                      {clickCounts[link.id] !== undefined ? clickCounts[link.id] : '...'} clicks
+                    {clickCounts[link.id] ?? 0} clicks
                     </span>
                   </div>
                 </div>
