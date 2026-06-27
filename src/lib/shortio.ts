@@ -31,51 +31,46 @@ export async function createShortLink(originalUrl: string, customSlug?: string) 
   }
 }
 
+// src/lib/shortio.ts
+
+// ✅ New function: Fetch multiple stats at once
+// Add this function to src/lib/shortio.ts
+
+export async function getShortIoStatsBatch(shortCodes: string[]) {
+  try {
+    if (!shortCodes.length) return {};
+    
+    const response = await fetch(`/api/stats/batch?shortCodes=${shortCodes.join(',')}`);
+    
+    if (!response.ok) {
+      console.error('Batch API error:', await response.text());
+      return {};
+    }
+    
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error fetching batch stats:', error);
+    return {};
+  }
+}
+// Keep individual function for fallback
 export async function getShortIoStats(shortCode: string) {
   try {
-    // Check cache
+    // Check cache first
     const cached = statsCache.get(shortCode);
     if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-      console.log(`Using cached stats for: ${shortCode}`);
       return cached.data;
     }
 
-    console.log(`Fetching stats for short code: ${shortCode}`);
-    
-    let response = await fetch(`/api/shortcode?shortCode=${shortCode}`);
-    
-    if (!response.ok && response.status !== 404) {
-      console.log('Trying path format...');
-      response = await fetch(`/api/${shortCode}`);
-    }
+    const response = await fetch(`/api/shortcode?shortCode=${shortCode}`);
     
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('API error:', response.status, errorText);
-      
-      if (response.status === 404) {
-        const emptyStats = {
-          totalClicks: 0,
-          humanClicks: 0,
-          clicks: 0,
-          clicksByDate: {},
-          devices: {},
-          countries: {},
-          browsers: {},
-          oss: {},
-          referrers: {},
-          recentClicks: [],
-        };
-        statsCache.set(shortCode, { data: emptyStats, timestamp: Date.now() });
-        return emptyStats;
-      }
+      console.warn(`API error for ${shortCode}: ${response.status}`);
       return null;
     }
     
     const data = await response.json();
-    console.log('Stats data from API:', data);
-    
-    // Cache the result
     statsCache.set(shortCode, { data: data, timestamp: Date.now() });
     return data;
   } catch (error) {

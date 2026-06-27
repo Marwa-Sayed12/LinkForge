@@ -88,6 +88,20 @@ interface LinkWithStats {
   stats?: any;
 }
 
+// Define types for batch stats response
+interface BatchStatsResponse {
+  [shortCode: string]: {
+    totalClicks: number;
+    clicks: number;
+    humanClicks: number;
+    browser?: any[];
+    country?: any[];
+    os?: any[];
+    referer?: any[];
+    clicksByDate?: Record<string, number>;
+  };
+}
+
 export default function Analytics() {
   const { user } = useAuth();
   const colors = useChartColors();
@@ -122,6 +136,24 @@ export default function Analytics() {
       statsCache.set(shortCode, { data: stats, timestamp: Date.now() });
     }
     return stats;
+  }, []);
+
+  // ✅ Batch fetch function
+  const getShortIoStatsBatch = useCallback(async (shortCodes: string[]): Promise<BatchStatsResponse> => {
+    if (!shortCodes.length) return {};
+    
+    try {
+      const response = await fetch(`/api/stats/batch?shortCodes=${shortCodes.join(',')}`);
+      if (!response.ok) {
+        console.error('Batch API error:', await response.text());
+        return {};
+      }
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error fetching batch stats:', error);
+      return {};
+    }
   }, []);
 
   // Process stats data
@@ -420,45 +452,17 @@ export default function Analytics() {
         let humanTotal = 0;
         const allStats: any[] = [];
 
-        // Fetch ALL stats in parallel
-        const statsPromises = userLinks.map(async (link) => {
-          try {
-            const shortUrl = `https://s.linkforge.website/${link.short_code}`;
-            console.log(`Fetching stats for short code: ${link.short_code}`);
-            
-            const stats = await fetchStatsWithCache(link.short_code);
-            
-            return { link, shortUrl, stats, success: true };
-          } catch (error) {
-            console.error("Error fetching stats for link:", link.short_code, error);
-            return { 
-              link, 
-              shortUrl: `https://s.linkforge.website/${link.short_code}`, 
-              stats: {
-                totalClicks: 0,
-                humanClicks: 0,
-                clicks: 0,
-                clicksByDate: {},
-                devices: {},
-                countries: {},
-                browsers: {},
-                oss: {},
-                referrers: {},
-                recentClicks: [],
-              }, 
-              success: false 
-            };
-          }
-        });
+        // ✅ Use BATCH API to fetch all stats at once
+        const shortCodes = userLinks.map(link => link.short_code);
+        const batchStats = await getShortIoStatsBatch(shortCodes);
+        console.log('Batch stats received:', batchStats);
 
-        // Wait for all parallel requests
-        const results = await Promise.all(statsPromises);
-        
-        // Process results
-        results.forEach((result, index) => {
-          const { link, shortUrl, stats } = result;
+        // Process each link with its batch stats
+        userLinks.forEach((link, index) => {
+          const shortUrl = `https://s.linkforge.website/${link.short_code}`;
+          const stats = batchStats[link.short_code];
           
-          setProgress(Math.round(((index + 1) / results.length) * 100));
+          setProgress(Math.round(((index + 1) / userLinks.length) * 100));
           
           if (stats) {
             const clickCount = stats.totalClicks || stats.clicks || 0;
@@ -473,7 +477,7 @@ export default function Analytics() {
               stats: stats,
             });
             
-            if (stats.totalClicks > 0 || stats.clicks > 0 || Object.keys(stats.browser || {}).length > 0) {
+            if (stats.totalClicks > 0 || stats.clicks > 0 || (stats.browser && Object.keys(stats.browser).length > 0)) {
               allStats.push(stats);
             } else {
               allStats.push({
@@ -528,7 +532,7 @@ export default function Analytics() {
       setIsRefreshing(false);
       setTimeout(() => setProgress(0), 1000);
     }
-  }, [user, fetchStatsWithCache, processStatsData]);
+  }, [user, getShortIoStatsBatch, processStatsData]);
 
   useEffect(() => {
     fetchAnalytics();

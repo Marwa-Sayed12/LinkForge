@@ -11,6 +11,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useClerkAuth";
 import { toast } from "sonner";
 import { createShortLink, getQRCodeUrl, getShortIoStats } from "@/lib/shortio";
+import { getShortIoStatsBatch } from "../../../api/stats/batch.js";
+
 
 // Helper function to get the full short URL
 function getShortUrl(shortCode: string) {
@@ -35,53 +37,57 @@ export default function MyLinks() {
   const [showQR, setShowQR] = useState<string | null>(null);
   const [suggestedAlias, setSuggestedAlias] = useState("");
   const [clickCounts, setClickCounts] = useState<Record<string, number>>({});
+  const [loadingClicks, setLoadingClicks] = useState<Record<string, boolean>>({});
 
-  const fetchLinks = useCallback(async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from("links")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false });
-    setLinks(data || []);
-    setLoading(false);
+
+// src/pages/dashboard/MyLinks.tsx
+
+// In the fetchLinks function:
+const fetchLinks = useCallback(async () => {
+  if (!user) return;
+  
+  const { data } = await supabase
+    .from("links")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false });
     
-    // ✅ Fetch click counts from Short.io for each link
-    if (data && data.length > 0) {
-      const counts: Record<string, number> = {};
-      for (const link of data) {
-        try {
-          const stats = await getShortIoStats(link.short_code);
-          counts[link.id] = stats?.totalClicks || 0;
-        } catch (e) {
-          counts[link.id] = 0;
-        }
-      }
-      setClickCounts(counts);
-    }
-  }, [user]);
+  setLinks(data || []);
+  setLoading(false);
+  
+  // ✅ Fetch ALL clicks in ONE batch call
+  if (data && data.length > 0) {
+    const shortCodes = data.map(link => link.short_code);
+    const stats = await getShortIoStatsBatch(shortCodes);
+    
+    const counts: Record<string, number> = {};
+    data.forEach(link => {
+      counts[link.id] = stats[link.short_code]?.totalClicks || 0;
+    });
+    setClickCounts(counts);
+  }
+}, [user]);
 
-  // ✅ Refresh click counts only
-  const refreshClicks = useCallback(async () => {
-    if (!links.length) return;
-    setRefreshing(true);
-    try {
-      const counts: Record<string, number> = {};
-      for (const link of links) {
-        try {
-          const stats = await getShortIoStats(link.short_code);
-          counts[link.id] = stats?.totalClicks || 0;
-        } catch (e) {
-          counts[link.id] = 0;
-        }
-      }
-      setClickCounts(counts);
-      toast.success("Click counts updated!");
-    } catch (e) {
-      toast.error("Failed to refresh clicks");
-    }
-    setRefreshing(false);
-  }, [links]);
+// Update refreshClicks to use batch:
+const refreshClicks = useCallback(async () => {
+  if (!links.length) return;
+  setRefreshing(true);
+  
+  try {
+    const shortCodes = links.map(link => link.short_code);
+    const stats = await getShortIoStatsBatch(shortCodes);
+    
+    const counts: Record<string, number> = {};
+    links.forEach(link => {
+      counts[link.id] = stats[link.short_code]?.totalClicks || 0;
+    });
+    setClickCounts(counts);
+    toast.success("Click counts updated!");
+  } catch (e) {
+    toast.error("Failed to refresh clicks");
+  }
+  setRefreshing(false);
+}, [links]);
 
   useEffect(() => {
     fetchLinks();
@@ -204,6 +210,8 @@ export default function MyLinks() {
     }
   };
 
+
+
   if (!user) {
     return (
       <div className="glass-card rounded-xl p-12 text-center">
@@ -216,6 +224,41 @@ export default function MyLinks() {
       </div>
     );
   }
+
+
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const refreshClicks = useCallback(async () => {
+  if (!links.length) return;
+  setRefreshing(true);
+  
+  // Set loading state for all links
+  const loadingState: Record<string, boolean> = {};
+  links.forEach(link => { loadingState[link.id] = true; });
+  setLoadingClicks(loadingState);
+  
+  try {
+    const counts: Record<string, number> = {};
+    // Fetch in parallel with Promise.all
+    const promises = links.map(async (link) => {
+      try {
+        const stats = await getShortIoStats(link.short_code);
+        counts[link.id] = stats?.totalClicks || 0;
+      } catch (e) {
+        counts[link.id] = 0;
+      }
+    });
+    await Promise.all(promises);
+    setClickCounts(counts);
+    toast.success("Click counts updated!");
+  } catch (e) {
+    toast.error("Failed to refresh clicks");
+  } finally {
+    setRefreshing(false);
+    const resetLoading: Record<string, boolean> = {};
+    links.forEach(link => { resetLoading[link.id] = false; });
+    setLoadingClicks(resetLoading);
+  }
+}, [links]);
 
   return (
     <div className="space-y-6">
