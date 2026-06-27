@@ -82,7 +82,6 @@ export default function MyLinks() {
       if (customAlias.trim()) {
         const exists = await checkAliasExists(shortCode);
         if (exists) {
-          // Generate a suggestion
           const suggestion = `${shortCode}-${generateRandomCode().substring(0, 3)}`;
           setSuggestedAlias(suggestion);
           toast.error(
@@ -97,7 +96,7 @@ export default function MyLinks() {
       // Create short link via Short.io
       const result = await createShortLink(url, shortCode);
       
-      // Insert into Supabase
+      // Insert into Supabase - REMOVED clicks field
       const { error } = await supabase.from("links").insert({
         user_id: user.id,
         original_url: url,
@@ -105,7 +104,7 @@ export default function MyLinks() {
         custom_alias: customAlias.trim() || null,
         short_url: result.shortUrl,
         is_active: true,
-        clicks: 0,
+        // ✅ clicks is NOT inserted here - it's managed by the database trigger
       });
       
       if (error) {
@@ -122,7 +121,6 @@ export default function MyLinks() {
       if (err.message?.includes("Invalid URL")) {
         toast.error("Please enter a valid URL (https://...)");
       } else if (err.message?.includes("already exists")) {
-        // Handle Short.io duplicate error
         const suggestion = `${customAlias || generateRandomCode()}-${generateRandomCode().substring(0, 3)}`;
         setSuggestedAlias(suggestion);
         toast.error(

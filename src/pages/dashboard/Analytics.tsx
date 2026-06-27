@@ -1,6 +1,6 @@
 // src/pages/dashboard/Analytics.tsx
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
   BarChart3, MousePointerClick, Globe, Monitor, TrendingUp, Clock, Link2,
@@ -57,7 +57,7 @@ const BROWSER_ICONS: Record<string, string> = {
   'Unknown': '🌐'
 };
 
-// ✅ Cache for stats to avoid refetching
+// Cache for stats to avoid refetching
 const statsCache = new Map<string, { data: any; timestamp: number }>();
 const CACHE_DURATION = 60000; // 1 minute cache
 
@@ -91,6 +91,7 @@ interface LinkWithStats {
 export default function Analytics() {
   const { user } = useAuth();
   const colors = useChartColors();
+
   const [links, setLinks] = useState<LinkWithStats[]>([]);
   const [totalClicks, setTotalClicks] = useState(0);
   const [totalLinks, setTotalLinks] = useState(0);
@@ -108,7 +109,7 @@ export default function Analytics() {
   const [progress, setProgress] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // ✅ Fetch with caching
+  // Fetch with caching
   const fetchStatsWithCache = useCallback(async (shortCode: string) => {
     const cached = statsCache.get(shortCode);
     if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
@@ -123,8 +124,8 @@ export default function Analytics() {
     return stats;
   }, []);
 
-  // ✅ Process stats data - moved to a separate function for performance
-  const processStatsData = useCallback((allStats: any[], total: number, humanTotal: number, linksWithStats: LinkWithStats[]) => {
+  // Process stats data
+  const processStatsData = useCallback((allStats: any[], total: number, humanTotal: number) => {
     // Process daily clicks
     const dailyMap: Record<string, number> = {};
     const now = new Date();
@@ -384,13 +385,12 @@ export default function Analytics() {
     );
   }, []);
 
-  // ✅ Main fetch function with parallel requests
+  // Main fetch function with parallel requests
   const fetchAnalytics = useCallback(async (refresh = false) => {
     if (!user) return;
 
     if (refresh) {
       setIsRefreshing(true);
-      // Clear cache on refresh
       statsCache.clear();
     }
 
@@ -420,30 +420,44 @@ export default function Analytics() {
         let humanTotal = 0;
         const allStats: any[] = [];
 
-        // ✅ Fetch ALL stats in parallel
+        // Fetch ALL stats in parallel
         const statsPromises = userLinks.map(async (link) => {
           try {
             const shortUrl = `https://s.linkforge.website/${link.short_code}`;
             console.log(`Fetching stats for short code: ${link.short_code}`);
             
-            // Use cached stats if available
             const stats = await fetchStatsWithCache(link.short_code);
             
             return { link, shortUrl, stats, success: true };
           } catch (error) {
             console.error("Error fetching stats for link:", link.short_code, error);
-            return { link, shortUrl: `https://s.linkforge.website/${link.short_code}`, stats: null, success: false };
+            return { 
+              link, 
+              shortUrl: `https://s.linkforge.website/${link.short_code}`, 
+              stats: {
+                totalClicks: 0,
+                humanClicks: 0,
+                clicks: 0,
+                clicksByDate: {},
+                devices: {},
+                countries: {},
+                browsers: {},
+                oss: {},
+                referrers: {},
+                recentClicks: [],
+              }, 
+              success: false 
+            };
           }
         });
 
-        // ✅ Wait for all parallel requests
+        // Wait for all parallel requests
         const results = await Promise.all(statsPromises);
         
-        // ✅ Process results
+        // Process results
         results.forEach((result, index) => {
           const { link, shortUrl, stats } = result;
           
-          // Update progress
           setProgress(Math.round(((index + 1) / results.length) * 100));
           
           if (stats) {
@@ -491,8 +505,8 @@ export default function Analytics() {
         console.log('Links with stats:', linksWithStats);
         console.log('Total clicks:', total);
 
-        // ✅ Process all stats data
-        processStatsData(allStats, total, humanTotal, linksWithStats);
+        // Process all stats data
+        processStatsData(allStats, total, humanTotal);
 
       } else {
         setLinks([]);
@@ -512,7 +526,6 @@ export default function Analytics() {
     } finally {
       setLoading(false);
       setIsRefreshing(false);
-      // Clear progress after a moment
       setTimeout(() => setProgress(0), 1000);
     }
   }, [user, fetchStatsWithCache, processStatsData]);
@@ -521,7 +534,7 @@ export default function Analytics() {
     fetchAnalytics();
   }, [fetchAnalytics]);
 
-  // ✅ Refresh function
+  // Refresh function
   const handleRefresh = useCallback(() => {
     fetchAnalytics(true);
   }, [fetchAnalytics]);
@@ -655,7 +668,7 @@ export default function Analytics() {
         ))}
       </div>
 
-      {/* Rest of the UI - same as before */}
+      {/* Rest of the UI */}
       {totalClicks === 0 && links.length === 0 ? (
         <div className="glass-card rounded-xl p-12 text-center">
           <BarChart3 className="w-12 h-12 text-muted-foreground mx-auto mb-4" />

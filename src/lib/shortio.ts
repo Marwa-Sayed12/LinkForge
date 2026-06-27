@@ -27,17 +27,14 @@ export async function createShortLink(originalUrl: string, customSlug?: string) 
   }
 }
 
-// src/lib/shortio.ts
-
+// ✅ Fixed: Handles 404 gracefully by returning empty stats
 export async function getShortIoStats(shortCode: string) {
   try {
     console.log(`Fetching stats for short code: ${shortCode}`);
     
-    // ✅ Try both formats: query param and path
     let response = await fetch(`/api/shortcode?shortCode=${shortCode}`);
     
-    // If that fails, try the path format
-    if (!response.ok) {
+    if (!response.ok && response.status !== 404) {
       console.log('Trying path format...');
       response = await fetch(`/api/${shortCode}`);
     }
@@ -45,6 +42,22 @@ export async function getShortIoStats(shortCode: string) {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('API error:', response.status, errorText);
+      
+      // ✅ Return empty stats for 404 instead of null
+      if (response.status === 404) {
+        return {
+          totalClicks: 0,
+          humanClicks: 0,
+          clicks: 0,
+          clicksByDate: {},
+          devices: {},
+          countries: {},
+          browsers: {},
+          oss: {},
+          referrers: {},
+          recentClicks: [],
+        };
+      }
       return null;
     }
     

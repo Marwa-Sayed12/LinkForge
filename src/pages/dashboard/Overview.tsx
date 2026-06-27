@@ -1,12 +1,14 @@
+// src/pages/dashboard/Overview.tsx
+
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Link2, MousePointerClick, QrCode, TrendingUp, ArrowUpRight, Plus, Sparkles, Copy, Check } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useClerkAuth"
+import { useAuth } from "@/hooks/useClerkAuth";
 import { toast } from "sonner";
-import { createShortLink } from "@/lib/shortio";
+import { createShortLink, getShortIoStats } from "@/lib/shortio";
 
 export default function Overview() {
   const { user } = useAuth();
@@ -29,13 +31,20 @@ export default function Overview() {
     setStats((prev) => ({ ...prev, links: linkCount || 0 }));
     setRecentLinks((allLinks || []).slice(0, 5));
 
+    // ✅ Get total clicks from Short.io API
     if (allLinks && allLinks.length > 0) {
-      const linkIds = allLinks.map((l) => l.id);
-      const { count } = await supabase
-        .from("clicks")
-        .select("*", { count: "exact", head: true })
-        .in("link_id", linkIds);
-      setStats((prev) => ({ ...prev, clicks: count || 0 }));
+      let totalClicks = 0;
+      for (const link of allLinks) {
+        try {
+          const stats = await getShortIoStats(link.short_code);
+          if (stats) {
+            totalClicks += stats.totalClicks || 0;
+          }
+        } catch (e) {
+          console.error('Error getting stats for:', link.short_code);
+        }
+      }
+      setStats((prev) => ({ ...prev, clicks: totalClicks }));
     }
   };
 
@@ -60,13 +69,14 @@ export default function Overview() {
       // Create via Short.io
       const { shortUrl } = await createShortLink(quickUrl.trim(), shortCode);
       
-      // Insert into Supabase
+      // Insert into Supabase - NO clicks field
       const { error } = await supabase.from("links").insert({
         user_id: user.id,
         original_url: quickUrl.trim(),
         short_code: shortCode,
         short_url: shortUrl,
         is_active: true,
+        // clicks is NOT inserted here
       });
       
       if (error) {
