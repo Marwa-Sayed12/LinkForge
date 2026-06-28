@@ -65,7 +65,7 @@ const App = () => (
                     
                     
                   />
-                  <Route path="/r/:shortCode" element={<Redirect />} />
+                  <Route path="/:shortCode" element={<Redirect />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </Suspense>

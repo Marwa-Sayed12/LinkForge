@@ -9,6 +9,8 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 export default async function handler(req, res) {
   const { shortCode } = req.query;
 
+  console.log('🔴 Redirect API called for:', shortCode);
+
   if (!shortCode) {
     return res.status(400).json({ error: 'Missing short code' });
   }
@@ -22,9 +24,11 @@ export default async function handler(req, res) {
       .single();
 
     if (linkError || !link) {
-      console.error('Link not found:', shortCode);
+      console.error('❌ Link not found:', shortCode);
       return res.status(404).json({ error: 'Link not found' });
     }
+
+    console.log('✅ Link found:', link.id, link.original_url);
 
     if (!link.is_active) {
       return res.status(410).json({ error: 'Link is inactive' });
@@ -54,6 +58,8 @@ export default async function handler(req, res) {
     const referrer = req.headers['referer'] || null;
 
     // ✅ RECORD THE CLICK
+    console.log('📝 Recording click for link:', link.id);
+    
     const { error: clickError } = await supabase.from('clicks').insert({
       link_id: link.id,
       browser,
@@ -67,15 +73,16 @@ export default async function handler(req, res) {
     });
 
     if (clickError) {
-      console.error('Error recording click:', clickError);
+      console.error('❌ Error recording click:', clickError);
     } else {
       console.log('✅ Click recorded for:', shortCode);
     }
 
-    // Redirect to original URL
+    // ✅ Redirect to original URL
+    console.log('➡️ Redirecting to:', link.original_url);
     return res.redirect(302, link.original_url);
   } catch (error) {
-    console.error('Redirect error:', error);
+    console.error('❌ Redirect error:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 }
