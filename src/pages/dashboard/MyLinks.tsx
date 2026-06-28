@@ -10,21 +10,31 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useClerkAuth";
 import { toast } from "sonner";
-import { createShortLink, getQRCodeUrl, getShortIoStatsBatch } from "@/lib/shortio";
+import { createShortLink, getMultipleLinkClicks } from "@/lib/shortio";
 
-// Helper function to get the full short URL
+interface LinkData {
+  id: string;
+  short_code: string;
+  short_url: string;
+  original_url: string;
+  title: string | null;
+  clicks: number;
+  created_at: string;
+  is_active: boolean;
+  custom_alias: string | null;
+}
+
 function getShortUrl(shortCode: string) {
   return `https://s.linkforge.website/${shortCode}`;
 }
 
-// Generate a random short code
 function generateRandomCode() {
   return Math.random().toString(36).substring(2, 8);
 }
 
 export default function MyLinks() {
   const { user } = useAuth();
-  const [links, setLinks] = useState<any[]>([]);
+  const [links, setLinks] = useState<LinkData[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [url, setUrl] = useState("");
@@ -37,7 +47,6 @@ export default function MyLinks() {
   const [clickCounts, setClickCounts] = useState<Record<string, number>>({});
   const [loadingClicks, setLoadingClicks] = useState<Record<string, boolean>>({});
 
-  // ✅ Fetch links and their click counts in batch
   const fetchLinks = useCallback(async () => {
     if (!user) return;
     
@@ -48,29 +57,19 @@ export default function MyLinks() {
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
         
-      setLinks(data || []);
+      setLinks(data as LinkData[] || []);
       setLoading(false);
       
-      // ✅ Fetch ALL clicks in ONE batch call
+      // ✅ Get click counts from Supabase
       if (data && data.length > 0) {
-        // Set loading state for all links
-        const loadingState: Record<string, boolean> = {};
-        data.forEach(link => { loadingState[link.id] = true; });
-        setLoadingClicks(loadingState);
-        
         const shortCodes = data.map(link => link.short_code);
-        const stats = await getShortIoStatsBatch(shortCodes);
+        const counts = await getMultipleLinkClicks(shortCodes);
         
-        const counts: Record<string, number> = {};
+        const result: Record<string, number> = {};
         data.forEach(link => {
-          counts[link.id] = stats[link.short_code]?.totalClicks || 0;
+          result[link.id] = counts[link.short_code] || 0;
         });
-        setClickCounts(counts);
-        
-        // Clear loading state
-        const resetLoading: Record<string, boolean> = {};
-        data.forEach(link => { resetLoading[link.id] = false; });
-        setLoadingClicks(resetLoading);
+        setClickCounts(result);
       }
     } catch (error) {
       console.error("Error fetching links:", error);
@@ -78,25 +77,23 @@ export default function MyLinks() {
     }
   }, [user]);
 
-  // ✅ Refresh click counts using batch API
   const refreshClicks = useCallback(async () => {
     if (!links.length) return;
     setRefreshing(true);
     
-    // Set loading state for all links
     const loadingState: Record<string, boolean> = {};
     links.forEach(link => { loadingState[link.id] = true; });
     setLoadingClicks(loadingState);
     
     try {
       const shortCodes = links.map(link => link.short_code);
-      const stats = await getShortIoStatsBatch(shortCodes);
+      const counts = await getMultipleLinkClicks(shortCodes);
       
-      const counts: Record<string, number> = {};
+      const result: Record<string, number> = {};
       links.forEach(link => {
-        counts[link.id] = stats[link.short_code]?.totalClicks || 0;
+        result[link.id] = counts[link.short_code] || 0;
       });
-      setClickCounts(counts);
+      setClickCounts(result);
       toast.success("Click counts updated!");
     } catch (e) {
       console.error("Refresh error:", e);
@@ -113,7 +110,6 @@ export default function MyLinks() {
     fetchLinks();
   }, [fetchLinks]);
 
-  // Check if alias exists in Supabase
   const checkAliasExists = async (alias: string): Promise<boolean> => {
     const { data } = await supabase
       .from("links")
@@ -163,6 +159,7 @@ export default function MyLinks() {
         custom_alias: customAlias.trim() || null,
         short_url: result.shortUrl,
         is_active: true,
+        clicks: 0,
       });
       
       if (error) {
@@ -192,7 +189,7 @@ export default function MyLinks() {
     setCreating(false);
   };
 
-  const downloadQR = async (link: any) => {
+  const downloadQR = async (link: LinkData) => {
     try {
       const dataUrl = await QRCode.toDataURL(link.original_url, { width: 512, margin: 2 });
       const a = document.createElement("a");
@@ -215,7 +212,7 @@ export default function MyLinks() {
     }
   };
 
-  const copyLink = (link: any) => {
+  const copyLink = (link: LinkData) => {
     const shortUrl = link.short_url || getShortUrl(link.short_code);
     navigator.clipboard.writeText(shortUrl);
     setCopiedId(link.id);

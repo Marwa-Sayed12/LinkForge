@@ -1,16 +1,13 @@
 // src/lib/shortio.ts
 
 import { createClient } from '@short.io/client-browser';
+import { supabase } from '@/integrations/supabase/client';
 
 const client = createClient({
   publicKey: 'pk_oWipAuN2BvoaIHFi'
 });
 
 const DOMAIN = 's.linkforge.website';
-
-// ✅ Simple cache for stats
-const statsCache = new Map<string, { data: any; timestamp: number }>();
-const CACHE_DURATION = 30000; // 30 seconds cache
 
 export async function createShortLink(originalUrl: string, customSlug?: string) {
   try {
@@ -31,50 +28,118 @@ export async function createShortLink(originalUrl: string, customSlug?: string) 
   }
 }
 
-// src/lib/shortio.ts
+// ✅ Get click counts from Supabase
+export async function getLinkClicks(shortCode: string): Promise<number> {
+  try {
+    const { data, error } = await supabase
+      .from('links')
+      .select('clicks')
+      .eq('short_code', shortCode)
+      .single();
 
-// ✅ New function: Fetch multiple stats at once
-// Add this function to src/lib/shortio.ts
+    if (error) {
+      console.error('Error fetching clicks:', error);
+      return 0;
+    }
 
-export async function getShortIoStatsBatch(shortCodes: string[]) {
+    return data?.clicks || 0;
+  } catch (error) {
+    console.error('Error:', error);
+    return 0;
+  }
+}
+
+// ✅ Get clicks for multiple links
+export async function getMultipleLinkClicks(shortCodes: string[]): Promise<Record<string, number>> {
   try {
     if (!shortCodes.length) return {};
-    
-    const response = await fetch(`/api/stats/batch?shortCodes=${shortCodes.join(',')}`);
-    
-    if (!response.ok) {
-      console.error('Batch API error:', await response.text());
+
+    const { data, error } = await supabase
+      .from('links')
+      .select('short_code, clicks')
+      .in('short_code', shortCodes);
+
+    if (error) {
+      console.error('Error fetching multiple clicks:', error);
       return {};
     }
-    
-    const data = await response.json();
-    return data;
+
+    const result: Record<string, number> = {};
+    data?.forEach(link => {
+      result[link.short_code] = link.clicks || 0;
+    });
+    return result;
   } catch (error) {
-    console.error('Error fetching batch stats:', error);
+    console.error('Error:', error);
     return {};
   }
 }
-// Keep individual function for fallback
-export async function getShortIoStats(shortCode: string) {
+
+// ✅ Get clicks by date for a link
+export async function getLinkClicksByDate(linkId: string, days = 30): Promise<Record<string, number>> {
   try {
-    // Check cache first
-    const cached = statsCache.get(shortCode);
-    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-      return cached.data;
+    const { data, error } = await supabase
+      .from('clicks')
+      .select('clicked_at')
+      .eq('link_id', linkId)
+      .gte('clicked_at', new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString())
+      .order('clicked_at', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching clicks by date:', error);
+      return {};
     }
 
-    const response = await fetch(`/api/shortcode?shortCode=${shortCode}`);
-    
-    if (!response.ok) {
-      console.warn(`API error for ${shortCode}: ${response.status}`);
-      return null;
-    }
-    
-    const data = await response.json();
-    statsCache.set(shortCode, { data: data, timestamp: Date.now() });
-    return data;
+    const result: Record<string, number> = {};
+    data?.forEach(click => {
+      const date = new Date(click.clicked_at).toISOString().split('T')[0];
+      result[date] = (result[date] || 0) + 1;
+    });
+    return result;
   } catch (error) {
-    console.error('Error fetching Short.io stats:', error);
+    console.error('Error:', error);
+    return {};
+  }
+}
+
+// ✅ Get total clicks for a user
+export async function getUserTotalClicks(userId: string): Promise<number> {
+  try {
+    const { data, error } = await supabase
+      .from('links')
+      .select('clicks')
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('Error fetching user clicks:', error);
+      return 0;
+    }
+
+    return data?.reduce((sum, link) => sum + (link.clicks || 0), 0) || 0;
+  } catch (error) {
+    console.error('Error:', error);
+    return 0;
+  }
+}
+
+// Keep for backward compatibility
+export async function getShortIoStats(shortCode: string) {
+  try {
+    const clicks = await getLinkClicks(shortCode);
+    return {
+      totalClicks: clicks,
+      humanClicks: clicks,
+      clicks: clicks,
+      clicksByDate: {},
+      devices: {},
+      countries: {},
+      browsers: {},
+      oss: {},
+      referrers: {},
+      recentClicks: [],
+    };
+  } catch (error) {
+    console.error('Error:', error);
     return null;
   }
 }

@@ -1,6 +1,6 @@
 // src/pages/dashboard/Overview.tsx
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Link2, MousePointerClick, QrCode, TrendingUp, ArrowUpRight, Plus, Sparkles, Copy, Check } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -8,20 +8,33 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useClerkAuth";
 import { toast } from "sonner";
-import { createShortLink, getShortIoStats } from "@/lib/shortio";
+import { createShortLink } from "@/lib/shortio";
+
+interface LinkData {
+  id: string;
+  short_code: string;
+  short_url: string;
+  original_url: string;
+  title: string | null;
+  clicks: number;
+  created_at: string;
+  is_active: boolean;
+  custom_alias: string | null;
+}
 
 export default function Overview() {
   const { user } = useAuth();
   
   const [stats, setStats] = useState({ links: 0, clicks: 0 });
-  const [recentLinks, setRecentLinks] = useState<any[]>([]);
+  const [recentLinks, setRecentLinks] = useState<LinkData[]>([]);
   const [quickUrl, setQuickUrl] = useState("");
   const [creating, setCreating] = useState(false);
   const [lastCreated, setLastCreated] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!user) return;
+    
     const { data: allLinks, count: linkCount } = await supabase
       .from("links")
       .select("*", { count: "exact" })
@@ -29,28 +42,21 @@ export default function Overview() {
       .order("created_at", { ascending: false });
 
     setStats((prev) => ({ ...prev, links: linkCount || 0 }));
-    setRecentLinks((allLinks || []).slice(0, 5));
+    setRecentLinks((allLinks || []) as LinkData[]);
 
-    // ✅ Get total clicks from Short.io API
+    // ✅ Get total clicks from Supabase
     if (allLinks && allLinks.length > 0) {
       let totalClicks = 0;
-      for (const link of allLinks) {
-        try {
-          const stats = await getShortIoStats(link.short_code);
-          if (stats) {
-            totalClicks += stats.totalClicks || 0;
-          }
-        } catch (e) {
-          console.error('Error getting stats for:', link.short_code);
-        }
-      }
+      allLinks.forEach(link => {
+        totalClicks += (link as LinkData).clicks || 0;
+      });
       setStats((prev) => ({ ...prev, clicks: totalClicks }));
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     fetchData();
-  }, [user]);
+  }, [fetchData]);
 
   const handleQuickCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,20 +69,16 @@ export default function Overview() {
     }
     setCreating(true);
     try {
-      // Generate random short code
       const shortCode = Math.random().toString(36).substring(2, 8);
-      
-      // Create via Short.io
       const { shortUrl } = await createShortLink(quickUrl.trim(), shortCode);
       
-      // Insert into Supabase - NO clicks field
       const { error } = await supabase.from("links").insert({
         user_id: user.id,
         original_url: quickUrl.trim(),
         short_code: shortCode,
         short_url: shortUrl,
         is_active: true,
-        // clicks is NOT inserted here
+        clicks: 0,
       });
       
       if (error) {
@@ -132,7 +134,6 @@ export default function Overview() {
         </Link>
       </div>
 
-      {/* Quick shortener */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}

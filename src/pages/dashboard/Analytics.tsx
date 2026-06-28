@@ -13,7 +13,7 @@ import {
 import { useTheme } from "@/components/ThemeProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useClerkAuth";
-import { getShortIoStats } from "@/lib/shortio";
+import { getShortIoStats, getLinkClicksByDate } from "@/lib/shortio";
 import { format, subDays, startOfDay, formatDistance } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -57,10 +57,6 @@ const BROWSER_ICONS: Record<string, string> = {
   'Unknown': '🌐'
 };
 
-// Cache for stats to avoid refetching
-const statsCache = new Map<string, { data: any; timestamp: number }>();
-const CACHE_DURATION = 60000; // 1 minute cache
-
 function useChartColors() {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
@@ -88,20 +84,6 @@ interface LinkWithStats {
   stats?: any;
 }
 
-// Define types for batch stats response
-interface BatchStatsResponse {
-  [shortCode: string]: {
-    totalClicks: number;
-    clicks: number;
-    humanClicks: number;
-    browser?: any[];
-    country?: any[];
-    os?: any[];
-    referer?: any[];
-    clicksByDate?: Record<string, number>;
-  };
-}
-
 export default function Analytics() {
   const { user } = useAuth();
   const colors = useChartColors();
@@ -122,39 +104,6 @@ export default function Analytics() {
   const [referrerData, setReferrerData] = useState<any[]>([]);
   const [progress, setProgress] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
-
-  // Fetch with caching
-  const fetchStatsWithCache = useCallback(async (shortCode: string) => {
-    const cached = statsCache.get(shortCode);
-    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-      console.log(`Using cached stats for: ${shortCode}`);
-      return cached.data;
-    }
-    
-    const stats = await getShortIoStats(shortCode);
-    if (stats) {
-      statsCache.set(shortCode, { data: stats, timestamp: Date.now() });
-    }
-    return stats;
-  }, []);
-
-  // ✅ Batch fetch function
-  const getShortIoStatsBatch = useCallback(async (shortCodes: string[]): Promise<BatchStatsResponse> => {
-    if (!shortCodes.length) return {};
-    
-    try {
-      const response = await fetch(`/api/stats/batch?shortCodes=${shortCodes.join(',')}`);
-      if (!response.ok) {
-        console.error('Batch API error:', await response.text());
-        return {};
-      }
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      console.error('Error fetching batch stats:', error);
-      return {};
-    }
-  }, []);
 
   // Process stats data
   const processStatsData = useCallback((allStats: any[], total: number, humanTotal: number) => {
@@ -203,227 +152,14 @@ export default function Analytics() {
       });
     }
     setDailyClicksData(days);
-
-    // Process device data
-    const deviceMap: Record<string, number> = {};
-    allStats.forEach((stats) => {
-      const deviceData = stats.devices || stats.device || stats.device_stats || {};
-      if (typeof deviceData === 'object' && Object.keys(deviceData).length > 0) {
-        Object.entries(deviceData).forEach(([device, count]: [string, any]) => {
-          const countNum = typeof count === 'number' ? count : count?.count || 0;
-          if (countNum > 0) {
-            let cleanDevice = device;
-            if (device.toLowerCase().includes('mobile') || 
-                device.toLowerCase().includes('phone') ||
-                device.toLowerCase().includes('android') ||
-                device.toLowerCase().includes('ios') ||
-                device.toLowerCase().includes('iphone')) {
-              cleanDevice = '📱 Mobile';
-            } else if (device.toLowerCase().includes('tablet') || 
-                       device.toLowerCase().includes('ipad')) {
-              cleanDevice = '📱 Tablet';
-            } else if (device.toLowerCase().includes('desktop') || 
-                       device.toLowerCase().includes('pc') ||
-                       device.toLowerCase().includes('laptop')) {
-              cleanDevice = '💻 Desktop';
-            } else {
-              cleanDevice = '💻 ' + device;
-            }
-            deviceMap[cleanDevice] = (deviceMap[cleanDevice] || 0) + countNum;
-          }
-        });
-      }
-    });
-
-    if (Object.keys(deviceMap).length === 0 && total > 0) {
-      deviceMap['💻 Desktop'] = Math.ceil(total * 0.7);
-      deviceMap['📱 Mobile'] = Math.floor(total * 0.3);
-    }
-    
-    setDeviceData(
-      Object.entries(deviceMap)
-        .map(([name, value]) => ({ name, value }))
-        .sort((a, b) => b.value - a.value)
-        .slice(0, 8)
-    );
-
-    // Process country data
-    const countryMap: Record<string, { count: number; code: string }> = {};
-    allStats.forEach((stats) => {
-      if (stats.countries) {
-        Object.entries(stats.countries).forEach(([country, data]: [string, any]) => {
-          const countNum = typeof data === 'number' ? data : data?.count || 0;
-          const countryCode = typeof data === 'object' ? data.code : country;
-          if (countNum > 0) {
-            const fullName = country;
-            if (!countryMap[fullName]) {
-              countryMap[fullName] = { count: 0, code: countryCode };
-            }
-            countryMap[fullName].count += countNum;
-          }
-        });
-      }
-    });
-    
-    if (Object.keys(countryMap).length === 0 && total > 0) {
-      countryMap['Afghanistan'] = { count: total, code: 'AF' };
-    }
-    
-    setCountryData(
-      Object.entries(countryMap)
-        .map(([name, data]) => ({ 
-          name, 
-          value: data.count,
-          code: data.code 
-        }))
-        .sort((a, b) => b.value - a.value)
-        .slice(0, 8)
-    );
-
-    // Process browser data
-    const browserMap: Record<string, { count: number; icon: string }> = {};
-    allStats.forEach((stats) => {
-      if (stats.browsers) {
-        Object.entries(stats.browsers).forEach(([browser, data]: [string, any]) => {
-          const countNum = typeof data === 'number' ? data : data?.count || 0;
-          const icon = typeof data === 'object' ? data.icon : BROWSER_ICONS[browser] || '🌐';
-          if (countNum > 0) {
-            if (!browserMap[browser]) {
-              browserMap[browser] = { count: 0, icon };
-            }
-            browserMap[browser].count += countNum;
-          }
-        });
-      }
-    });
-    
-    if (Object.keys(browserMap).length === 0 && total > 0) {
-      browserMap['Chrome'] = { count: total, icon: '🌐' };
-    }
-    
-    setBrowserData(
-      Object.entries(browserMap)
-        .map(([name, data]) => ({ 
-          name, 
-          value: data.count,
-          icon: data.icon 
-        }))
-        .sort((a, b) => b.value - a.value)
-        .slice(0, 8)
-    );
-
-    // Process OS data
-    const osMap: Record<string, { count: number; icon: string }> = {};
-    allStats.forEach((stats) => {
-      if (stats.oss) {
-        Object.entries(stats.oss).forEach(([os, data]: [string, any]) => {
-          const countNum = typeof data === 'number' ? data : data?.count || 0;
-          const icon = typeof data === 'object' ? data.icon : OS_ICONS[os] || '💻';
-          if (countNum > 0) {
-            if (!osMap[os]) {
-              osMap[os] = { count: 0, icon };
-            }
-            osMap[os].count += countNum;
-          }
-        });
-      }
-    });
-    
-    if (Object.keys(osMap).length === 0 && total > 0) {
-      osMap['Windows'] = { count: total, icon: '🪟' };
-    }
-    
-    setOsData(
-      Object.entries(osMap)
-        .map(([name, data]) => ({ 
-          name, 
-          value: data.count,
-          icon: data.icon 
-        }))
-        .sort((a, b) => b.value - a.value)
-        .slice(0, 8)
-    );
-
-    // Process referrer data
-    const referrerMap: Record<string, number> = {};
-    allStats.forEach((stats) => {
-      if (stats.referrers) {
-        Object.entries(stats.referrers).forEach(([referrer, count]: [string, any]) => {
-          const countNum = typeof count === 'number' ? count : count?.count || 0;
-          if (countNum > 0) {
-            referrerMap[referrer] = (referrerMap[referrer] || 0) + countNum;
-          }
-        });
-      }
-    });
-    
-    if (Object.keys(referrerMap).length === 0 && total > 0) {
-      referrerMap['Direct'] = total;
-    }
-    
-    setReferrerData(
-      Object.entries(referrerMap)
-        .map(([name, value]) => ({ name, value }))
-        .sort((a, b) => b.value - a.value)
-        .slice(0, 8)
-    );
-
-    // Get recent clicks
-    const allRecentClicks: any[] = [];
-    allStats.forEach((stats) => {
-      if (stats.recentClicks) {
-        stats.recentClicks.forEach((click: any) => {
-          let deviceType = click.device || click.device_type || "Desktop";
-          if (deviceType.toLowerCase().includes('mobile') || 
-              deviceType.toLowerCase().includes('phone') ||
-              deviceType.toLowerCase().includes('android') ||
-              deviceType.toLowerCase().includes('ios')) {
-            deviceType = "📱 Mobile";
-          } else if (deviceType.toLowerCase().includes('tablet') || 
-                     deviceType.toLowerCase().includes('ipad')) {
-            deviceType = "📱 Tablet";
-          } else {
-            deviceType = "💻 Desktop";
-          }
-          
-          allRecentClicks.push({
-            ...click,
-            clicked_at: click.timestamp || click.clicked_at || new Date().toISOString(),
-            browser: click.browser || "Unknown",
-            device_type: deviceType,
-            os: click.os || click.operating_system || "Unknown",
-            country: click.country || click.country_code || null,
-            city: click.city || null,
-          });
-        });
-      }
-    });
-    
-    if (allRecentClicks.length === 0 && total > 0) {
-      allRecentClicks.push({
-        clicked_at: new Date().toISOString(),
-        browser: "Chrome",
-        device_type: "📱 Mobile",
-        os: "Android",
-        country: "AF",
-        city: "Kabul",
-      });
-    }
-    
-    setRecentClicks(
-      allRecentClicks
-        .sort((a, b) => new Date(b.clicked_at).getTime() - new Date(a.clicked_at).getTime())
-        .slice(0, 10)
-    );
   }, []);
 
-  // Main fetch function with parallel requests
+  // Main fetch function
   const fetchAnalytics = useCallback(async (refresh = false) => {
     if (!user) return;
 
     if (refresh) {
       setIsRefreshing(true);
-      statsCache.clear();
     }
 
     setLoading(true);
@@ -432,7 +168,7 @@ export default function Analytics() {
     try {
       const { data: userLinks, error: linksError } = await supabase
         .from("links")
-        .select("id, short_code, original_url, title")
+        .select("id, short_code, original_url, title, clicks")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
@@ -452,54 +188,45 @@ export default function Analytics() {
         let humanTotal = 0;
         const allStats: any[] = [];
 
-        // ✅ Use BATCH API to fetch all stats at once
-        const shortCodes = userLinks.map(link => link.short_code);
-        const batchStats = await getShortIoStatsBatch(shortCodes);
-        console.log('Batch stats received:', batchStats);
-
-        // Process each link with its batch stats
-        userLinks.forEach((link, index) => {
+        for (const link of userLinks) {
           const shortUrl = `https://s.linkforge.website/${link.short_code}`;
-          const stats = batchStats[link.short_code];
-          
-          setProgress(Math.round(((index + 1) / userLinks.length) * 100));
-          
-          if (stats) {
-            const clickCount = stats.totalClicks || stats.clicks || 0;
-            const humanClicks = stats.humanClicks || clickCount;
-            total += clickCount;
-            humanTotal += humanClicks;
-            
-            linksWithStats.push({
-              ...link,
-              short_url: shortUrl,
+          const clickCount = link.clicks || 0;
+          total += clickCount;
+          humanTotal += clickCount;
+
+          // Get clicks by date for this link
+          const clicksByDate = await getLinkClicksByDate(link.id);
+
+          linksWithStats.push({
+            ...link,
+            short_url: shortUrl,
+            clicks: clickCount,
+            stats: {
+              totalClicks: clickCount,
+              humanClicks: clickCount,
               clicks: clickCount,
-              stats: stats,
-            });
-            
-            if (stats.totalClicks > 0 || stats.clicks > 0 || (stats.browser && Object.keys(stats.browser).length > 0)) {
-              allStats.push(stats);
-            } else {
-              allStats.push({
-                clicksByDate: {},
-                devices: {},
-                countries: {},
-                browsers: {},
-                oss: {},
-                referrers: {},
-                recentClicks: [],
-                totalClicks: 0,
-                humanClicks: 0,
-              });
-            }
-          } else {
-            linksWithStats.push({
-              ...link,
-              short_url: shortUrl,
-              clicks: 0,
-            });
-          }
-        });
+              clicksByDate: clicksByDate,
+              devices: {},
+              countries: {},
+              browsers: {},
+              oss: {},
+              referrers: {},
+              recentClicks: [],
+            },
+          });
+
+          allStats.push({
+            clicksByDate: clicksByDate,
+            devices: {},
+            countries: {},
+            browsers: {},
+            oss: {},
+            referrers: {},
+            recentClicks: [],
+            totalClicks: clickCount,
+            humanClicks: clickCount,
+          });
+        }
 
         setLinks(linksWithStats);
         setTotalClicks(total);
@@ -532,7 +259,7 @@ export default function Analytics() {
       setIsRefreshing(false);
       setTimeout(() => setProgress(0), 1000);
     }
-  }, [user, getShortIoStatsBatch, processStatsData]);
+  }, [user, processStatsData]);
 
   useEffect(() => {
     fetchAnalytics();
