@@ -22,6 +22,7 @@ export default async function handler(req, res) {
       .single();
 
     if (linkError || !link) {
+      console.error('Link not found:', shortCode);
       return res.status(404).json({ error: 'Link not found' });
     }
 
@@ -52,8 +53,8 @@ export default async function handler(req, res) {
     const city = req.headers['x-city'] || req.headers['cf-ipcity'] || null;
     const referrer = req.headers['referer'] || null;
 
-    // Record the click in Supabase
-    await supabase.from('clicks').insert({
+    // ✅ RECORD THE CLICK
+    const { error: clickError } = await supabase.from('clicks').insert({
       link_id: link.id,
       browser,
       os,
@@ -64,6 +65,12 @@ export default async function handler(req, res) {
       user_agent: userAgent,
       referrer,
     });
+
+    if (clickError) {
+      console.error('Error recording click:', clickError);
+    } else {
+      console.log('✅ Click recorded for:', shortCode);
+    }
 
     // Redirect to original URL
     return res.redirect(302, link.original_url);
