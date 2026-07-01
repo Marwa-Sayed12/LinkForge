@@ -11,12 +11,13 @@ export default function Redirect() {
   useEffect(() => {
     if (!shortCode) return;
     
-    // ✅ Use your Vercel API route (NOT Supabase Edge Function)
-    const redirectUrl = `/api/redirect/${shortCode}`;
-    console.log('Redirecting to:', redirectUrl);
+    // ✅ Use Supabase Edge Function (NOT Vercel API)
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const redirectUrl = `${supabaseUrl}/functions/v1/redirect/${shortCode}`;
+    
+    console.log('🔄 Redirecting to Edge Function:', redirectUrl);
     window.location.href = redirectUrl;
 
-    // Fallback timeout
     const timer = setTimeout(() => {
       setError("Link not found or has expired.");
     }, 5000);
