@@ -11,7 +11,7 @@ export default function Redirect() {
   useEffect(() => {
     if (!shortCode) return;
     
-    // ✅ Use Supabase Edge Function (NOT Vercel API)
+    // ✅ Use the correct URL format
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
     const redirectUrl = `${supabaseUrl}/functions/v1/redirect/${shortCode}`;
     
