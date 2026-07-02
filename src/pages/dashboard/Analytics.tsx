@@ -175,7 +175,6 @@ export default function Analytics() {
       }
     });
 
-    // If no device data but clicks exist, add Desktop
     if (Object.keys(deviceMap).length === 0 && total > 0) {
       deviceMap['💻 Desktop'] = total;
     }
@@ -395,7 +394,7 @@ export default function Analytics() {
           try {
             const shortUrl = `https://s.linkforge.website/${link.short_code}`;
             
-            // ✅ Get FULL stats from Short.io API
+            // ✅ Get FULL stats from Short.io API (includes countries, browsers, devices, OS)
             const stats = await getShortIoStats(link.short_code);
             
             if (stats) {
@@ -407,7 +406,7 @@ export default function Analytics() {
                 ...link,
                 short_url: shortUrl,
                 clicks: clickCount,
-                stats: stats,
+                stats: stats, // ✅ stats has ALL data: countries, browsers, devices, OS
               });
               
               allStats.push(stats);
