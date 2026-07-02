@@ -47,35 +47,32 @@ export default function MyLinks() {
   const [clickCounts, setClickCounts] = useState<Record<string, number>>({});
   const [loadingClicks, setLoadingClicks] = useState<Record<string, boolean>>({});
 
-  const fetchLinks = useCallback(async () => {
-    if (!user) return;
-    
-    try {
-      const { data } = await supabase
-        .from("links")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
-        
-      setLinks(data as LinkData[] || []);
-      setLoading(false);
+const fetchLinks = useCallback(async () => {
+  if (!user) return;
+  
+  try {
+    const { data } = await supabase
+      .from("links")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
       
-      // ✅ Get click counts from Supabase
-      if (data && data.length > 0) {
-        const shortCodes = data.map(link => link.short_code);
-        const counts = await getMultipleLinkClicks(shortCodes);
-        
-        const result: Record<string, number> = {};
-        data.forEach(link => {
-          result[link.id] = counts[link.short_code] || 0;
-        });
-        setClickCounts(result);
-      }
-    } catch (error) {
-      console.error("Error fetching links:", error);
-      setLoading(false);
+    setLinks(data || []);
+    setLoading(false);
+    
+    // ✅ Click counts are already in the data (from Supabase trigger)
+    if (data && data.length > 0) {
+      const counts: Record<string, number> = {};
+      data.forEach(link => {
+        counts[link.id] = link.clicks || 0;
+      });
+      setClickCounts(counts);
     }
-  }, [user]);
+  } catch (error) {
+    console.error("Error fetching links:", error);
+    setLoading(false);
+  }
+}, [user]);
 
   const refreshClicks = useCallback(async () => {
     if (!links.length) return;

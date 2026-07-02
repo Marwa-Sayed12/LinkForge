@@ -155,111 +155,108 @@ export default function Analytics() {
   }, []);
 
   // Main fetch function
-  const fetchAnalytics = useCallback(async (refresh = false) => {
-    if (!user) return;
+const fetchAnalytics = useCallback(async (refresh = false) => {
+  if (!user) return;
 
-    if (refresh) {
-      setIsRefreshing(true);
+  if (refresh) {
+    setIsRefreshing(true);
+  }
+
+  setLoading(true);
+  setProgress(0);
+
+  try {
+    const { data: userLinks, error: linksError } = await supabase
+      .from("links")
+      .select("id, short_code, original_url, title")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+
+    if (linksError) {
+      console.error("Error fetching links:", linksError);
+      setLoading(false);
+      setIsRefreshing(false);
+      return;
     }
 
-    setLoading(true);
-    setProgress(0);
+    console.log('User links from Supabase:', userLinks);
+    setTotalLinks(userLinks?.length || 0);
 
-    try {
-      const { data: userLinks, error: linksError } = await supabase
-        .from("links")
-        .select("id, short_code, original_url, title, clicks")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
+    if (userLinks && userLinks.length > 0) {
+      const linksWithStats: LinkWithStats[] = [];
+      let total = 0;
+      let humanTotal = 0;
+      const allStats: any[] = [];
 
-      if (linksError) {
-        console.error("Error fetching links:", linksError);
-        setLoading(false);
-        setIsRefreshing(false);
-        return;
-      }
-
-      console.log('User links from Supabase:', userLinks);
-      setTotalLinks(userLinks?.length || 0);
-
-      if (userLinks && userLinks.length > 0) {
-        const linksWithStats: LinkWithStats[] = [];
-        let total = 0;
-        let humanTotal = 0;
-        const allStats: any[] = [];
-
-        for (const link of userLinks) {
+      for (const link of userLinks) {
+        try {
           const shortUrl = `https://s.linkforge.website/${link.short_code}`;
-          const clickCount = link.clicks || 0;
-          total += clickCount;
-          humanTotal += clickCount;
-
-          // Get clicks by date for this link
-          const clicksByDate = await getLinkClicksByDate(link.id);
-
+          
+          // ✅ Get FULL stats from Short.io API (includes countries, browsers, devices, OS)
+          const stats = await getShortIoStats(link.short_code);
+          
+          if (stats) {
+            const clickCount = stats.totalClicks || stats.clicks || 0;
+            total += clickCount;
+            humanTotal += stats.humanClicks || clickCount;
+            
+            linksWithStats.push({
+              ...link,
+              short_url: shortUrl,
+              clicks: clickCount,
+              stats: stats, // ✅ stats has ALL data: countries, browsers, devices, OS
+            });
+            
+            allStats.push(stats);
+          } else {
+            linksWithStats.push({
+              ...link,
+              short_url: shortUrl,
+              clicks: 0,
+            });
+          }
+        } catch (error) {
+          console.error("Error fetching stats for link:", link.short_code, error);
           linksWithStats.push({
             ...link,
             short_url: shortUrl,
-            clicks: clickCount,
-            stats: {
-              totalClicks: clickCount,
-              humanClicks: clickCount,
-              clicks: clickCount,
-              clicksByDate: clicksByDate,
-              devices: {},
-              countries: {},
-              browsers: {},
-              oss: {},
-              referrers: {},
-              recentClicks: [],
-            },
-          });
-
-          allStats.push({
-            clicksByDate: clicksByDate,
-            devices: {},
-            countries: {},
-            browsers: {},
-            oss: {},
-            referrers: {},
-            recentClicks: [],
-            totalClicks: clickCount,
-            humanClicks: clickCount,
+            clicks: 0,
           });
         }
-
-        setLinks(linksWithStats);
-        setTotalClicks(total);
-        setTotalHumanClicks(humanTotal);
-        setProgress(100);
-
-        console.log('Links with stats:', linksWithStats);
-        console.log('Total clicks:', total);
-
-        // Process all stats data
-        processStatsData(allStats, total, humanTotal);
-
-      } else {
-        setLinks([]);
-        setTotalClicks(0);
-        setTotalHumanClicks(0);
-        setDailyClicksData([]);
-        setDeviceData([]);
-        setCountryData([]);
-        setBrowserData([]);
-        setOsData([]);
-        setReferrerData([]);
-        setRecentClicks([]);
-        setClicksToday(0);
       }
-    } catch (error) {
-      console.error("Error fetching analytics:", error);
-    } finally {
-      setLoading(false);
-      setIsRefreshing(false);
-      setTimeout(() => setProgress(0), 1000);
+
+      setLinks(linksWithStats);
+      setTotalClicks(total);
+      setTotalHumanClicks(humanTotal);
+      setProgress(100);
+
+      console.log('Links with stats:', linksWithStats);
+      console.log('Total clicks:', total);
+
+      // ✅ Process all stats data (this will populate countries, browsers, devices, OS)
+      processStatsData(allStats, total, humanTotal);
+
+    } else {
+      setLinks([]);
+      setTotalClicks(0);
+      setTotalHumanClicks(0);
+      setDailyClicksData([]);
+      setDeviceData([]);
+      setCountryData([]);
+      setBrowserData([]);
+      setOsData([]);
+      setReferrerData([]);
+      setRecentClicks([]);
+      setClicksToday(0);
     }
-  }, [user, processStatsData]);
+  } catch (error) {
+    console.error("Error fetching analytics:", error);
+  } finally {
+    setLoading(false);
+    setIsRefreshing(false);
+    setTimeout(() => setProgress(0), 1000);
+  }
+}, [user]);
 
   useEffect(() => {
     fetchAnalytics();

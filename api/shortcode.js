@@ -3,7 +3,6 @@
 import { format } from "date-fns";
 
 export default async function handler(req, res) {
-  // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
@@ -14,7 +13,6 @@ export default async function handler(req, res) {
 
   let shortCode = req.query.shortCode;
   
-  // If no shortCode in query, extract from URL path
   if (!shortCode) {
     const urlPath = req.url.split('?')[0];
     const pathParts = urlPath.split('/').filter(Boolean);
@@ -72,7 +70,7 @@ export default async function handler(req, res) {
 
     console.log(`Found link ID: ${linkId} for shortCode: ${shortCode}`);
 
-    // Step 2: Get statistics with more data
+    // Step 2: Get statistics from Short.io
     const statsResponse = await fetch(
       `https://api-v2.short.io/statistics/link/${linkId}?period=total&tzOffset=0`,
       {
@@ -94,201 +92,14 @@ export default async function handler(req, res) {
 
     const statsData = await statsResponse.json();
     console.log('Stats data received');
-    console.log('Raw clicksByDate:', statsData.clicksByDate);
 
     // Country name mapping
-const countryNames = {
+    const countryNames = {
       'AF': 'Afghanistan',
-      'AL': 'Albania',
-      'DZ': 'Algeria',
-      'AD': 'Andorra',
-      'AO': 'Angola',
-      'AR': 'Argentina',
-      'AM': 'Armenia',
-      'AU': 'Australia',
-      'AT': 'Austria',
-      'AZ': 'Azerbaijan',
-      'BS': 'Bahamas',
-      'BH': 'Bahrain',
-      'BD': 'Bangladesh',
-      'BB': 'Barbados',
-      'BY': 'Belarus',
-      'BE': 'Belgium',
-      'BZ': 'Belize',
-      'BJ': 'Benin',
-      'BT': 'Bhutan',
-      'BO': 'Bolivia',
-      'BA': 'Bosnia and Herzegovina',
-      'BW': 'Botswana',
-      'BR': 'Brazil',
-      'BN': 'Brunei',
-      'BG': 'Bulgaria',
-      'BF': 'Burkina Faso',
-      'BI': 'Burundi',
-      'CV': 'Cabo Verde',
-      'KH': 'Cambodia',
-      'CM': 'Cameroon',
-      'CA': 'Canada',
-      'CF': 'Central African Republic',
-      'TD': 'Chad',
-      'CL': 'Chile',
-      'CN': 'China',
-      'CO': 'Colombia',
-      'KM': 'Comoros',
-      'CG': 'Congo',
-      'CR': 'Costa Rica',
-      'HR': 'Croatia',
-      'CU': 'Cuba',
-      'CY': 'Cyprus',
-      'CZ': 'Czechia',
-      'DK': 'Denmark',
-      'DJ': 'Djibouti',
-      'DM': 'Dominica',
-      'DO': 'Dominican Republic',
-      'EC': 'Ecuador',
-      'EG': 'Egypt',
-      'SV': 'El Salvador',
-      'GQ': 'Equatorial Guinea',
-      'ER': 'Eritrea',
-      'EE': 'Estonia',
-      'SZ': 'Eswatini',
-      'ET': 'Ethiopia',
-      'FJ': 'Fiji',
-      'FI': 'Finland',
-      'FR': 'France',
-      'GA': 'Gabon',
-      'GM': 'Gambia',
-      'GE': 'Georgia',
-      'DE': 'Germany',
-      'GH': 'Ghana',
-      'GR': 'Greece',
-      'GD': 'Grenada',
-      'GT': 'Guatemala',
-      'GN': 'Guinea',
-      'GW': 'Guinea-Bissau',
-      'GY': 'Guyana',
-      'HT': 'Haiti',
-      'HN': 'Honduras',
-      'HU': 'Hungary',
-      'IS': 'Iceland',
-      'IN': 'India',
-      'ID': 'Indonesia',
-      'IR': 'Iran',
-      'IQ': 'Iraq',
-      'IE': 'Ireland',
-      'IL': 'Israel',
-      'IT': 'Italy',
-      'JM': 'Jamaica',
-      'JP': 'Japan',
-      'JO': 'Jordan',
-      'KZ': 'Kazakhstan',
-      'KE': 'Kenya',
-      'KI': 'Kiribati',
-      'KP': 'North Korea',
-      'KR': 'South Korea',
-      'KW': 'Kuwait',
-      'KG': 'Kyrgyzstan',
-      'LA': 'Laos',
-      'LV': 'Latvia',
-      'LB': 'Lebanon',
-      'LS': 'Lesotho',
-      'LR': 'Liberia',
-      'LY': 'Libya',
-      'LI': 'Liechtenstein',
-      'LT': 'Lithuania',
-      'LU': 'Luxembourg',
-      'MG': 'Madagascar',
-      'MW': 'Malawi',
-      'MY': 'Malaysia',
-      'MV': 'Maldives',
-      'ML': 'Mali',
-      'MT': 'Malta',
-      'MH': 'Marshall Islands',
-      'MR': 'Mauritania',
-      'MU': 'Mauritius',
-      'MX': 'Mexico',
-      'FM': 'Micronesia',
-      'MD': 'Moldova',
-      'MC': 'Monaco',
-      'MN': 'Mongolia',
-      'ME': 'Montenegro',
-      'MA': 'Morocco',
-      'MZ': 'Mozambique',
-      'MM': 'Myanmar',
-      'NA': 'Namibia',
-      'NR': 'Nauru',
-      'NP': 'Nepal',
-      'NL': 'Netherlands',
-      'NZ': 'New Zealand',
-      'NI': 'Nicaragua',
-      'NE': 'Niger',
-      'NG': 'Nigeria',
-      'NO': 'Norway',
-      'OM': 'Oman',
-      'PK': 'Pakistan',
-      'PW': 'Palau',
-      'PA': 'Panama',
-      'PG': 'Papua New Guinea',
-      'PY': 'Paraguay',
-      'PE': 'Peru',
-      'PH': 'Philippines',
-      'PL': 'Poland',
-      'PT': 'Portugal',
-      'QA': 'Qatar',
-      'RO': 'Romania',
-      'RU': 'Russia',
-      'RW': 'Rwanda',
-      'KN': 'Saint Kitts and Nevis',
-      'LC': 'Saint Lucia',
-      'VC': 'Saint Vincent and the Grenadines',
-      'WS': 'Samoa',
-      'SM': 'San Marino',
-      'ST': 'Sao Tome and Principe',
-      'SA': 'Saudi Arabia',
-      'SN': 'Senegal',
-      'RS': 'Serbia',
-      'SC': 'Seychelles',
-      'SL': 'Sierra Leone',
-      'SG': 'Singapore',
-      'SK': 'Slovakia',
-      'SI': 'Slovenia',
-      'SB': 'Solomon Islands',
-      'SO': 'Somalia',
-      'ZA': 'South Africa',
-      'SS': 'South Sudan',
-      'ES': 'Spain',
-      'LK': 'Sri Lanka',
-      'SD': 'Sudan',
-      'SR': 'Suriname',
-      'SE': 'Sweden',
-      'CH': 'Switzerland',
-      'SY': 'Syria',
-      'TW': 'Taiwan',
-      'TJ': 'Tajikistan',
-      'TZ': 'Tanzania',
-      'TH': 'Thailand',
-      'TL': 'Timor-Leste',
-      'TG': 'Togo',
-      'TO': 'Tonga',
-      'TT': 'Trinidad and Tobago',
-      'TN': 'Tunisia',
-      'TR': 'Turkey',
-      'TM': 'Turkmenistan',
-      'TV': 'Tuvalu',
-      'UG': 'Uganda',
-      'UA': 'Ukraine',
-      'AE': 'United Arab Emirates',
-      'GB': 'United Kingdom',
       'US': 'United States',
-      'UY': 'Uruguay',
-      'UZ': 'Uzbekistan',
-      'VU': 'Vanuatu',
-      'VA': 'Vatican City',
-      'VE': 'Venezuela',
-      'VN': 'Vietnam',
-      'YE': 'Yemen',
-      'ZM': 'Zambia',
-      'ZW': 'Zimbabwe'
+      'GB': 'United Kingdom',
+      'CA': 'Canada',
+      // Add more as needed
     };
 
     // OS Icon mapping
@@ -332,7 +143,7 @@ const countryNames = {
       }
     });
 
-    // Transform data for frontend
+    // ✅ Transform data for frontend - FULL DATA
     const transformedData = {
       totalClicks: statsData.totalClicks || 0,
       humanClicks: statsData.humanClicks || 0,
@@ -343,14 +154,14 @@ const countryNames = {
       clicksByDate: formattedClicksByDate,
       interval: statsData.interval || { startDate: null, endDate: null, prevStartDate: null, prevEndDate: null },
       
-      // Raw data
+      // ✅ Raw data from Short.io
       browser: statsData.browser || [],
       country: statsData.country || [],
       city: statsData.city || [],
       os: statsData.os || [],
       referer: statsData.referer || [],
       
-      // Convert to Record format with full country names and icons
+      // ✅ Convert to Record format with full country names and icons
       browsers: statsData.browser?.reduce((acc, item) => {
         acc[item.browser] = {
           count: item.score,
@@ -381,13 +192,7 @@ const countryNames = {
         return acc;
       }, {}) || {},
       
-      countryFull: statsData.country?.map(item => ({
-        ...item,
-        countryName: countryNames[item.country] || item.country || item.countryName || 'Unknown',
-        flag: item.country.toLowerCase()
-      })) || [],
-      
-      devices: {},
+      devices: statsData.devices || {},
       recentClicks: statsData.recentClicks || [],
     };
 
@@ -399,6 +204,4 @@ const countryNames = {
       details: error.message
     });
   }
-}  
-
-
+}

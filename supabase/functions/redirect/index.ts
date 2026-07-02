@@ -8,19 +8,17 @@ const corsHeaders = {
 };
 
 Deno.serve(async (req) => {
+  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     const url = new URL(req.url);
-    // ✅ FIX: Get the short code from the path correctly
     const pathParts = url.pathname.split('/');
     const shortCode = pathParts[pathParts.length - 1];
     
     console.log("🔴 Redirecting short code:", shortCode);
-    console.log("🔴 Full URL:", req.url);
-    console.log("🔴 Path parts:", pathParts);
 
     if (!shortCode || shortCode === "favicon.ico" || shortCode === "redirect") {
       return new Response(JSON.stringify({ error: "Missing short code" }), {
@@ -29,84 +27,48 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ✅ Use SERVICE_ROLE_KEY
+    // Initialize Supabase client with SERVICE_ROLE_KEY (bypasses RLS)
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     
-    console.log("🔑 Using service role key");
-    
     const supabase = createClient(supabaseUrl, supabaseKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
+      auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // ✅ Clean the short code
-    const cleanShortCode = shortCode.trim().toLowerCase();
-    console.log("🔍 Searching for short code:", cleanShortCode);
-
-    // ✅ FIRST: Try exact match (case-sensitive)
+    // ✅ Step 1: Find the link in database
     let { data: link, error: linkError } = await supabase
       .from("links")
       .select("id, original_url, is_active")
-      .eq("short_code", cleanShortCode)
+      .eq("short_code", shortCode)
       .maybeSingle();
 
-    // ✅ SECOND: If not found, try case-insensitive
-    if (!link && !linkError) {
-      console.log("🔍 Exact match failed, trying case-insensitive...");
-      const { data: linkCI, error: linkCIError } = await supabase
+    // If not found, try case-insensitive
+    if (!link) {
+      console.log("🔍 Trying case-insensitive search...");
+      const { data: linkCI } = await supabase
         .from("links")
         .select("id, original_url, is_active")
-        .ilike("short_code", cleanShortCode)
+        .ilike("short_code", shortCode)
         .maybeSingle();
-      
-      if (linkCIError) {
-        console.error("❌ Case-insensitive error:", linkCIError);
-      }
       
       if (linkCI) {
         link = linkCI;
-        linkError = null;
         console.log("✅ Found with case-insensitive match");
       }
     }
 
-    if (linkError) {
-      console.error("❌ Database error:", linkError);
-      return new Response(JSON.stringify({ 
-        error: "Database error", 
-        details: linkError.message 
-      }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     if (!link) {
-      console.error("❌ Link not found:", cleanShortCode);
-      
-      // ✅ Get all links for debugging
-      const { data: allLinks, error: listError } = await supabase
-        .from("links")
-        .select("short_code, original_url")
-        .limit(20);
-      
-      console.log("📊 Links in database:", allLinks?.map(l => l.short_code));
-      
+      console.error("❌ Link not found:", shortCode);
       return new Response(JSON.stringify({ 
         error: "Link not found",
-        shortCode: cleanShortCode,
-        availableLinks: allLinks?.map(l => l.short_code) || [],
-        details: "Check if your short code exists in the database"
+        shortCode: shortCode 
       }), {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    console.log("✅ Link found:", link.id, link.original_url);
+    console.log("✅ Link found:", link.id);
 
     if (!link.is_active) {
       return new Response(JSON.stringify({ error: "Link is inactive" }), {
@@ -115,7 +77,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Parse user agent
+    // ✅ Step 2: RECORD THE CLICK (before redirecting)
+    console.log("📝 Recording click for link:", link.id);
+    
     const userAgent = req.headers.get("user-agent") || "";
     let browser = "Unknown", os = "Unknown", device_type = "Desktop";
     
@@ -137,9 +101,7 @@ Deno.serve(async (req) => {
     const city = req.headers.get("x-city") || req.headers.get("cf-ipcity") || null;
     const referrer = req.headers.get("referer") || null;
 
-    // ✅ RECORD THE CLICK
-    console.log("📝 Recording click for link:", link.id);
-    
+    // Insert the click
     const { error: clickError } = await supabase.from("clicks").insert({
       link_id: link.id,
       browser,
@@ -150,15 +112,18 @@ Deno.serve(async (req) => {
       ip_address: ip,
       user_agent: userAgent,
       referrer,
+      clicked_at: new Date().toISOString(),
     });
 
     if (clickError) {
-      console.error("❌ Error recording click:", clickError);
+      console.error("❌ Click recording error:", clickError);
     } else {
-      console.log("✅ Click recorded for:", cleanShortCode);
+      console.log("✅ Click recorded successfully!");
     }
 
-    // ✅ Redirect to original URL
+    // ✅ Step 3: Redirect to original URL
+    console.log("➡️ Redirecting to:", link.original_url);
+    
     return new Response(null, {
       status: 302,
       headers: {

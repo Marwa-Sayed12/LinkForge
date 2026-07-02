@@ -32,27 +32,30 @@ export default function Overview() {
   const [lastCreated, setLastCreated] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const fetchData = useCallback(async () => {
-    if (!user) return;
-    
-    const { data: allLinks, count: linkCount } = await supabase
-      .from("links")
-      .select("*", { count: "exact" })
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false });
+// src/pages/dashboard/Overview.tsx
 
-    setStats((prev) => ({ ...prev, links: linkCount || 0 }));
-    setRecentLinks((allLinks || []) as LinkData[]);
+// ✅ Keep using Supabase for total clicks
+const fetchData = useCallback(async () => {
+  if (!user) return;
+  
+  const { data: allLinks, count: linkCount } = await supabase
+    .from("links")
+    .select("*", { count: "exact" })
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false });
 
-    // ✅ Get total clicks from Supabase
-    if (allLinks && allLinks.length > 0) {
-      let totalClicks = 0;
-      allLinks.forEach(link => {
-        totalClicks += (link as LinkData).clicks || 0;
-      });
-      setStats((prev) => ({ ...prev, clicks: totalClicks }));
-    }
-  }, [user]);
+  setStats((prev) => ({ ...prev, links: linkCount || 0 }));
+  setRecentLinks((allLinks || []).slice(0, 5));
+
+  // ✅ Total clicks from Supabase
+  if (allLinks && allLinks.length > 0) {
+    let totalClicks = 0;
+    allLinks.forEach(link => {
+      totalClicks += link.clicks || 0;
+    });
+    setStats((prev) => ({ ...prev, clicks: totalClicks }));
+  }
+});
 
   useEffect(() => {
     fetchData();

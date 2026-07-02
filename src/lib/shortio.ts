@@ -28,7 +28,7 @@ export async function createShortLink(originalUrl: string, customSlug?: string) 
   }
 }
 
-// ✅ Get click counts from Supabase
+// ✅ Get click counts from Supabase (for MyLinks page)
 export async function getLinkClicks(shortCode: string): Promise<number> {
   try {
     const { data, error } = await supabase
@@ -49,7 +49,7 @@ export async function getLinkClicks(shortCode: string): Promise<number> {
   }
 }
 
-// ✅ Get clicks for multiple links
+// ✅ Get clicks for multiple links (for MyLinks page)
 export async function getMultipleLinkClicks(shortCodes: string[]): Promise<Record<string, number>> {
   try {
     if (!shortCodes.length) return {};
@@ -75,34 +75,7 @@ export async function getMultipleLinkClicks(shortCodes: string[]): Promise<Recor
   }
 }
 
-// ✅ Get clicks by date for a link
-export async function getLinkClicksByDate(linkId: string, days = 30): Promise<Record<string, number>> {
-  try {
-    const { data, error } = await supabase
-      .from('clicks')
-      .select('clicked_at')
-      .eq('link_id', linkId)
-      .gte('clicked_at', new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString())
-      .order('clicked_at', { ascending: true });
-
-    if (error) {
-      console.error('Error fetching clicks by date:', error);
-      return {};
-    }
-
-    const result: Record<string, number> = {};
-    data?.forEach(click => {
-      const date = new Date(click.clicked_at).toISOString().split('T')[0];
-      result[date] = (result[date] || 0) + 1;
-    });
-    return result;
-  } catch (error) {
-    console.error('Error:', error);
-    return {};
-  }
-}
-
-// ✅ Get total clicks for a user
+// ✅ Get total clicks for a user (for Overview)
 export async function getUserTotalClicks(userId: string): Promise<number> {
   try {
     const { data, error } = await supabase
@@ -122,27 +95,34 @@ export async function getUserTotalClicks(userId: string): Promise<number> {
   }
 }
 
-// Keep for backward compatibility
+// ✅ MAIN: Get full stats from Short.io (for Analytics page)
 export async function getShortIoStats(shortCode: string) {
   try {
-    const clicks = await getLinkClicks(shortCode);
-    return {
-      totalClicks: clicks,
-      humanClicks: clicks,
-      clicks: clicks,
-      clicksByDate: {},
-      devices: {},
-      countries: {},
-      browsers: {},
-      oss: {},
-      referrers: {},
-      recentClicks: [],
-    };
+    // Check cache first
+    const cached = statsCache.get(shortCode);
+    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+      return cached.data;
+    }
+
+    const response = await fetch(`/api/shortcode?shortCode=${shortCode}`);
+    
+    if (!response.ok) {
+      console.warn(`API error for ${shortCode}: ${response.status}`);
+      return null;
+    }
+    
+    const data = await response.json();
+    statsCache.set(shortCode, { data: data, timestamp: Date.now() });
+    return data;
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error fetching Short.io stats:', error);
     return null;
   }
 }
+
+// Cache for stats
+const statsCache = new Map<string, { data: any; timestamp: number }>();
+const CACHE_DURATION = 60000; // 1 minute cache
 
 export function getQRCodeUrl(shortCode: string) {
   return `https://api.short.io/links/${shortCode}/qrcode`;
