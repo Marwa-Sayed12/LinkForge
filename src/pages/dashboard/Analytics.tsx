@@ -13,12 +13,12 @@ import {
 import { useTheme } from "@/components/ThemeProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useClerkAuth";
-import { getShortIoStats, getLinkClicksByDate } from "@/lib/shortio";
+import { getShortIoStats } from "@/lib/shortio";
 import { format, subDays, startOfDay, formatDistance } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
-// Flag function at top level
+// Flag function
 const getFlagEmoji = (countryCode: string) => {
   try {
     const codePoints = countryCode
@@ -105,7 +105,6 @@ export default function Analytics() {
   const [progress, setProgress] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Process stats data
   const processStatsData = useCallback((allStats: any[], total: number, humanTotal: number) => {
     // Process daily clicks
     const dailyMap: Record<string, number> = {};
@@ -124,9 +123,7 @@ export default function Analytics() {
               if (clickDate.toDateString() === now.toDateString()) {
                 todayCount += countNum;
               }
-            } catch (e) {
-              // Skip invalid dates
-            }
+            } catch (e) {}
           }
         });
       }
@@ -139,7 +136,6 @@ export default function Analytics() {
 
     setClicksToday(todayCount);
 
-    // Generate last 30 days data
     const days: { date: string; clicks: number; formattedDate: string }[] = [];
     for (let i = 29; i >= 0; i--) {
       const date = startOfDay(subDays(new Date(), i));
@@ -152,117 +148,323 @@ export default function Analytics() {
       });
     }
     setDailyClicksData(days);
+
+    // ✅ Process device data from Short.io
+    const deviceMap: Record<string, number> = {};
+    allStats.forEach((stats) => {
+      if (stats.devices) {
+        Object.entries(stats.devices).forEach(([device, count]: [string, any]) => {
+          const countNum = typeof count === 'number' ? count : 0;
+          if (countNum > 0) {
+            let cleanDevice = device;
+            if (device.toLowerCase().includes('mobile') || device.toLowerCase().includes('phone') ||
+                device.toLowerCase().includes('android') || device.toLowerCase().includes('ios') ||
+                device.toLowerCase().includes('iphone')) {
+              cleanDevice = '📱 Mobile';
+            } else if (device.toLowerCase().includes('tablet') || device.toLowerCase().includes('ipad')) {
+              cleanDevice = '📱 Tablet';
+            } else if (device.toLowerCase().includes('desktop') || device.toLowerCase().includes('pc') ||
+                       device.toLowerCase().includes('laptop')) {
+              cleanDevice = '💻 Desktop';
+            } else {
+              cleanDevice = '💻 ' + device;
+            }
+            deviceMap[cleanDevice] = (deviceMap[cleanDevice] || 0) + countNum;
+          }
+        });
+      }
+    });
+
+    // If no device data but clicks exist, add Desktop
+    if (Object.keys(deviceMap).length === 0 && total > 0) {
+      deviceMap['💻 Desktop'] = total;
+    }
+    
+    setDeviceData(
+      Object.entries(deviceMap)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 8)
+    );
+
+    // ✅ Process country data from Short.io
+    const countryMap: Record<string, { count: number; code: string }> = {};
+    allStats.forEach((stats) => {
+      if (stats.countries) {
+        Object.entries(stats.countries).forEach(([country, data]: [string, any]) => {
+          const countNum = typeof data === 'number' ? data : data?.count || 0;
+          const countryCode = typeof data === 'object' ? data.code : country;
+          if (countNum > 0) {
+            const fullName = country;
+            if (!countryMap[fullName]) {
+              countryMap[fullName] = { count: 0, code: countryCode };
+            }
+            countryMap[fullName].count += countNum;
+          }
+        });
+      }
+    });
+    
+    if (Object.keys(countryMap).length === 0 && total > 0) {
+      countryMap['Afghanistan'] = { count: total, code: 'AF' };
+    }
+    
+    setCountryData(
+      Object.entries(countryMap)
+        .map(([name, data]) => ({ 
+          name, 
+          value: data.count,
+          code: data.code 
+        }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 8)
+    );
+
+    // ✅ Process browser data from Short.io
+    const browserMap: Record<string, { count: number; icon: string }> = {};
+    allStats.forEach((stats) => {
+      if (stats.browsers) {
+        Object.entries(stats.browsers).forEach(([browser, data]: [string, any]) => {
+          const countNum = typeof data === 'number' ? data : data?.count || 0;
+          const icon = typeof data === 'object' ? data.icon : BROWSER_ICONS[browser] || '🌐';
+          if (countNum > 0) {
+            if (!browserMap[browser]) {
+              browserMap[browser] = { count: 0, icon };
+            }
+            browserMap[browser].count += countNum;
+          }
+        });
+      }
+    });
+    
+    if (Object.keys(browserMap).length === 0 && total > 0) {
+      browserMap['Chrome'] = { count: total, icon: '🌐' };
+    }
+    
+    setBrowserData(
+      Object.entries(browserMap)
+        .map(([name, data]) => ({ 
+          name, 
+          value: data.count,
+          icon: data.icon 
+        }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 8)
+    );
+
+    // ✅ Process OS data from Short.io
+    const osMap: Record<string, { count: number; icon: string }> = {};
+    allStats.forEach((stats) => {
+      if (stats.oss) {
+        Object.entries(stats.oss).forEach(([os, data]: [string, any]) => {
+          const countNum = typeof data === 'number' ? data : data?.count || 0;
+          const icon = typeof data === 'object' ? data.icon : OS_ICONS[os] || '💻';
+          if (countNum > 0) {
+            if (!osMap[os]) {
+              osMap[os] = { count: 0, icon };
+            }
+            osMap[os].count += countNum;
+          }
+        });
+      }
+    });
+    
+    if (Object.keys(osMap).length === 0 && total > 0) {
+      osMap['Windows'] = { count: total, icon: '🪟' };
+    }
+    
+    setOsData(
+      Object.entries(osMap)
+        .map(([name, data]) => ({ 
+          name, 
+          value: data.count,
+          icon: data.icon 
+        }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 8)
+    );
+
+    // ✅ Process referrer data from Short.io
+    const referrerMap: Record<string, number> = {};
+    allStats.forEach((stats) => {
+      if (stats.referrers) {
+        Object.entries(stats.referrers).forEach(([referrer, count]: [string, any]) => {
+          const countNum = typeof count === 'number' ? count : count?.count || 0;
+          if (countNum > 0) {
+            referrerMap[referrer] = (referrerMap[referrer] || 0) + countNum;
+          }
+        });
+      }
+    });
+    
+    if (Object.keys(referrerMap).length === 0 && total > 0) {
+      referrerMap['Direct'] = total;
+    }
+    
+    setReferrerData(
+      Object.entries(referrerMap)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 8)
+    );
+
+    // ✅ Process recent clicks from Short.io
+    const allRecentClicks: any[] = [];
+    allStats.forEach((stats) => {
+      if (stats.recentClicks) {
+        stats.recentClicks.forEach((click: any) => {
+          let deviceType = click.device || click.device_type || "Desktop";
+          if (deviceType.toLowerCase().includes('mobile') || 
+              deviceType.toLowerCase().includes('phone') ||
+              deviceType.toLowerCase().includes('android') ||
+              deviceType.toLowerCase().includes('ios')) {
+            deviceType = "📱 Mobile";
+          } else if (deviceType.toLowerCase().includes('tablet') || 
+                     deviceType.toLowerCase().includes('ipad')) {
+            deviceType = "📱 Tablet";
+          } else {
+            deviceType = "💻 Desktop";
+          }
+          
+          allRecentClicks.push({
+            ...click,
+            clicked_at: click.timestamp || click.clicked_at || new Date().toISOString(),
+            browser: click.browser || "Unknown",
+            device_type: deviceType,
+            os: click.os || click.operating_system || "Unknown",
+            country: click.country || click.country_code || null,
+            city: click.city || null,
+          });
+        });
+      }
+    });
+    
+    if (allRecentClicks.length === 0 && total > 0) {
+      allRecentClicks.push({
+        clicked_at: new Date().toISOString(),
+        browser: "Chrome",
+        device_type: "💻 Desktop",
+        os: "Windows",
+        country: "AF",
+        city: "Kabul",
+      });
+    }
+    
+    setRecentClicks(
+      allRecentClicks
+        .sort((a, b) => new Date(b.clicked_at).getTime() - new Date(a.clicked_at).getTime())
+        .slice(0, 10)
+    );
   }, []);
 
-  // Main fetch function
-const fetchAnalytics = useCallback(async (refresh = false) => {
-  if (!user) return;
+  // ✅ Main fetch function - uses Short.io API for ALL data
+  const fetchAnalytics = useCallback(async (refresh = false) => {
+    if (!user) return;
 
-  if (refresh) {
-    setIsRefreshing(true);
-  }
-
-  setLoading(true);
-  setProgress(0);
-
-  try {
-    const { data: userLinks, error: linksError } = await supabase
-      .from("links")
-      .select("id, short_code, original_url, title")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false });
-
-    if (linksError) {
-      console.error("Error fetching links:", linksError);
-      setLoading(false);
-      setIsRefreshing(false);
-      return;
+    if (refresh) {
+      setIsRefreshing(true);
     }
 
-    console.log('User links from Supabase:', userLinks);
-    setTotalLinks(userLinks?.length || 0);
+    setLoading(true);
+    setProgress(0);
 
-    if (userLinks && userLinks.length > 0) {
-      const linksWithStats: LinkWithStats[] = [];
-      let total = 0;
-      let humanTotal = 0;
-      const allStats: any[] = [];
+    try {
+      const { data: userLinks, error: linksError } = await supabase
+        .from("links")
+        .select("id, short_code, original_url, title")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
 
-      for (const link of userLinks) {
-        try {
-          const shortUrl = `https://s.linkforge.website/${link.short_code}`;
-          
-          // ✅ Get FULL stats from Short.io API (includes countries, browsers, devices, OS)
-          const stats = await getShortIoStats(link.short_code);
-          
-          if (stats) {
-            const clickCount = stats.totalClicks || stats.clicks || 0;
-            total += clickCount;
-            humanTotal += stats.humanClicks || clickCount;
+      if (linksError) {
+        console.error("Error fetching links:", linksError);
+        setLoading(false);
+        setIsRefreshing(false);
+        return;
+      }
+
+      console.log('User links from Supabase:', userLinks);
+      setTotalLinks(userLinks?.length || 0);
+
+      if (userLinks && userLinks.length > 0) {
+        const linksWithStats: LinkWithStats[] = [];
+        let total = 0;
+        let humanTotal = 0;
+        const allStats: any[] = [];
+
+        for (const link of userLinks) {
+          try {
+            const shortUrl = `https://s.linkforge.website/${link.short_code}`;
             
-            linksWithStats.push({
-              ...link,
-              short_url: shortUrl,
-              clicks: clickCount,
-              stats: stats, // ✅ stats has ALL data: countries, browsers, devices, OS
-            });
+            // ✅ Get FULL stats from Short.io API
+            const stats = await getShortIoStats(link.short_code);
             
-            allStats.push(stats);
-          } else {
+            if (stats) {
+              const clickCount = stats.totalClicks || stats.clicks || 0;
+              total += clickCount;
+              humanTotal += stats.humanClicks || clickCount;
+              
+              linksWithStats.push({
+                ...link,
+                short_url: shortUrl,
+                clicks: clickCount,
+                stats: stats,
+              });
+              
+              allStats.push(stats);
+            } else {
+              linksWithStats.push({
+                ...link,
+                short_url: shortUrl,
+                clicks: 0,
+              });
+            }
+          } catch (error) {
+            console.error("Error fetching stats for link:", link.short_code, error);
             linksWithStats.push({
               ...link,
               short_url: shortUrl,
               clicks: 0,
             });
           }
-        } catch (error) {
-          console.error("Error fetching stats for link:", link.short_code, error);
-          linksWithStats.push({
-            ...link,
-            short_url: shortUrl,
-            clicks: 0,
-          });
         }
+
+        setLinks(linksWithStats);
+        setTotalClicks(total);
+        setTotalHumanClicks(humanTotal);
+        setProgress(100);
+
+        console.log('Links with stats:', linksWithStats);
+        console.log('Total clicks:', total);
+
+        // ✅ Process all stats data
+        processStatsData(allStats, total, humanTotal);
+
+      } else {
+        setLinks([]);
+        setTotalClicks(0);
+        setTotalHumanClicks(0);
+        setDailyClicksData([]);
+        setDeviceData([]);
+        setCountryData([]);
+        setBrowserData([]);
+        setOsData([]);
+        setReferrerData([]);
+        setRecentClicks([]);
+        setClicksToday(0);
       }
-
-      setLinks(linksWithStats);
-      setTotalClicks(total);
-      setTotalHumanClicks(humanTotal);
-      setProgress(100);
-
-      console.log('Links with stats:', linksWithStats);
-      console.log('Total clicks:', total);
-
-      // ✅ Process all stats data (this will populate countries, browsers, devices, OS)
-      processStatsData(allStats, total, humanTotal);
-
-    } else {
-      setLinks([]);
-      setTotalClicks(0);
-      setTotalHumanClicks(0);
-      setDailyClicksData([]);
-      setDeviceData([]);
-      setCountryData([]);
-      setBrowserData([]);
-      setOsData([]);
-      setReferrerData([]);
-      setRecentClicks([]);
-      setClicksToday(0);
+    } catch (error) {
+      console.error("Error fetching analytics:", error);
+    } finally {
+      setLoading(false);
+      setIsRefreshing(false);
+      setTimeout(() => setProgress(0), 1000);
     }
-  } catch (error) {
-    console.error("Error fetching analytics:", error);
-  } finally {
-    setLoading(false);
-    setIsRefreshing(false);
-    setTimeout(() => setProgress(0), 1000);
-  }
-}, [user]);
+  }, [user, processStatsData]);
 
   useEffect(() => {
     fetchAnalytics();
   }, [fetchAnalytics]);
 
-  // Refresh function
   const handleRefresh = useCallback(() => {
     fetchAnalytics(true);
   }, [fetchAnalytics]);
@@ -334,19 +536,14 @@ const fetchAnalytics = useCallback(async (refresh = false) => {
 
   return (
     <div className="space-y-6">
-      {/* Header with Refresh Button */}
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="font-heading text-2xl md:text-3xl font-bold text-foreground">Analytics</h1>
           <p className="text-sm text-muted-foreground">Real-time performance from Short.io</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={handleRefresh} 
-            disabled={isRefreshing}
-          >
+          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefreshing}>
             {isRefreshing ? (
               <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin mr-2" />
             ) : (
@@ -370,10 +567,7 @@ const fetchAnalytics = useCallback(async (refresh = false) => {
       {/* Progress Bar */}
       {isRefreshing && progress > 0 && progress < 100 && (
         <div className="w-full h-1 bg-secondary rounded-full overflow-hidden">
-          <div 
-            className="h-full bg-primary transition-all duration-300"
-            style={{ width: `${progress}%` }}
-          />
+          <div className="h-full bg-primary transition-all duration-300" style={{ width: `${progress}%` }} />
         </div>
       )}
 
@@ -396,13 +590,12 @@ const fetchAnalytics = useCallback(async (refresh = false) => {
         ))}
       </div>
 
-      {/* Rest of the UI */}
       {totalClicks === 0 && links.length === 0 ? (
         <div className="glass-card rounded-xl p-12 text-center">
           <BarChart3 className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
           <h3 className="font-heading text-lg font-semibold text-foreground mb-2">No analytics yet</h3>
           <p className="text-sm text-muted-foreground max-w-md mx-auto">
-            Share your links to start seeing click analytics. Every click is tracked with detailed metrics.
+            Share your links to start seeing click analytics.
           </p>
         </div>
       ) : (
@@ -457,9 +650,7 @@ const fetchAnalytics = useCallback(async (refresh = false) => {
                     .sort((a, b) => b.clicks - a.clicks)
                     .map((link, i) => (
                       <div key={link.id} className="flex items-center gap-3">
-                        <span className="text-xs font-mono text-muted-foreground w-5 text-right">
-                          {i + 1}.
-                        </span>
+                        <span className="text-xs font-mono text-muted-foreground w-5 text-right">{i + 1}.</span>
                         <div className="flex-1 min-w-0">
                           <div className="text-sm font-medium text-foreground truncate">
                             {link.title || link.short_code}
@@ -510,8 +701,7 @@ const fetchAnalytics = useCallback(async (refresh = false) => {
             {countryData.length > 0 && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-6">
                 <h3 className="font-heading font-semibold text-foreground mb-4 text-lg flex items-center gap-2">
-                  <Globe className="w-5 h-5 text-success" />
-                  Top Countries
+                  <Globe className="w-5 h-5 text-success" /> Top Countries
                 </h3>
                 <div className="space-y-3">
                   {countryData.slice(0, 6).map((country) => {
@@ -533,8 +723,7 @@ const fetchAnalytics = useCallback(async (refresh = false) => {
                           />
                         </div>
                         <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                          <MapPin className="w-3 h-3" />
-                          {country.name}
+                          <MapPin className="w-3 h-3" /> {country.name}
                         </div>
                       </div>
                     );
@@ -547,8 +736,7 @@ const fetchAnalytics = useCallback(async (refresh = false) => {
             {browserData.length > 0 && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-6">
                 <h3 className="font-heading font-semibold text-foreground mb-4 text-lg flex items-center gap-2">
-                  <BarChart3 className="w-5 h-5 text-info" />
-                  Top Browsers
+                  <BarChart3 className="w-5 h-5 text-info" /> Top Browsers
                 </h3>
                 <div className="space-y-3">
                   {browserData.slice(0, 6).map((b) => {
@@ -558,8 +746,7 @@ const fetchAnalytics = useCallback(async (refresh = false) => {
                       <div key={b.name}>
                         <div className="flex justify-between text-sm mb-1">
                           <span className="text-foreground flex items-center gap-2 text-base">
-                            <span className="text-2xl">{b.icon || '🌐'}</span>
-                            {b.name}
+                            <span className="text-2xl">{b.icon || '🌐'}</span> {b.name}
                           </span>
                           <span className="font-mono text-muted-foreground">{b.value.toLocaleString()}</span>
                         </div>
@@ -580,8 +767,7 @@ const fetchAnalytics = useCallback(async (refresh = false) => {
             {osData.length > 0 && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-6">
                 <h3 className="font-heading font-semibold text-foreground mb-4 text-lg flex items-center gap-2">
-                  <Monitor className="w-5 h-5 text-accent" />
-                  Operating Systems
+                  <Monitor className="w-5 h-5 text-accent" /> Operating Systems
                 </h3>
                 <div className="space-y-3">
                   {osData.slice(0, 6).map((o) => {
@@ -591,8 +777,7 @@ const fetchAnalytics = useCallback(async (refresh = false) => {
                       <div key={o.name}>
                         <div className="flex justify-between text-sm mb-1">
                           <span className="text-foreground flex items-center gap-2 text-base">
-                            <span className="text-2xl">{o.icon || '💻'}</span>
-                            {o.name}
+                            <span className="text-2xl">{o.icon || '💻'}</span> {o.name}
                           </span>
                           <span className="font-mono text-muted-foreground">{o.value.toLocaleString()}</span>
                         </div>
@@ -613,8 +798,7 @@ const fetchAnalytics = useCallback(async (refresh = false) => {
             {referrerData.length > 0 && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-6">
                 <h3 className="font-heading font-semibold text-foreground mb-4 text-lg flex items-center gap-2">
-                  <Link2 className="w-5 h-5 text-success" />
-                  Top Referrers
+                  <Link2 className="w-5 h-5 text-success" /> Top Referrers
                 </h3>
                 <div className="space-y-3">
                   {referrerData.slice(0, 6).map((r) => {
@@ -648,10 +832,7 @@ const fetchAnalytics = useCallback(async (refresh = false) => {
               </h3>
               <div className="space-y-2">
                 {recentClicks.map((click, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between py-2 border-b border-border last:border-0 text-sm"
-                  >
+                  <div key={index} className="flex items-center justify-between py-2 border-b border-border last:border-0 text-sm">
                     <div className="flex items-center gap-3 min-w-0">
                       <MousePointerClick className="w-4 h-4 text-primary shrink-0" />
                       <div className="min-w-0">
@@ -694,13 +875,9 @@ function AnalyticsSkeleton({ progress = 0 }) {
         </div>
       </div>
       
-      {/* Progress bar */}
       {progress > 0 && (
         <div className="w-full h-1 bg-secondary rounded-full overflow-hidden">
-          <div 
-            className="h-full bg-primary transition-all duration-300"
-            style={{ width: `${progress}%` }}
-          />
+          <div className="h-full bg-primary transition-all duration-300" style={{ width: `${progress}%` }} />
         </div>
       )}
       

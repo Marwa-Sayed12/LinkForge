@@ -9,6 +9,10 @@ const client = createClient({
 
 const DOMAIN = 's.linkforge.website';
 
+// Cache for Short.io API
+const statsCache = new Map<string, { data: any; timestamp: number }>();
+const CACHE_DURATION = 60000; // 1 minute
+
 export async function createShortLink(originalUrl: string, customSlug?: string) {
   try {
     const result = await client.createLink({
@@ -28,7 +32,7 @@ export async function createShortLink(originalUrl: string, customSlug?: string) 
   }
 }
 
-// ✅ Get click counts from Supabase (for MyLinks page)
+// ✅ For MyLinks & Overview: Get click counts from Supabase (fast!)
 export async function getLinkClicks(shortCode: string): Promise<number> {
   try {
     const { data, error } = await supabase
@@ -49,7 +53,7 @@ export async function getLinkClicks(shortCode: string): Promise<number> {
   }
 }
 
-// ✅ Get clicks for multiple links (for MyLinks page)
+// ✅ For MyLinks: Get multiple link clicks (fast!)
 export async function getMultipleLinkClicks(shortCodes: string[]): Promise<Record<string, number>> {
   try {
     if (!shortCodes.length) return {};
@@ -75,7 +79,7 @@ export async function getMultipleLinkClicks(shortCodes: string[]): Promise<Recor
   }
 }
 
-// ✅ Get total clicks for a user (for Overview)
+// ✅ For Overview: Get total clicks for a user (fast!)
 export async function getUserTotalClicks(userId: string): Promise<number> {
   try {
     const { data, error } = await supabase
@@ -95,7 +99,7 @@ export async function getUserTotalClicks(userId: string): Promise<number> {
   }
 }
 
-// ✅ MAIN: Get full stats from Short.io (for Analytics page)
+// ✅ For Analytics: Get FULL stats from Short.io API (countries, browsers, devices, OS)
 export async function getShortIoStats(shortCode: string) {
   try {
     // Check cache first
@@ -119,10 +123,6 @@ export async function getShortIoStats(shortCode: string) {
     return null;
   }
 }
-
-// Cache for stats
-const statsCache = new Map<string, { data: any; timestamp: number }>();
-const CACHE_DURATION = 60000; // 1 minute cache
 
 export function getQRCodeUrl(shortCode: string) {
   return `https://api.short.io/links/${shortCode}/qrcode`;
