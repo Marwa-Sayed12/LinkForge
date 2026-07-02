@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useClerkAuth";
 import { toast } from "sonner";
-import { createShortLink } from "@/lib/shortio";
+import { createShortLink, getUserTotalClicks, getMultipleLinkClicks } from "@/lib/shortio";
 
 interface LinkData {
   id: string;
@@ -31,31 +31,38 @@ export default function Overview() {
   const [creating, setCreating] = useState(false);
   const [lastCreated, setLastCreated] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [clickCounts, setClickCounts] = useState<Record<string, number>>({});
 
-// src/pages/dashboard/Overview.tsx
+  // ✅ Fetch data with clicks from Short.io
+  const fetchData = useCallback(async () => {
+    if (!user) return;
+    
+    const { data: allLinks, count: linkCount } = await supabase
+      .from("links")
+      .select("*", { count: "exact" })
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
 
-// ✅ Keep using Supabase for total clicks
-const fetchData = useCallback(async () => {
-  if (!user) return;
-  
-  const { data: allLinks, count: linkCount } = await supabase
-    .from("links")
-    .select("*", { count: "exact" })
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false });
+    setStats((prev) => ({ ...prev, links: linkCount || 0 }));
+    setRecentLinks((allLinks || []).slice(0, 5));
 
-  setStats((prev) => ({ ...prev, links: linkCount || 0 }));
-  setRecentLinks((allLinks || []).slice(0, 5));
-
-  // ✅ Total clicks from Supabase
-  if (allLinks && allLinks.length > 0) {
-    let totalClicks = 0;
-    allLinks.forEach(link => {
-      totalClicks += link.clicks || 0;
-    });
-    setStats((prev) => ({ ...prev, clicks: totalClicks }));
-  }
-});
+    // ✅ Get clicks from Short.io
+    if (allLinks && allLinks.length > 0) {
+      // Get total clicks from Short.io
+      const totalClicks = await getUserTotalClicks(user.id);
+      setStats((prev) => ({ ...prev, clicks: totalClicks }));
+      
+      // Get individual click counts for recent links
+      const shortCodes = allLinks.slice(0, 5).map(link => link.short_code);
+      const counts = await getMultipleLinkClicks(shortCodes);
+      
+      const result: Record<string, number> = {};
+      allLinks.slice(0, 5).forEach(link => {
+        result[link.id] = counts[link.short_code] || 0;
+      });
+      setClickCounts(result);
+    }
+  }, [user]);
 
   useEffect(() => {
     fetchData();
@@ -73,8 +80,11 @@ const fetchData = useCallback(async () => {
     setCreating(true);
     try {
       const shortCode = Math.random().toString(36).substring(2, 8);
+      
+      // ✅ Create in Short.io first
       const { shortUrl } = await createShortLink(quickUrl.trim(), shortCode);
       
+      // ✅ Then save to Supabase
       const { error } = await supabase.from("links").insert({
         user_id: user.id,
         original_url: quickUrl.trim(),
@@ -225,8 +235,12 @@ const fetchData = useCallback(async () => {
                   </div>
                   <div className="text-xs text-muted-foreground truncate">{link.original_url}</div>
                 </div>
-                <div className="text-xs text-muted-foreground">
-                  {new Date(link.created_at).toLocaleDateString()}
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1 text-primary font-semibold">
+                    <MousePointerClick className="w-3 h-3" />
+                    {clickCounts[link.id] ?? 0} clicks
+                  </span>
+                  <span>{new Date(link.created_at).toLocaleDateString()}</span>
                 </div>
               </div>
             ))}

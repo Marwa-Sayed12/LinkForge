@@ -32,69 +32,82 @@ export async function createShortLink(originalUrl: string, customSlug?: string) 
   }
 }
 
-// ✅ For MyLinks & Overview: Get click counts from Supabase (fast!)
+// ✅ Get click count from Short.io for a single link
 export async function getLinkClicks(shortCode: string): Promise<number> {
   try {
-    const { data, error } = await supabase
-      .from('links')
-      .select('clicks')
-      .eq('short_code', shortCode)
-      .single();
-
-    if (error) {
-      console.error('Error fetching clicks:', error);
+    const response = await fetch(`/api/shortcode?shortCode=${shortCode}`);
+    
+    if (!response.ok) {
+      console.warn(`Failed to get clicks for ${shortCode}`);
       return 0;
     }
-
-    return data?.clicks || 0;
+    
+    const data = await response.json();
+    return data.totalClicks || 0;
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error fetching clicks:', error);
     return 0;
   }
 }
 
-// ✅ For MyLinks: Get multiple link clicks (fast!)
+// ✅ Get multiple link clicks from Short.io
 export async function getMultipleLinkClicks(shortCodes: string[]): Promise<Record<string, number>> {
   try {
     if (!shortCodes.length) return {};
 
-    const { data, error } = await supabase
-      .from('links')
-      .select('short_code, clicks')
-      .in('short_code', shortCodes);
+    const results: Record<string, number> = {};
+    
+    // Fetch each link's stats in parallel
+    await Promise.all(
+      shortCodes.map(async (shortCode) => {
+        try {
+          const response = await fetch(`/api/shortcode?shortCode=${shortCode}`);
+          if (response.ok) {
+            const data = await response.json();
+            results[shortCode] = data.totalClicks || 0;
+          } else {
+            results[shortCode] = 0;
+          }
+        } catch (error) {
+          console.error(`Error fetching stats for ${shortCode}:`, error);
+          results[shortCode] = 0;
+        }
+      })
+    );
 
-    if (error) {
-      console.error('Error fetching multiple clicks:', error);
-      return {};
-    }
-
-    const result: Record<string, number> = {};
-    data?.forEach(link => {
-      result[link.short_code] = link.clicks || 0;
-    });
-    return result;
+    return results;
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error fetching multiple clicks:', error);
     return {};
   }
 }
 
-// ✅ For Overview: Get total clicks for a user (fast!)
+// ✅ Get total clicks for a user from Short.io
 export async function getUserTotalClicks(userId: string): Promise<number> {
   try {
-    const { data, error } = await supabase
+    // Get all user's links from Supabase first
+    const { data: links, error } = await supabase
       .from('links')
-      .select('clicks')
+      .select('short_code')
       .eq('user_id', userId);
 
-    if (error) {
-      console.error('Error fetching user clicks:', error);
+    if (error || !links || links.length === 0) {
       return 0;
     }
 
-    return data?.reduce((sum, link) => sum + (link.clicks || 0), 0) || 0;
+    // Get clicks for all links from Short.io
+    const shortCodes = links.map(link => link.short_code);
+    const counts = await getMultipleLinkClicks(shortCodes);
+    
+    // Sum up all clicks
+    let total = 0;
+    shortCodes.forEach(code => {
+      total += counts[code] || 0;
+    });
+    
+    return total;
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error getting user total clicks:', error);
     return 0;
   }
 }
