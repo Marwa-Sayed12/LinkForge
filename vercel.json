@@ -5,6 +5,10 @@
       "destination": "/api/$1"
     },
     {
+      "source": "/:shortCode",
+      "destination": "/api/redirect/:shortCode"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

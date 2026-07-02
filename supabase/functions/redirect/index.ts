@@ -27,6 +27,15 @@ Deno.serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    
+    if (!supabaseUrl || !supabaseKey) {
+      console.error("❌ Missing Supabase credentials");
+      return new Response(JSON.stringify({ error: "Server configuration error" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    
     const supabase = createClient(supabaseUrl, supabaseKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
@@ -38,9 +47,35 @@ Deno.serve(async (req) => {
       .eq("short_code", shortCode)
       .maybeSingle();
 
-    if (linkError || !link) {
+    if (linkError) {
+      console.error("❌ Database error:", linkError);
+      return new Response(JSON.stringify({ error: "Database error", details: linkError.message }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (!link) {
       console.error("❌ Link not found:", shortCode);
-      return new Response(JSON.stringify({ error: "Link not found" }), {
+      
+      // ✅ Debug: Check if link exists in Short.io
+      const apiKey = Deno.env.get("SHORTIO_API_KEY") || Deno.env.get("VITE_SHORTIO_API_KEY");
+      if (apiKey) {
+        const shortioResponse = await fetch(
+          `https://api.short.io/links/expand?domain=s.linkforge.website&path=${shortCode}`,
+          {
+            headers: { 'accept': 'application/json', 'authorization': apiKey },
+          }
+        );
+        const shortioData = await shortioResponse.json();
+        console.log("🔍 Short.io check:", shortioData);
+      }
+      
+      return new Response(JSON.stringify({ 
+        error: "Link not found",
+        shortCode: shortCode,
+        suggestion: "Make sure the link exists in Supabase"
+      }), {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -58,18 +93,34 @@ Deno.serve(async (req) => {
     // ✅ RECORD THE CLICK
     console.log("📝 Recording click for link:", link.id);
     
-    const { error: clickError } = await supabase.from("clicks").insert({
+    const clickData = {
       link_id: link.id,
       clicked_at: new Date().toISOString(),
       user_agent: req.headers.get("user-agent") || "Unknown",
       ip_address: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || null,
       referrer: req.headers.get("referer") || null,
-    });
+    };
+    
+    console.log("📊 Click data:", clickData);
+    
+    const { error: clickError } = await supabase.from("clicks").insert(clickData);
 
     if (clickError) {
       console.error("❌ Click recording error:", clickError);
     } else {
       console.log("✅ Click recorded successfully!");
+      
+      // ✅ Also directly update the clicks count
+      const { error: updateError } = await supabase
+        .from("links")
+        .update({ clicks: supabase.rpc('increment_clicks', { row_id: link.id }) })
+        .eq("id", link.id);
+        
+      if (updateError) {
+        console.error("❌ Update error:", updateError);
+      } else {
+        console.log("✅ Clicks count updated!");
+      }
     }
 
     // ✅ Redirect to original URL

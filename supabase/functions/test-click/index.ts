@@ -8,16 +8,30 @@ const corsHeaders = {
 };
 
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
   try {
+    const url = new URL(req.url);
+    const linkId = url.searchParams.get('linkId');
+    
+    if (!linkId) {
+      return new Response(JSON.stringify({ error: "Missing linkId parameter" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Test insert
+    // ✅ Insert a click directly
     const { data, error } = await supabase
       .from("clicks")
       .insert({
-        link_id: "6b0257e1-0af1-4873-a5ce-d249c884bde5", // Use a real link ID from your DB
+        link_id: linkId,
         clicked_at: new Date().toISOString(),
         browser: "Test",
         os: "Test",
@@ -25,10 +39,16 @@ Deno.serve(async (req) => {
       })
       .select();
 
+    if (error) {
+      return new Response(JSON.stringify({ error: error.message }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     return new Response(JSON.stringify({ 
       success: true, 
-      data: data,
-      error: error 
+      data: data 
     }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
