@@ -68,7 +68,6 @@ Deno.serve(async (req) => {
 
     if (clickError) {
       console.error("❌ Click recording error:", clickError);
-      // Still redirect even if click recording fails
     } else {
       console.log("✅ Click recorded successfully!");
     }
