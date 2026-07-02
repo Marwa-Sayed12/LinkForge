@@ -8,67 +8,45 @@ const corsHeaders = {
 };
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     const url = new URL(req.url);
-    const pathParts = url.pathname.split('/');
-    const shortCode = pathParts[pathParts.length - 1];
+    const shortCode = url.pathname.split('/').filter(Boolean).pop();
     
-    console.log("🔴 Redirecting short code:", shortCode);
+    console.log("🔴 Processing short code:", shortCode);
 
-    if (!shortCode || shortCode === "favicon.ico" || shortCode === "redirect") {
+    if (!shortCode || shortCode === "favicon.ico") {
       return new Response(JSON.stringify({ error: "Missing short code" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Initialize Supabase client with SERVICE_ROLE_KEY (bypasses RLS)
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    
     const supabase = createClient(supabaseUrl, supabaseKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // ✅ Step 1: Find the link in database
-    let { data: link, error: linkError } = await supabase
+    // ✅ Find the link
+    const { data: link, error: linkError } = await supabase
       .from("links")
       .select("id, original_url, is_active")
       .eq("short_code", shortCode)
       .maybeSingle();
 
-    // If not found, try case-insensitive
-    if (!link) {
-      console.log("🔍 Trying case-insensitive search...");
-      const { data: linkCI } = await supabase
-        .from("links")
-        .select("id, original_url, is_active")
-        .ilike("short_code", shortCode)
-        .maybeSingle();
-      
-      if (linkCI) {
-        link = linkCI;
-        console.log("✅ Found with case-insensitive match");
-      }
-    }
-
-    if (!link) {
+    if (linkError || !link) {
       console.error("❌ Link not found:", shortCode);
-      return new Response(JSON.stringify({ 
-        error: "Link not found",
-        shortCode: shortCode 
-      }), {
+      return new Response(JSON.stringify({ error: "Link not found" }), {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    console.log("✅ Link found:", link.id);
+    console.log("✅ Link found:", link.id, link.original_url);
 
     if (!link.is_active) {
       return new Response(JSON.stringify({ error: "Link is inactive" }), {
@@ -77,51 +55,25 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ✅ Step 2: RECORD THE CLICK (before redirecting)
+    // ✅ RECORD THE CLICK
     console.log("📝 Recording click for link:", link.id);
     
-    const userAgent = req.headers.get("user-agent") || "";
-    let browser = "Unknown", os = "Unknown", device_type = "Desktop";
-    
-    if (userAgent.includes("Firefox/")) browser = "Firefox";
-    else if (userAgent.includes("Edg/")) browser = "Edge";
-    else if (userAgent.includes("Chrome/") && userAgent.includes("Safari/")) browser = "Chrome";
-    else if (userAgent.includes("Safari/") && !userAgent.includes("Chrome")) browser = "Safari";
-    
-    if (userAgent.includes("Windows")) os = "Windows";
-    else if (userAgent.includes("Mac OS X") || userAgent.includes("Macintosh")) os = "macOS";
-    else if (userAgent.includes("Android")) os = "Android";
-    else if (userAgent.includes("iPhone") || userAgent.includes("iPad")) os = "iOS";
-    
-    if (userAgent.includes("Mobile")) device_type = "Mobile";
-    else if (userAgent.includes("iPad") || userAgent.includes("Tablet")) device_type = "Tablet";
-
-    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || null;
-    const country = req.headers.get("x-country") || req.headers.get("cf-ipcountry") || null;
-    const city = req.headers.get("x-city") || req.headers.get("cf-ipcity") || null;
-    const referrer = req.headers.get("referer") || null;
-
-    // Insert the click
     const { error: clickError } = await supabase.from("clicks").insert({
       link_id: link.id,
-      browser,
-      os,
-      device_type,
-      country,
-      city,
-      ip_address: ip,
-      user_agent: userAgent,
-      referrer,
       clicked_at: new Date().toISOString(),
+      user_agent: req.headers.get("user-agent") || "Unknown",
+      ip_address: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || null,
+      referrer: req.headers.get("referer") || null,
     });
 
     if (clickError) {
       console.error("❌ Click recording error:", clickError);
+      // Still redirect even if click recording fails
     } else {
       console.log("✅ Click recorded successfully!");
     }
 
-    // ✅ Step 3: Redirect to original URL
+    // ✅ Redirect to original URL
     console.log("➡️ Redirecting to:", link.original_url);
     
     return new Response(null, {
