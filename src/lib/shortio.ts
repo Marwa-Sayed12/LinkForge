@@ -9,7 +9,7 @@ const client = createClient({
 
 const DOMAIN = 's.linkforge.website';
 
-// Cache for Short.io API
+// Cache for Short.io API stats (for analytics only)
 const statsCache = new Map<string, { data: any; timestamp: number }>();
 const CACHE_DURATION = 60000; // 1 minute
 
@@ -32,82 +32,79 @@ export async function createShortLink(originalUrl: string, customSlug?: string) 
   }
 }
 
-// ✅ Get click count from Short.io for a single link
+// ✅ Get click count from Supabase (for MyLinks & Overview)
 export async function getLinkClicks(shortCode: string): Promise<number> {
   try {
-    const response = await fetch(`/api/shortcode?shortCode=${shortCode}`);
-    
-    if (!response.ok) {
-      console.warn(`Failed to get clicks for ${shortCode}`);
+    const { data, error } = await supabase
+      .from('links')
+      .select('clicks')
+      .eq('short_code', shortCode)
+      .single();
+
+    if (error) {
+      console.error('Error fetching clicks from Supabase:', error);
       return 0;
     }
-    
-    const data = await response.json();
-    return data.totalClicks || 0;
+
+    return data?.clicks || 0;
   } catch (error) {
-    console.error('Error fetching clicks:', error);
+    console.error('Error:', error);
     return 0;
   }
 }
 
-// ✅ Get multiple link clicks from Short.io
+// ✅ Get multiple link clicks from Supabase (for MyLinks)
 export async function getMultipleLinkClicks(shortCodes: string[]): Promise<Record<string, number>> {
   try {
-    if (!shortCodes.length) return {};
+    if (!shortCodes || shortCodes.length === 0) {
+      return {};
+    }
 
-    const results: Record<string, number> = {};
+    const { data, error } = await supabase
+      .from('links')
+      .select('id, short_code, clicks')
+      .in('short_code', shortCodes);
+
+    if (error) {
+      console.error('Error fetching multiple clicks from Supabase:', error);
+      return {};
+    }
+
+    const result: Record<string, number> = {};
+    data?.forEach(link => {
+      result[link.short_code] = link.clicks || 0;
+    });
     
-    // Fetch each link's stats in parallel
-    await Promise.all(
-      shortCodes.map(async (shortCode) => {
-        try {
-          const response = await fetch(`/api/shortcode?shortCode=${shortCode}`);
-          if (response.ok) {
-            const data = await response.json();
-            results[shortCode] = data.totalClicks || 0;
-          } else {
-            results[shortCode] = 0;
-          }
-        } catch (error) {
-          console.error(`Error fetching stats for ${shortCode}:`, error);
-          results[shortCode] = 0;
-        }
-      })
-    );
-
-    return results;
+    // Map by ID for easy lookup
+    const resultById: Record<string, number> = {};
+    data?.forEach(link => {
+      resultById[link.id] = link.clicks || 0;
+    });
+    
+    // Return both formats - by short_code for lookup
+    return result;
   } catch (error) {
-    console.error('Error fetching multiple clicks:', error);
+    console.error('Error:', error);
     return {};
   }
 }
 
-// ✅ Get total clicks for a user from Short.io
+// ✅ Get total clicks for a user from Supabase
 export async function getUserTotalClicks(userId: string): Promise<number> {
   try {
-    // Get all user's links from Supabase first
-    const { data: links, error } = await supabase
+    const { data, error } = await supabase
       .from('links')
-      .select('short_code')
+      .select('clicks')
       .eq('user_id', userId);
 
-    if (error || !links || links.length === 0) {
+    if (error) {
+      console.error('Error fetching user clicks from Supabase:', error);
       return 0;
     }
 
-    // Get clicks for all links from Short.io
-    const shortCodes = links.map(link => link.short_code);
-    const counts = await getMultipleLinkClicks(shortCodes);
-    
-    // Sum up all clicks
-    let total = 0;
-    shortCodes.forEach(code => {
-      total += counts[code] || 0;
-    });
-    
-    return total;
+    return data?.reduce((sum, link) => sum + (link.clicks || 0), 0) || 0;
   } catch (error) {
-    console.error('Error getting user total clicks:', error);
+    console.error('Error:', error);
     return 0;
   }
 }

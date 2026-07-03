@@ -49,7 +49,7 @@ export default function MyLinks() {
   const [clickCounts, setClickCounts] = useState<Record<string, number>>({});
   const [loadingClicks, setLoadingClicks] = useState<Record<string, boolean>>({});
 
-  const fetchLinks = useCallback(async () => {
+const fetchLinks = useCallback(async () => {
     if (!user) return;
     
     try {
@@ -62,14 +62,11 @@ export default function MyLinks() {
       setLinks(data || []);
       setLoading(false);
       
-      // ✅ Fetch click counts from Short.io for all links
+      // ✅ Read clicks directly from Supabase data
       if (data && data.length > 0) {
-        const shortCodes = data.map(link => link.short_code);
-        const counts = await getMultipleLinkClicks(shortCodes);
-        
         const result: Record<string, number> = {};
         data.forEach(link => {
-          result[link.id] = counts[link.short_code] || 0;
+          result[link.id] = link.clicks || 0;
         });
         setClickCounts(result);
       }
@@ -78,6 +75,41 @@ export default function MyLinks() {
       setLoading(false);
     }
   }, [user]);
+
+  // ✅ Refresh clicks from Supabase
+  const refreshClicks = useCallback(async () => {
+    if (!links.length) return;
+    setRefreshing(true);
+    
+    const loadingState: Record<string, boolean> = {};
+    links.forEach(link => { loadingState[link.id] = true; });
+    setLoadingClicks(loadingState);
+    
+    try {
+      // Fetch fresh data from Supabase
+      const { data, error } = await supabase
+        .from("links")
+        .select("id, clicks")
+        .eq("user_id", user.id);
+      
+      if (error) throw error;
+      
+      const result: Record<string, number> = {};
+      data?.forEach(link => {
+        result[link.id] = link.clicks || 0;
+      });
+      setClickCounts(result);
+      toast.success("Click counts updated!");
+    } catch (e) {
+      console.error("Refresh error:", e);
+      toast.error("Failed to refresh clicks");
+    } finally {
+      setRefreshing(false);
+      const resetLoading: Record<string, boolean> = {};
+      links.forEach(link => { resetLoading[link.id] = false; });
+      setLoadingClicks(resetLoading);
+    }
+  }, [links, user]);
 
   // ✅ Refresh clicks from Short.io
   const refreshClicks = useCallback(async () => {

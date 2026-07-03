@@ -34,7 +34,7 @@ export default function Overview() {
   const [clickCounts, setClickCounts] = useState<Record<string, number>>({});
 
   // ✅ Fetch data with clicks from Short.io
-  const fetchData = useCallback(async () => {
+const fetchData = useCallback(async () => {
     if (!user) return;
     
     const { data: allLinks, count: linkCount } = await supabase
@@ -43,24 +43,28 @@ export default function Overview() {
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
 
+    const links = allLinks || [];
     setStats((prev) => ({ ...prev, links: linkCount || 0 }));
-    setRecentLinks((allLinks || []).slice(0, 5));
+    setRecentLinks(links.slice(0, 5));
 
-    // ✅ Get clicks from Short.io
-    if (allLinks && allLinks.length > 0) {
-      // Get total clicks from Short.io
-      const totalClicks = await getUserTotalClicks(user.id);
+    // ✅ Get clicks from Supabase
+    if (links.length > 0) {
+      // Calculate total clicks from Supabase
+      let totalClicks = 0;
+      links.forEach(link => {
+        totalClicks += (link.clicks || 0);
+      });
       setStats((prev) => ({ ...prev, clicks: totalClicks }));
       
       // Get individual click counts for recent links
-      const shortCodes = allLinks.slice(0, 5).map(link => link.short_code);
-      const counts = await getMultipleLinkClicks(shortCodes);
-      
       const result: Record<string, number> = {};
-      allLinks.slice(0, 5).forEach(link => {
-        result[link.id] = counts[link.short_code] || 0;
+      links.slice(0, 5).forEach(link => {
+        result[link.id] = link.clicks || 0;
       });
       setClickCounts(result);
+    } else {
+      setStats((prev) => ({ ...prev, clicks: 0 }));
+      setClickCounts({});
     }
   }, [user]);
 

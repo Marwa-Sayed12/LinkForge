@@ -16,25 +16,29 @@ export default async function handler(req, res) {
     // 1️⃣ TRY SUPABASE FIRST
     const { data: link, error: linkError } = await supabase
       .from('links')
-      .select('id, original_url, is_active')
+      .select('id, original_url, is_active, clicks')
       .eq('short_code', shortCode)
       .single();
 
     if (link && link.is_active) {
-      // Record click
+      // ✅ Increment click count safely
+      const { error: updateError } = await supabase
+        .from('links')
+        .update({ clicks: (link.clicks || 0) + 1 })
+        .eq('id', link.id);
+
+      if (updateError) {
+        console.error('❌ Failed to update click count:', updateError);
+      }
+
+      // Record click for analytics
       await supabase.from('clicks').insert({
         link_id: link.id,
         clicked_at: new Date().toISOString(),
         user_agent: req.headers['user-agent'] || 'Unknown',
         ip_address: req.headers['x-forwarded-for']?.split(',')[0]?.trim() || null,
         referrer: req.headers['referer'] || null,
-      });
-
-      // Update click count (optional but recommended)
-      await supabase
-        .from('links')
-        .update({ clicks: supabase.rpc('increment', { row_count: 1 }) })
-        .eq('id', link.id);
+      }).catch(err => console.error('Failed to record click:', err));
 
       return res.redirect(302, link.original_url);
     }
