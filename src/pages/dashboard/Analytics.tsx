@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import {
   BarChart3, MousePointerClick, Globe, Monitor, TrendingUp, Clock, Link2,
   Download, Filter, ChevronDown, MapPin, Activity, Users, Zap,
-  Smartphone, Laptop, Tablet, Chrome, Firefox, Apple, 
+  Smartphone, Laptop, Tablet, Chrome, 
   ChevronRight, Calendar, Eye, Target, PieChart as PieChartIcon
 } from "lucide-react";
 import {
@@ -20,7 +20,7 @@ import { format, subDays, startOfDay, formatDistance } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
-// Enhanced Flag function with SVG-like emoji
+// Flag function
 const getFlagEmoji = (countryCode: string) => {
   try {
     const codePoints = countryCode
@@ -33,30 +33,30 @@ const getFlagEmoji = (countryCode: string) => {
   }
 };
 
-// OS Icon mapping with Lucide icons
-const OS_ICONS: Record<string, any> = {
-  'Windows': Monitor,
-  'Mac OS X': Apple,
-  'macOS': Apple,
-  'Linux': Laptop,
-  'Ubuntu': Laptop,
-  'iOS': Smartphone,
-  'Android': Smartphone,
-  'Chrome OS': Chrome,
-  'Unknown': Monitor
+// OS Icon mapping with simple emoji
+const OS_ICONS: Record<string, string> = {
+  'Windows': '🪟',
+  'Mac OS X': '🍎',
+  'macOS': '🍎',
+  'Linux': '🐧',
+  'Ubuntu': '🐧',
+  'iOS': '📱',
+  'Android': '🤖',
+  'Chrome OS': '🌐',
+  'Unknown': '💻'
 };
 
-// Browser Icon mapping with Lucide icons
-const BROWSER_ICONS: Record<string, any> = {
-  'Chrome': Chrome,
-  'Firefox': Firefox,
-  'Safari': Apple,
-  'Edge': Monitor,
-  'Opera': Monitor,
-  'Internet Explorer': Monitor,
-  'Mobile Safari': Smartphone,
-  'Chrome Mobile': Smartphone,
-  'Unknown': Globe
+// Browser Icon mapping with simple emoji
+const BROWSER_ICONS: Record<string, string> = {
+  'Chrome': '🌐',
+  'Firefox': '🦊',
+  'Safari': '🧭',
+  'Edge': '📘',
+  'Opera': '🅾️',
+  'Internet Explorer': '💀',
+  'Mobile Safari': '📱',
+  'Chrome Mobile': '📱',
+  'Unknown': '🌐'
 };
 
 function useChartColors() {
@@ -125,7 +125,9 @@ export default function Analytics() {
               if (clickDate.toDateString() === now.toDateString()) {
                 todayCount += countNum;
               }
-            } catch (e) {}
+            } catch (e) {
+              // Skip invalid dates
+            }
           }
         });
       }
@@ -225,7 +227,7 @@ export default function Analytics() {
       if (stats.browsers) {
         Object.entries(stats.browsers).forEach(([browser, data]: [string, any]) => {
           const countNum = typeof data === 'number' ? data : data?.count || 0;
-          const icon = typeof data === 'object' ? data.icon : '🌐';
+          const icon = typeof data === 'object' ? data.icon : BROWSER_ICONS[browser] || '🌐';
           if (countNum > 0) {
             if (!browserMap[browser]) {
               browserMap[browser] = { count: 0, icon };
@@ -257,7 +259,7 @@ export default function Analytics() {
       if (stats.oss) {
         Object.entries(stats.oss).forEach(([os, data]: [string, any]) => {
           const countNum = typeof data === 'number' ? data : data?.count || 0;
-          const icon = typeof data === 'object' ? data.icon : '💻';
+          const icon = typeof data === 'object' ? data.icon : OS_ICONS[os] || '💻';
           if (countNum > 0) {
             if (!osMap[os]) {
               osMap[os] = { count: 0, icon };
@@ -690,8 +692,6 @@ export default function Analytics() {
                       outerRadius={90} 
                       dataKey="value" 
                       paddingAngle={3}
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                      labelLine={false}
                     >
                       {deviceData.map((entry, index) => (
                         <Cell key={entry.name} fill={colors.chartColors[index % colors.chartColors.length]} />
@@ -747,7 +747,7 @@ export default function Analytics() {
             {browserData.length > 0 && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-6">
                 <h3 className="font-heading font-semibold text-foreground mb-4 text-lg flex items-center gap-2">
-                  <Chrome className="w-5 h-5 text-info" />
+                  <Monitor className="w-5 h-5 text-info" />
                   Top Browsers
                 </h3>
                 <div className="space-y-3">
