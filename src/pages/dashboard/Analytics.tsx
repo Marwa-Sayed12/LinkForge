@@ -4,7 +4,9 @@ import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
   BarChart3, MousePointerClick, Globe, Monitor, TrendingUp, Clock, Link2,
-  Download, Filter, ChevronDown, MapPin,
+  Download, Filter, ChevronDown, MapPin, Activity, Users, Zap,
+  Smartphone, Laptop, Tablet, Chrome, Firefox, Apple, 
+  ChevronRight, Calendar, Eye, Target, PieChart as PieChartIcon
 } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -18,7 +20,7 @@ import { format, subDays, startOfDay, formatDistance } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
-// Flag function
+// Enhanced Flag function with SVG-like emoji
 const getFlagEmoji = (countryCode: string) => {
   try {
     const codePoints = countryCode
@@ -31,30 +33,30 @@ const getFlagEmoji = (countryCode: string) => {
   }
 };
 
-// OS Icon mapping
-const OS_ICONS: Record<string, string> = {
-  'Windows': '🪟',
-  'Mac OS X': '🍎',
-  'macOS': '🍎',
-  'Linux': '🐧',
-  'Ubuntu': '🐧',
-  'iOS': '📱',
-  'Android': '🤖',
-  'Chrome OS': '🌐',
-  'Unknown': '💻'
+// OS Icon mapping with Lucide icons
+const OS_ICONS: Record<string, any> = {
+  'Windows': Monitor,
+  'Mac OS X': Apple,
+  'macOS': Apple,
+  'Linux': Laptop,
+  'Ubuntu': Laptop,
+  'iOS': Smartphone,
+  'Android': Smartphone,
+  'Chrome OS': Chrome,
+  'Unknown': Monitor
 };
 
-// Browser Icon mapping
-const BROWSER_ICONS: Record<string, string> = {
-  'Chrome': '🌐',
-  'Firefox': '🦊',
-  'Safari': '🧭',
-  'Edge': '📘',
-  'Opera': '🅾️',
-  'Internet Explorer': '💀',
-  'Mobile Safari': '📱',
-  'Chrome Mobile': '📱',
-  'Unknown': '🌐'
+// Browser Icon mapping with Lucide icons
+const BROWSER_ICONS: Record<string, any> = {
+  'Chrome': Chrome,
+  'Firefox': Firefox,
+  'Safari': Apple,
+  'Edge': Monitor,
+  'Opera': Monitor,
+  'Internet Explorer': Monitor,
+  'Mobile Safari': Smartphone,
+  'Chrome Mobile': Smartphone,
+  'Unknown': Globe
 };
 
 function useChartColors() {
@@ -70,7 +72,7 @@ function useChartColors() {
     tooltipBg: isDark ? "#1F2937" : "#FFFFFF",
     tooltipBorder: isDark ? "#374151" : "#E5E7EB",
     tooltipText: isDark ? "#F9FAFB" : "#111827",
-    chartColors: ["#1FB07E", "#0B9BD7", "#E8A317", "#E5484D", "#8B5CF6", "#EC4899"],
+    chartColors: ["#1FB07E", "#0B9BD7", "#E8A317", "#E5484D", "#8B5CF6", "#EC4899", "#06B6D4", "#F59E0B"],
   };
 }
 
@@ -149,7 +151,7 @@ export default function Analytics() {
     }
     setDailyClicksData(days);
 
-    // ✅ Process device data from Short.io
+    // Process device data
     const deviceMap: Record<string, number> = {};
     allStats.forEach((stats) => {
       if (stats.devices) {
@@ -157,14 +159,12 @@ export default function Analytics() {
           const countNum = typeof count === 'number' ? count : 0;
           if (countNum > 0) {
             let cleanDevice = device;
-            if (device.toLowerCase().includes('mobile') || device.toLowerCase().includes('phone') ||
-                device.toLowerCase().includes('android') || device.toLowerCase().includes('ios') ||
-                device.toLowerCase().includes('iphone')) {
+            const deviceLower = device.toLowerCase();
+            if (deviceLower.includes('mobile') || deviceLower.includes('phone') || deviceLower.includes('android') || deviceLower.includes('ios') || deviceLower.includes('iphone')) {
               cleanDevice = '📱 Mobile';
-            } else if (device.toLowerCase().includes('tablet') || device.toLowerCase().includes('ipad')) {
+            } else if (deviceLower.includes('tablet') || deviceLower.includes('ipad')) {
               cleanDevice = '📱 Tablet';
-            } else if (device.toLowerCase().includes('desktop') || device.toLowerCase().includes('pc') ||
-                       device.toLowerCase().includes('laptop')) {
+            } else if (deviceLower.includes('desktop') || deviceLower.includes('pc') || deviceLower.includes('laptop')) {
               cleanDevice = '💻 Desktop';
             } else {
               cleanDevice = '💻 ' + device;
@@ -186,7 +186,7 @@ export default function Analytics() {
         .slice(0, 8)
     );
 
-    // ✅ Process country data from Short.io
+    // Process country data with flags
     const countryMap: Record<string, { count: number; code: string }> = {};
     allStats.forEach((stats) => {
       if (stats.countries) {
@@ -205,7 +205,7 @@ export default function Analytics() {
     });
     
     if (Object.keys(countryMap).length === 0 && total > 0) {
-      countryMap['Afghanistan'] = { count: total, code: 'AF' };
+      countryMap['United States'] = { count: total, code: 'US' };
     }
     
     setCountryData(
@@ -219,13 +219,13 @@ export default function Analytics() {
         .slice(0, 8)
     );
 
-    // ✅ Process browser data from Short.io
+    // Process browser data
     const browserMap: Record<string, { count: number; icon: string }> = {};
     allStats.forEach((stats) => {
       if (stats.browsers) {
         Object.entries(stats.browsers).forEach(([browser, data]: [string, any]) => {
           const countNum = typeof data === 'number' ? data : data?.count || 0;
-          const icon = typeof data === 'object' ? data.icon : BROWSER_ICONS[browser] || '🌐';
+          const icon = typeof data === 'object' ? data.icon : '🌐';
           if (countNum > 0) {
             if (!browserMap[browser]) {
               browserMap[browser] = { count: 0, icon };
@@ -251,13 +251,13 @@ export default function Analytics() {
         .slice(0, 8)
     );
 
-    // ✅ Process OS data from Short.io
+    // Process OS data
     const osMap: Record<string, { count: number; icon: string }> = {};
     allStats.forEach((stats) => {
       if (stats.oss) {
         Object.entries(stats.oss).forEach(([os, data]: [string, any]) => {
           const countNum = typeof data === 'number' ? data : data?.count || 0;
-          const icon = typeof data === 'object' ? data.icon : OS_ICONS[os] || '💻';
+          const icon = typeof data === 'object' ? data.icon : '💻';
           if (countNum > 0) {
             if (!osMap[os]) {
               osMap[os] = { count: 0, icon };
@@ -283,7 +283,7 @@ export default function Analytics() {
         .slice(0, 8)
     );
 
-    // ✅ Process referrer data from Short.io
+    // Process referrer data
     const referrerMap: Record<string, number> = {};
     allStats.forEach((stats) => {
       if (stats.referrers) {
@@ -307,19 +307,16 @@ export default function Analytics() {
         .slice(0, 8)
     );
 
-    // ✅ Process recent clicks from Short.io
+    // Process recent clicks
     const allRecentClicks: any[] = [];
     allStats.forEach((stats) => {
       if (stats.recentClicks) {
         stats.recentClicks.forEach((click: any) => {
           let deviceType = click.device || click.device_type || "Desktop";
-          if (deviceType.toLowerCase().includes('mobile') || 
-              deviceType.toLowerCase().includes('phone') ||
-              deviceType.toLowerCase().includes('android') ||
-              deviceType.toLowerCase().includes('ios')) {
+          const deviceLower = deviceType.toLowerCase();
+          if (deviceLower.includes('mobile') || deviceLower.includes('phone') || deviceLower.includes('android') || deviceLower.includes('ios')) {
             deviceType = "📱 Mobile";
-          } else if (deviceType.toLowerCase().includes('tablet') || 
-                     deviceType.toLowerCase().includes('ipad')) {
+          } else if (deviceLower.includes('tablet') || deviceLower.includes('ipad')) {
             deviceType = "📱 Tablet";
           } else {
             deviceType = "💻 Desktop";
@@ -344,8 +341,8 @@ export default function Analytics() {
         browser: "Chrome",
         device_type: "💻 Desktop",
         os: "Windows",
-        country: "AF",
-        city: "Kabul",
+        country: "US",
+        city: "New York",
       });
     }
     
@@ -356,7 +353,7 @@ export default function Analytics() {
     );
   }, []);
 
-  // ✅ Main fetch function - uses Short.io API for ALL data
+  // Main fetch function
   const fetchAnalytics = useCallback(async (refresh = false) => {
     if (!user) return;
 
@@ -381,7 +378,6 @@ export default function Analytics() {
         return;
       }
 
-      console.log('User links from Supabase:', userLinks);
       setTotalLinks(userLinks?.length || 0);
 
       if (userLinks && userLinks.length > 0) {
@@ -393,8 +389,6 @@ export default function Analytics() {
         for (const link of userLinks) {
           try {
             const shortUrl = `https://s.linkforge.website/${link.short_code}`;
-            
-            // ✅ Get FULL stats from Short.io API (includes countries, browsers, devices, OS)
             const stats = await getShortIoStats(link.short_code);
             
             if (stats) {
@@ -406,7 +400,7 @@ export default function Analytics() {
                 ...link,
                 short_url: shortUrl,
                 clicks: clickCount,
-                stats: stats, // ✅ stats has ALL data: countries, browsers, devices, OS
+                stats: stats,
               });
               
               allStats.push(stats);
@@ -421,7 +415,7 @@ export default function Analytics() {
             console.error("Error fetching stats for link:", link.short_code, error);
             linksWithStats.push({
               ...link,
-              short_url: shortUrl,
+              short_url: `https://s.linkforge.website/${link.short_code}`,
               clicks: 0,
             });
           }
@@ -432,12 +426,7 @@ export default function Analytics() {
         setTotalHumanClicks(humanTotal);
         setProgress(100);
 
-        console.log('Links with stats:', linksWithStats);
-        console.log('Total clicks:', total);
-
-        // ✅ Process all stats data
         processStatsData(allStats, total, humanTotal);
-
       } else {
         setLinks([]);
         setTotalClicks(0);
@@ -496,12 +485,12 @@ export default function Analytics() {
   };
 
   const stats = [
-    { label: "Total Clicks", value: totalClicks, icon: MousePointerClick, color: "text-primary" },
-    { label: "Human Clicks", value: totalHumanClicks, icon: TrendingUp, color: "text-info" },
-    { label: "Total Links", value: totalLinks, icon: Link2, color: "text-accent" },
-    { label: "Countries", value: countryData.length, icon: Globe, color: "text-success" },
-    { label: "Devices", value: deviceData.length, icon: Monitor, color: "text-primary" },
-    { label: "Browsers", value: browserData.length, icon: BarChart3, color: "text-info" },
+    { label: "Total Clicks", value: totalClicks, icon: MousePointerClick, color: "text-primary", bg: "bg-primary/10" },
+    { label: "Human Clicks", value: totalHumanClicks, icon: Users, color: "text-info", bg: "bg-info/10" },
+    { label: "Total Links", value: totalLinks, icon: Link2, color: "text-accent", bg: "bg-accent/10" },
+    { label: "Countries", value: countryData.length, icon: Globe, color: "text-success", bg: "bg-success/10" },
+    { label: "Devices", value: deviceData.length, icon: Monitor, color: "text-primary", bg: "bg-primary/10" },
+    { label: "Browsers", value: browserData.length, icon: Chrome, color: "text-info", bg: "bg-info/10" },
   ];
 
   if (loading && !isRefreshing) {
@@ -570,7 +559,7 @@ export default function Analytics() {
         </div>
       )}
 
-      {/* Stats Cards */}
+      {/* Stats Cards - 2 per row on mobile, 3 per row on tablet, 6 per row on desktop */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {stats.map((stat, i) => (
           <motion.div
@@ -578,13 +567,13 @@ export default function Analytics() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.05 }}
-            className="glass-card rounded-xl p-4"
+            className={`glass-card rounded-xl p-4 ${stat.bg} border border-border/50 hover:border-primary/20 transition-all duration-200`}
           >
-            <stat.icon className={`w-5 h-5 ${stat.color} mb-2`} />
-            <div className="font-heading text-2xl font-bold text-foreground">
-              {stat.value.toLocaleString()}
+            <div className="flex items-center justify-between">
+              <stat.icon className={`w-5 h-5 ${stat.color}`} />
+              <span className="text-2xl font-bold text-foreground">{stat.value.toLocaleString()}</span>
             </div>
-            <div className="text-xs text-muted-foreground mt-0.5">{stat.label}</div>
+            <div className="text-xs text-muted-foreground mt-1">{stat.label}</div>
           </motion.div>
         ))}
       </div>
@@ -602,7 +591,10 @@ export default function Analytics() {
           {/* Clicks Chart */}
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-heading font-semibold text-foreground text-lg">Clicks Over Time</h3>
+              <h3 className="font-heading font-semibold text-foreground text-lg flex items-center gap-2">
+                <Activity className="w-5 h-5 text-primary" />
+                Clicks Over Time
+              </h3>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground">Last 30 days</span>
                 <ChevronDown className="w-4 h-4 text-muted-foreground" />
@@ -630,26 +622,39 @@ export default function Analytics() {
                 />
               </AreaChart>
             </ResponsiveContainer>
-            <div className="text-center mt-2 text-sm text-muted-foreground">
-              Total clicks: {totalClicks} | Today: {clicksToday}
+            <div className="flex items-center justify-center gap-6 mt-2 text-sm text-muted-foreground">
+              <span className="flex items-center gap-1">
+                <Eye className="w-4 h-4" />
+                Total: {totalClicks}
+              </span>
+              <span className="flex items-center gap-1">
+                <Zap className="w-4 h-4 text-primary" />
+                Today: {clicksToday}
+              </span>
             </div>
           </motion.div>
 
-          {/* Two Cards in One Line */}
+          {/* Two Cards in One Line - Top Links & Device Distribution */}
           <div className="grid lg:grid-cols-2 gap-6">
             {/* Top Links */}
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-6">
-              <h3 className="font-heading font-semibold text-foreground mb-4 text-lg">Top Performing Links</h3>
+              <h3 className="font-heading font-semibold text-foreground mb-4 text-lg flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-success" />
+                Top Performing Links
+              </h3>
               <div className="space-y-3">
                 {links.filter(l => l.clicks > 0).length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No clicks yet.</p>
+                  <p className="text-sm text-muted-foreground text-center py-4">No clicks yet.</p>
                 ) : (
                   links
                     .filter(l => l.clicks > 0)
                     .sort((a, b) => b.clicks - a.clicks)
+                    .slice(0, 5)
                     .map((link, i) => (
-                      <div key={link.id} className="flex items-center gap-3">
-                        <span className="text-xs font-mono text-muted-foreground w-5 text-right">{i + 1}.</span>
+                      <div key={link.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/20 transition-colors">
+                        <span className="text-xs font-mono text-muted-foreground w-6 text-right font-bold">
+                          #{i + 1}
+                        </span>
                         <div className="flex-1 min-w-0">
                           <div className="text-sm font-medium text-foreground truncate">
                             {link.title || link.short_code}
@@ -671,7 +676,10 @@ export default function Analytics() {
             {/* Device Distribution */}
             {deviceData.length > 0 && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-6">
-                <h3 className="font-heading font-semibold text-foreground mb-4 text-lg">Device Distribution</h3>
+                <h3 className="font-heading font-semibold text-foreground mb-4 text-lg flex items-center gap-2">
+                  <PieChartIcon className="w-5 h-5 text-info" />
+                  Device Distribution
+                </h3>
                 <ResponsiveContainer width="100%" height={240}>
                   <PieChart>
                     <Pie 
@@ -682,6 +690,8 @@ export default function Analytics() {
                       outerRadius={90} 
                       dataKey="value" 
                       paddingAngle={3}
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      labelLine={false}
                     >
                       {deviceData.map((entry, index) => (
                         <Cell key={entry.name} fill={colors.chartColors[index % colors.chartColors.length]} />
@@ -694,13 +704,14 @@ export default function Analytics() {
             )}
           </div>
 
-          {/* Countries, Browsers, OS, Referrers */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {/* Countries, Browsers, OS, Referrers - 2 per row */}
+          <div className="grid md:grid-cols-2 gap-6">
             {/* Countries with Flags */}
             {countryData.length > 0 && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-6">
                 <h3 className="font-heading font-semibold text-foreground mb-4 text-lg flex items-center gap-2">
-                  <Globe className="w-5 h-5 text-success" /> Top Countries
+                  <Globe className="w-5 h-5 text-success" />
+                  Top Countries
                 </h3>
                 <div className="space-y-3">
                   {countryData.slice(0, 6).map((country) => {
@@ -710,8 +721,8 @@ export default function Analytics() {
                       <div key={country.name}>
                         <div className="flex justify-between text-sm mb-1">
                           <span className="text-foreground flex items-center gap-2">
-                            <span className="text-2xl">{getFlagEmoji(country.code || '')}</span>
-                            {country.name}
+                            <span className="text-xl">{getFlagEmoji(country.code || '')}</span>
+                            <span className="font-medium">{country.name}</span>
                           </span>
                           <span className="font-mono text-muted-foreground">{country.value.toLocaleString()}</span>
                         </div>
@@ -722,7 +733,8 @@ export default function Analytics() {
                           />
                         </div>
                         <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                          <MapPin className="w-3 h-3" /> {country.name}
+                          <MapPin className="w-3 h-3" />
+                          {country.value} clicks from {country.name}
                         </div>
                       </div>
                     );
@@ -731,11 +743,12 @@ export default function Analytics() {
               </motion.div>
             )}
 
-            {/* Browsers with Icons */}
+            {/* Browsers */}
             {browserData.length > 0 && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-6">
                 <h3 className="font-heading font-semibold text-foreground mb-4 text-lg flex items-center gap-2">
-                  <BarChart3 className="w-5 h-5 text-info" /> Top Browsers
+                  <Chrome className="w-5 h-5 text-info" />
+                  Top Browsers
                 </h3>
                 <div className="space-y-3">
                   {browserData.slice(0, 6).map((b) => {
@@ -744,8 +757,9 @@ export default function Analytics() {
                     return (
                       <div key={b.name}>
                         <div className="flex justify-between text-sm mb-1">
-                          <span className="text-foreground flex items-center gap-2 text-base">
-                            <span className="text-2xl">{b.icon || '🌐'}</span> {b.name}
+                          <span className="text-foreground flex items-center gap-2">
+                            <span className="text-xl">{b.icon || '🌐'}</span>
+                            <span className="font-medium">{b.name}</span>
                           </span>
                           <span className="font-mono text-muted-foreground">{b.value.toLocaleString()}</span>
                         </div>
@@ -762,11 +776,12 @@ export default function Analytics() {
               </motion.div>
             )}
 
-            {/* OS with Icons */}
+            {/* OS */}
             {osData.length > 0 && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-6">
                 <h3 className="font-heading font-semibold text-foreground mb-4 text-lg flex items-center gap-2">
-                  <Monitor className="w-5 h-5 text-accent" /> Operating Systems
+                  <Monitor className="w-5 h-5 text-accent" />
+                  Operating Systems
                 </h3>
                 <div className="space-y-3">
                   {osData.slice(0, 6).map((o) => {
@@ -775,8 +790,9 @@ export default function Analytics() {
                     return (
                       <div key={o.name}>
                         <div className="flex justify-between text-sm mb-1">
-                          <span className="text-foreground flex items-center gap-2 text-base">
-                            <span className="text-2xl">{o.icon || '💻'}</span> {o.name}
+                          <span className="text-foreground flex items-center gap-2">
+                            <span className="text-xl">{o.icon || '💻'}</span>
+                            <span className="font-medium">{o.name}</span>
                           </span>
                           <span className="font-mono text-muted-foreground">{o.value.toLocaleString()}</span>
                         </div>
@@ -797,7 +813,8 @@ export default function Analytics() {
             {referrerData.length > 0 && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-6">
                 <h3 className="font-heading font-semibold text-foreground mb-4 text-lg flex items-center gap-2">
-                  <Link2 className="w-5 h-5 text-success" /> Top Referrers
+                  <Link2 className="w-5 h-5 text-success" />
+                  Top Referrers
                 </h3>
                 <div className="space-y-3">
                   {referrerData.slice(0, 6).map((r) => {
@@ -806,7 +823,7 @@ export default function Analytics() {
                     return (
                       <div key={r.name}>
                         <div className="flex justify-between text-sm mb-1">
-                          <span className="text-foreground truncate">{r.name || "Direct"}</span>
+                          <span className="text-foreground truncate font-medium">{r.name || "Direct"}</span>
                           <span className="font-mono text-muted-foreground">{r.value.toLocaleString()}</span>
                         </div>
                         <div className="h-2 rounded-full bg-secondary overflow-hidden">
@@ -827,21 +844,22 @@ export default function Analytics() {
           {recentClicks.length > 0 && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-6">
               <h3 className="font-heading font-semibold text-foreground mb-4 text-lg flex items-center gap-2">
-                <Clock className="w-5 h-5" /> Recent Activity
+                <Clock className="w-5 h-5 text-primary" />
+                Recent Activity
               </h3>
               <div className="space-y-2">
-                {recentClicks.map((click, index) => (
-                  <div key={index} className="flex items-center justify-between py-2 border-b border-border last:border-0 text-sm">
+                {recentClicks.slice(0, 8).map((click, index) => (
+                  <div key={index} className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-secondary/10 transition-colors border-b border-border last:border-0">
                     <div className="flex items-center gap-3 min-w-0">
                       <MousePointerClick className="w-4 h-4 text-primary shrink-0" />
                       <div className="min-w-0">
-                        <span className="text-foreground">
+                        <span className="text-sm text-foreground">
                           {click.browser || "Chrome"} · {click.device_type || "💻 Desktop"} · {click.os || "Windows"}
                         </span>
                         {click.country && (
-                          <span className="text-muted-foreground ml-1">
-                            <span className="text-lg">{getFlagEmoji(click.country)}</span>
-                            {click.city ? `${click.city}, ` : ""}{click.country}
+                          <span className="text-muted-foreground ml-2 text-sm">
+                            <span className="text-base">{getFlagEmoji(click.country)}</span>
+                            {click.city ? ` ${click.city}, ` : " "}{click.country}
                           </span>
                         )}
                       </div>
