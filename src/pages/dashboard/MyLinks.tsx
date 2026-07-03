@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useClerkAuth";
 import { toast } from "sonner";
-import { createShortLink, getMultipleLinkClicks } from "@/lib/shortio";
+import { createShortLink } from "@/lib/shortio";
 
 interface LinkData {
   id: string;
@@ -44,8 +44,6 @@ export default function MyLinks() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showQR, setShowQR] = useState<string | null>(null);
   const [suggestedAlias, setSuggestedAlias] = useState("");
-  const [clickCounts, setClickCounts] = useState<Record<string, number>>({});
-  const [loadingClicks, setLoadingClicks] = useState<Record<string, boolean>>({});
 
   const fetchLinks = useCallback(async () => {
     if (!user) return;
@@ -60,52 +58,37 @@ export default function MyLinks() {
       setLinks(data || []);
       setLoading(false);
       
-      // ✅ Fetch click counts from Short.io for all links
-      if (data && data.length > 0) {
-        const shortCodes = data.map(link => link.short_code);
-        const counts = await getMultipleLinkClicks(shortCodes);
-        
-        const result: Record<string, number> = {};
-        data.forEach(link => {
-          result[link.id] = counts[link.short_code] || 0;
-        });
-        setClickCounts(result);
-      }
+      // ✅ Clicks are already in the data from Supabase!
+      // No need to fetch from Short.io - INSTANT!
     } catch (error) {
       console.error("Error fetching links:", error);
       setLoading(false);
     }
   }, [user]);
 
-  // ✅ Refresh clicks from Short.io
+  // ✅ Refresh from Supabase (INSTANT!)
   const refreshClicks = useCallback(async () => {
     if (!links.length) return;
     setRefreshing(true);
     
-    const loadingState: Record<string, boolean> = {};
-    links.forEach(link => { loadingState[link.id] = true; });
-    setLoadingClicks(loadingState);
-    
     try {
-      const shortCodes = links.map(link => link.short_code);
-      const counts = await getMultipleLinkClicks(shortCodes);
+      const { data, error } = await supabase
+        .from("links")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
       
-      const result: Record<string, number> = {};
-      links.forEach(link => {
-        result[link.id] = counts[link.short_code] || 0;
-      });
-      setClickCounts(result);
-      toast.success("Click counts updated from Short.io!");
+      if (error) throw error;
+      
+      setLinks(data || []);
+      toast.success("Data refreshed instantly!");
     } catch (e) {
       console.error("Refresh error:", e);
-      toast.error("Failed to refresh clicks");
+      toast.error("Failed to refresh");
     } finally {
       setRefreshing(false);
-      const resetLoading: Record<string, boolean> = {};
-      links.forEach(link => { resetLoading[link.id] = false; });
-      setLoadingClicks(resetLoading);
     }
-  }, [links]);
+  }, [links, user]);
 
   useEffect(() => {
     fetchLinks();
@@ -154,7 +137,7 @@ export default function MyLinks() {
       // ✅ Create in Short.io
       const result = await createShortLink(url, shortCode);
       
-      // ✅ Save to Supabase (clicks will come from Short.io)
+      // ✅ Save to Supabase with clicks: 0
       const { error } = await supabase.from("links").insert({
         user_id: user.id,
         original_url: url,
@@ -162,7 +145,7 @@ export default function MyLinks() {
         custom_alias: customAlias.trim() || null,
         short_url: result.shortUrl,
         is_active: true,
-        clicks: 0, // This will be overwritten by Short.io data
+        clicks: 0,
       });
       
       if (error) {
@@ -259,7 +242,7 @@ export default function MyLinks() {
               disabled={refreshing}
             >
               <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-              {refreshing ? "Updating..." : "Refresh Clicks"}
+              {refreshing ? "Refreshing..." : "Refresh"}
             </Button>
           )}
           <Button variant="hero" size="sm" onClick={() => setShowCreate(!showCreate)}>
@@ -370,11 +353,8 @@ export default function MyLinks() {
                     <span>Created {new Date(link.created_at).toLocaleDateString()}</span>
                     <span className="flex items-center gap-1 text-primary font-semibold">
                       <MousePointerClick className="w-3 h-3" />
-                      {loadingClicks[link.id] ? (
-                        <span className="animate-pulse">...</span>
-                      ) : (
-                        clickCounts[link.id] ?? 0
-                      )} clicks
+                      {/* ✅ Clicks are from Supabase - INSTANT! */}
+                      {link.clicks || 0} clicks
                     </span>
                   </div>
                 </div>

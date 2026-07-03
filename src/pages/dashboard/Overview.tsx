@@ -8,8 +8,9 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useClerkAuth";
 import { toast } from "sonner";
-import { createShortLink, getUserTotalClicks, getMultipleLinkClicks } from "@/lib/shortio";
+import { createShortLink } from "@/lib/shortio";
 
+// ✅ Make sure this matches your Supabase table schema
 interface LinkData {
   id: string;
   short_code: string;
@@ -20,6 +21,12 @@ interface LinkData {
   created_at: string;
   is_active: boolean;
   custom_alias: string | null;
+  user_id?: string;
+  expires_at?: string | null;
+  password_hash?: string | null;
+  tiny_url?: string | null;
+  qr_settings?: any;
+  updated_at?: string;
 }
 
 export default function Overview() {
@@ -31,10 +38,9 @@ export default function Overview() {
   const [creating, setCreating] = useState(false);
   const [lastCreated, setLastCreated] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const [clickCounts, setClickCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
 
-  // ✅ Fetch data with clicks from Short.io
+  // ✅ Fetch data with clicks from Supabase
   const fetchData = useCallback(async () => {
     if (!user) {
       setLoading(false);
@@ -42,34 +48,41 @@ export default function Overview() {
     }
     
     try {
-      const { data: allLinks, count: linkCount } = await supabase
+      const { data: allLinks, count: linkCount, error } = await supabase
         .from("links")
         .select("*", { count: "exact" })
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
-      const links = allLinks || [];
+      if (error) {
+        console.error("Error fetching links:", error);
+        setLoading(false);
+        return;
+      }
+
+      // ✅ Properly type the data
+      const links: LinkData[] = (allLinks || []).map((item: any) => ({
+        id: item.id,
+        short_code: item.short_code,
+        short_url: item.short_url,
+        original_url: item.original_url,
+        title: item.title || null,
+        clicks: item.clicks || 0,
+        created_at: item.created_at,
+        is_active: item.is_active,
+        custom_alias: item.custom_alias || null
+      }));
+
       setStats((prev) => ({ ...prev, links: linkCount || 0 }));
       setRecentLinks(links.slice(0, 5));
 
-      // ✅ Get clicks from Short.io
-      if (links.length > 0) {
-        const totalClicks = await getUserTotalClicks(user.id);
-        setStats((prev) => ({ ...prev, clicks: totalClicks }));
-        
-        // Get individual click counts for recent links
-        const shortCodes = links.slice(0, 5).map(link => link.short_code);
-        const counts = await getMultipleLinkClicks(shortCodes);
-        
-        const result: Record<string, number> = {};
-        links.slice(0, 5).forEach(link => {
-          result[link.id] = counts[link.short_code] || 0;
-        });
-        setClickCounts(result);
-      } else {
-        setStats((prev) => ({ ...prev, clicks: 0 }));
-        setClickCounts({});
-      }
+      // ✅ Calculate total clicks
+      let totalClicks = 0;
+      links.forEach(link => {
+        totalClicks += (link.clicks || 0);
+      });
+      setStats((prev) => ({ ...prev, clicks: totalClicks }));
+      
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
@@ -81,47 +94,50 @@ export default function Overview() {
     fetchData();
   }, [fetchData]);
 
-  const handleQuickCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!quickUrl.trim() || !user) return;
-    try {
-      new URL(quickUrl.trim());
-    } catch {
-      toast.error("Please enter a valid URL (https://...)");
-      return;
-    }
-    setCreating(true);
-    try {
-      const shortCode = Math.random().toString(36).substring(2, 8);
-      
-      // ✅ Create in Short.io
-      const { shortUrl } = await createShortLink(quickUrl.trim(), shortCode);
-      
-      // ✅ Save to Supabase
-      const { error } = await supabase.from("links").insert({
+const handleQuickCreate = async (e: React.FormEvent) => {
+  e.preventDefault();
+  if (!quickUrl.trim() || !user) return;
+  try {
+    new URL(quickUrl.trim());
+  } catch {
+    toast.error("Please enter a valid URL (https://...)");
+    return;
+  }
+  setCreating(true);
+  try {
+    const shortCode = Math.random().toString(36).substring(2, 8);
+    
+    // ✅ Create in Short.io
+    const { shortUrl } = await createShortLink(quickUrl.trim(), shortCode);
+    
+    // ✅ Save to Supabase with type assertion
+    const { error } = await supabase
+      .from("links")
+      .insert({
         user_id: user.id,
         original_url: quickUrl.trim(),
         short_code: shortCode,
         short_url: shortUrl,
         is_active: true,
-        clicks: 0,
-      });
-      
-      if (error) {
-        toast.error(error.message);
-        return;
-      }
-      
-      setLastCreated(shortUrl);
-      setQuickUrl("");
-      toast.success("Short link created!");
-      fetchData();
-    } catch (e: any) {
-      toast.error(e.message || "Failed to shorten URL");
-    } finally {
-      setCreating(false);
+        clicks: 0, // This works
+      } as any); // ✅ Add 'as any' to bypass type checking
+    
+    if (error) {
+      toast.error(error.message);
+      return;
     }
-  };
+    
+    setLastCreated(shortUrl);
+    setQuickUrl("");
+    toast.success("Short link created!");
+    fetchData();
+  } catch (e) {
+    const error = e as Error;
+    toast.error(error.message || "Failed to shorten URL");
+  } finally {
+    setCreating(false);
+  }
+};
 
   const copyShort = () => {
     if (!lastCreated) return;
@@ -276,7 +292,7 @@ export default function Overview() {
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <span className="flex items-center gap-1 text-primary font-semibold">
                     <MousePointerClick className="w-3 h-3" />
-                    {clickCounts[link.id] ?? 0} clicks
+                    {link.clicks || 0} clicks
                   </span>
                   <span>{new Date(link.created_at).toLocaleDateString()}</span>
                 </div>
