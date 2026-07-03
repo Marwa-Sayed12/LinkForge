@@ -44,12 +44,10 @@ export default function MyLinks() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showQR, setShowQR] = useState<string | null>(null);
   const [suggestedAlias, setSuggestedAlias] = useState("");
-  
-  // ✅ Use Short.io for click counts (not Supabase)
   const [clickCounts, setClickCounts] = useState<Record<string, number>>({});
   const [loadingClicks, setLoadingClicks] = useState<Record<string, boolean>>({});
 
-const fetchLinks = useCallback(async () => {
+  const fetchLinks = useCallback(async () => {
     if (!user) return;
     
     try {
@@ -62,11 +60,14 @@ const fetchLinks = useCallback(async () => {
       setLinks(data || []);
       setLoading(false);
       
-      // ✅ Read clicks directly from Supabase data
+      // ✅ Fetch click counts from Short.io for all links
       if (data && data.length > 0) {
+        const shortCodes = data.map(link => link.short_code);
+        const counts = await getMultipleLinkClicks(shortCodes);
+        
         const result: Record<string, number> = {};
         data.forEach(link => {
-          result[link.id] = link.clicks || 0;
+          result[link.id] = counts[link.short_code] || 0;
         });
         setClickCounts(result);
       }
@@ -75,41 +76,6 @@ const fetchLinks = useCallback(async () => {
       setLoading(false);
     }
   }, [user]);
-
-  // ✅ Refresh clicks from Supabase
-  const refreshClicks = useCallback(async () => {
-    if (!links.length) return;
-    setRefreshing(true);
-    
-    const loadingState: Record<string, boolean> = {};
-    links.forEach(link => { loadingState[link.id] = true; });
-    setLoadingClicks(loadingState);
-    
-    try {
-      // Fetch fresh data from Supabase
-      const { data, error } = await supabase
-        .from("links")
-        .select("id, clicks")
-        .eq("user_id", user.id);
-      
-      if (error) throw error;
-      
-      const result: Record<string, number> = {};
-      data?.forEach(link => {
-        result[link.id] = link.clicks || 0;
-      });
-      setClickCounts(result);
-      toast.success("Click counts updated!");
-    } catch (e) {
-      console.error("Refresh error:", e);
-      toast.error("Failed to refresh clicks");
-    } finally {
-      setRefreshing(false);
-      const resetLoading: Record<string, boolean> = {};
-      links.forEach(link => { resetLoading[link.id] = false; });
-      setLoadingClicks(resetLoading);
-    }
-  }, [links, user]);
 
   // ✅ Refresh clicks from Short.io
   const refreshClicks = useCallback(async () => {
@@ -185,10 +151,10 @@ const fetchLinks = useCallback(async () => {
         }
       }
       
-      // ✅ Create in Short.io first
+      // ✅ Create in Short.io
       const result = await createShortLink(url, shortCode);
       
-      // ✅ Then save to Supabase
+      // ✅ Save to Supabase (clicks will come from Short.io)
       const { error } = await supabase.from("links").insert({
         user_id: user.id,
         original_url: url,
@@ -196,7 +162,7 @@ const fetchLinks = useCallback(async () => {
         custom_alias: customAlias.trim() || null,
         short_url: result.shortUrl,
         is_active: true,
-        clicks: 0, // Will be fetched from Short.io
+        clicks: 0, // This will be overwritten by Short.io data
       });
       
       if (error) {
@@ -285,15 +251,17 @@ const fetchLinks = useCallback(async () => {
           <p className="text-sm text-muted-foreground">{links.length} links created</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={refreshClicks} 
-            disabled={refreshing}
-          >
-            <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-            {refreshing ? "Updating..." : "Refresh Clicks"}
-          </Button>
+          {links.length > 0 && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={refreshClicks} 
+              disabled={refreshing}
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+              {refreshing ? "Updating..." : "Refresh Clicks"}
+            </Button>
+          )}
           <Button variant="hero" size="sm" onClick={() => setShowCreate(!showCreate)}>
             <Plus className="w-4 h-4" /> New Link
           </Button>
@@ -405,8 +373,7 @@ const fetchLinks = useCallback(async () => {
                       {loadingClicks[link.id] ? (
                         <span className="animate-pulse">...</span>
                       ) : (
-                        // ✅ Show clicks from Short.io
-                        (clickCounts[link.id] ?? 0)
+                        clickCounts[link.id] ?? 0
                       )} clicks
                     </span>
                   </div>

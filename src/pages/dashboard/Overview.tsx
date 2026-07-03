@@ -32,39 +32,48 @@ export default function Overview() {
   const [lastCreated, setLastCreated] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [clickCounts, setClickCounts] = useState<Record<string, number>>({});
+  const [loading, setLoading] = useState(true);
 
   // ✅ Fetch data with clicks from Short.io
-const fetchData = useCallback(async () => {
-    if (!user) return;
+  const fetchData = useCallback(async () => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
     
-    const { data: allLinks, count: linkCount } = await supabase
-      .from("links")
-      .select("*", { count: "exact" })
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false });
+    try {
+      const { data: allLinks, count: linkCount } = await supabase
+        .from("links")
+        .select("*", { count: "exact" })
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
 
-    const links = allLinks || [];
-    setStats((prev) => ({ ...prev, links: linkCount || 0 }));
-    setRecentLinks(links.slice(0, 5));
+      const links = allLinks || [];
+      setStats((prev) => ({ ...prev, links: linkCount || 0 }));
+      setRecentLinks(links.slice(0, 5));
 
-    // ✅ Get clicks from Supabase
-    if (links.length > 0) {
-      // Calculate total clicks from Supabase
-      let totalClicks = 0;
-      links.forEach(link => {
-        totalClicks += (link.clicks || 0);
-      });
-      setStats((prev) => ({ ...prev, clicks: totalClicks }));
-      
-      // Get individual click counts for recent links
-      const result: Record<string, number> = {};
-      links.slice(0, 5).forEach(link => {
-        result[link.id] = link.clicks || 0;
-      });
-      setClickCounts(result);
-    } else {
-      setStats((prev) => ({ ...prev, clicks: 0 }));
-      setClickCounts({});
+      // ✅ Get clicks from Short.io
+      if (links.length > 0) {
+        const totalClicks = await getUserTotalClicks(user.id);
+        setStats((prev) => ({ ...prev, clicks: totalClicks }));
+        
+        // Get individual click counts for recent links
+        const shortCodes = links.slice(0, 5).map(link => link.short_code);
+        const counts = await getMultipleLinkClicks(shortCodes);
+        
+        const result: Record<string, number> = {};
+        links.slice(0, 5).forEach(link => {
+          result[link.id] = counts[link.short_code] || 0;
+        });
+        setClickCounts(result);
+      } else {
+        setStats((prev) => ({ ...prev, clicks: 0 }));
+        setClickCounts({});
+      }
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setLoading(false);
     }
   }, [user]);
 
@@ -85,10 +94,10 @@ const fetchData = useCallback(async () => {
     try {
       const shortCode = Math.random().toString(36).substring(2, 8);
       
-      // ✅ Create in Short.io first
+      // ✅ Create in Short.io
       const { shortUrl } = await createShortLink(quickUrl.trim(), shortCode);
       
-      // ✅ Then save to Supabase
+      // ✅ Save to Supabase
       const { error } = await supabase.from("links").insert({
         user_id: user.id,
         original_url: quickUrl.trim(),
@@ -130,6 +139,31 @@ const fetchData = useCallback(async () => {
 
   const userName = user?.fullName || user?.email?.split("@")[0] || "there";
   const isEmpty = stats.links === 0;
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <div className="h-8 w-48 bg-secondary animate-pulse rounded" />
+            <div className="h-4 w-64 bg-secondary animate-pulse rounded mt-2" />
+          </div>
+        </div>
+        <div className="glass-card rounded-xl p-5">
+          <div className="h-10 w-full bg-secondary animate-pulse rounded" />
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="glass-card rounded-xl p-5">
+              <div className="h-5 w-5 bg-secondary animate-pulse rounded mb-3" />
+              <div className="h-8 w-16 bg-secondary animate-pulse rounded" />
+              <div className="h-3 w-20 bg-secondary animate-pulse rounded mt-1" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

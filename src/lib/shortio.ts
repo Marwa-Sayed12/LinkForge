@@ -9,7 +9,7 @@ const client = createClient({
 
 const DOMAIN = 's.linkforge.website';
 
-// Cache for Short.io API stats (for analytics only)
+// Cache for Short.io API
 const statsCache = new Map<string, { data: any; timestamp: number }>();
 const CACHE_DURATION = 60000; // 1 minute
 
@@ -32,84 +32,89 @@ export async function createShortLink(originalUrl: string, customSlug?: string) 
   }
 }
 
-// ✅ Get click count from Supabase (for MyLinks & Overview)
+// ✅ Get click count from Short.io
 export async function getLinkClicks(shortCode: string): Promise<number> {
   try {
-    const { data, error } = await supabase
-      .from('links')
-      .select('clicks')
-      .eq('short_code', shortCode)
-      .single();
-
-    if (error) {
-      console.error('Error fetching clicks from Supabase:', error);
+    const response = await fetch(`/api/shortcode?shortCode=${shortCode}`);
+    
+    if (!response.ok) {
+      console.warn(`Failed to get clicks for ${shortCode}`);
       return 0;
     }
-
-    return data?.clicks || 0;
+    
+    const data = await response.json();
+    return data.totalClicks || 0;
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error fetching clicks:', error);
     return 0;
   }
 }
 
-// ✅ Get multiple link clicks from Supabase (for MyLinks)
+// ✅ Get multiple link clicks from Short.io
 export async function getMultipleLinkClicks(shortCodes: string[]): Promise<Record<string, number>> {
   try {
     if (!shortCodes || shortCodes.length === 0) {
       return {};
     }
 
-    const { data, error } = await supabase
-      .from('links')
-      .select('id, short_code, clicks')
-      .in('short_code', shortCodes);
-
-    if (error) {
-      console.error('Error fetching multiple clicks from Supabase:', error);
-      return {};
-    }
-
-    const result: Record<string, number> = {};
-    data?.forEach(link => {
-      result[link.short_code] = link.clicks || 0;
-    });
+    const results: Record<string, number> = {};
     
-    // Map by ID for easy lookup
-    const resultById: Record<string, number> = {};
-    data?.forEach(link => {
-      resultById[link.id] = link.clicks || 0;
-    });
-    
-    // Return both formats - by short_code for lookup
-    return result;
+    // Fetch each link's stats from Short.io
+    await Promise.allSettled(
+      shortCodes.map(async (shortCode) => {
+        try {
+          const response = await fetch(`/api/shortcode?shortCode=${shortCode}`);
+          if (response.ok) {
+            const data = await response.json();
+            results[shortCode] = data.totalClicks || 0;
+          } else {
+            results[shortCode] = 0;
+          }
+        } catch (error) {
+          console.error(`Error fetching stats for ${shortCode}:`, error);
+          results[shortCode] = 0;
+        }
+      })
+    );
+
+    return results;
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error fetching multiple clicks:', error);
     return {};
   }
 }
 
-// ✅ Get total clicks for a user from Supabase
+// ✅ Get total clicks for a user from Short.io
 export async function getUserTotalClicks(userId: string): Promise<number> {
   try {
-    const { data, error } = await supabase
+    // Get all user's links from Supabase first
+    const { data: links, error } = await supabase
       .from('links')
-      .select('clicks')
+      .select('short_code')
       .eq('user_id', userId);
 
-    if (error) {
-      console.error('Error fetching user clicks from Supabase:', error);
+    if (error || !links || links.length === 0) {
       return 0;
     }
 
-    return data?.reduce((sum, link) => sum + (link.clicks || 0), 0) || 0;
+    // Get clicks for all links from Short.io
+    const shortCodes = links.map(link => link.short_code);
+    const counts = await getMultipleLinkClicks(shortCodes);
+    
+    // Sum up all clicks
+    let total = 0;
+    shortCodes.forEach(code => {
+      total += counts[code] || 0;
+    });
+    
+    return total;
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error getting user total clicks:', error);
     return 0;
   }
 }
 
-// ✅ For Analytics: Get FULL stats from Short.io API (countries, browsers, devices, OS)
+// ✅ For Analytics: Get FULL stats from Short.io API
 export async function getShortIoStats(shortCode: string) {
   try {
     // Check cache first

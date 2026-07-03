@@ -13,39 +13,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    // 1️⃣ TRY SUPABASE FIRST
-    const { data: link, error: linkError } = await supabase
-      .from('links')
-      .select('id, original_url, is_active, clicks')
-      .eq('short_code', shortCode)
-      .single();
-
-    if (link && link.is_active) {
-      // ✅ Increment click count safely
-      const { error: updateError } = await supabase
-        .from('links')
-        .update({ clicks: (link.clicks || 0) + 1 })
-        .eq('id', link.id);
-
-      if (updateError) {
-        console.error('❌ Failed to update click count:', updateError);
-      }
-
-      // Record click for analytics
-      await supabase.from('clicks').insert({
-        link_id: link.id,
-        clicked_at: new Date().toISOString(),
-        user_agent: req.headers['user-agent'] || 'Unknown',
-        ip_address: req.headers['x-forwarded-for']?.split(',')[0]?.trim() || null,
-        referrer: req.headers['referer'] || null,
-      }).catch(err => console.error('Failed to record click:', err));
-
-      return res.redirect(302, link.original_url);
-    }
-
-    // 2️⃣ FALLBACK TO SHORT.IO
-    console.log('🔄 Link not in Supabase, checking Short.io:', shortCode);
-    
+    // Get link info from Short.io
     const apiKey = process.env.SHORTIO_API_KEY;
     const domain = process.env.VITE_SHORTIO_DOMAIN;
     
@@ -60,6 +28,17 @@ export default async function handler(req, res) {
     );
     
     if (!shortioResponse.ok) {
+      // Check Supabase fallback
+      const { data: link, error: linkError } = await supabase
+        .from('links')
+        .select('original_url, is_active')
+        .eq('short_code', shortCode)
+        .single();
+
+      if (link && link.is_active) {
+        return res.redirect(302, link.original_url);
+      }
+      
       return res.status(404).json({ error: 'Link not found' });
     }
 
@@ -71,35 +50,25 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: 'Invalid link data' });
     }
 
-    // 3️⃣ MIGRATE TO SUPABASE
-    const { data: newLink, error: insertError } = await supabase
+    // ✅ Check if link exists in Supabase, if not, save it
+    const { data: existingLink } = await supabase
       .from('links')
-      .insert({
+      .select('id')
+      .eq('short_code', shortCode)
+      .single();
+
+    if (!existingLink) {
+      // Save to Supabase for dashboard display
+      await supabase.from('links').insert({
         short_code: shortCode,
         original_url: originalUrl,
         short_url: `https://${domain}/${shortCode}`,
         is_active: true,
-        clicks: 1, // Start with 1 since we're redirecting now
-      })
-      .select('id')
-      .single();
-
-    if (insertError) {
-      console.error('❌ Failed to migrate link to Supabase:', insertError);
-      // Still redirect even if migration fails
-    }
-
-    // Record the click if migration succeeded
-    if (newLink) {
-      await supabase.from('clicks').insert({
-        link_id: newLink.id,
-        clicked_at: new Date().toISOString(),
-        user_agent: req.headers['user-agent'] || 'Unknown',
-        ip_address: req.headers['x-forwarded-for']?.split(',')[0]?.trim() || null,
-        referrer: req.headers['referer'] || null,
+        clicks: 0, // Clicks will come from Short.io
       });
     }
 
+    // ✅ Redirect - Short.io handles the click tracking automatically
     return res.redirect(302, originalUrl);
 
   } catch (error) {
