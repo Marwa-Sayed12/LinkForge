@@ -80,6 +80,10 @@ function useChartColors() {
     tooltipBorder: isDark ? "#374151" : "#E5E7EB",
     tooltipText: isDark ? "#F9FAFB" : "#111827",
     chartColors: ["#1FB07E", "#0B9BD7", "#E8A317", "#E5484D", "#8B5CF6", "#EC4899", "#06B6D4", "#F59E0B"],
+    mapColors: {
+      light: ["#E8F5E9", "#C8E6C9", "#A5D6A7", "#81C784", "#66BB6A", "#4CAF50", "#43A047", "#388E3C", "#2E7D32", "#1B5E20"],
+      dark: ["#1B5E20", "#2E7D32", "#388E3C", "#43A047", "#4CAF50", "#66BB6A", "#81C784", "#A5D6A7", "#C8E6C9", "#E8F5E9"]
+    }
   };
 }
 
@@ -96,6 +100,9 @@ interface LinkWithStats {
 // World Map Component
 const WorldMap = ({ data }: { data: any[] }) => {
   const [isMobile, setIsMobile] = useState(false);
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
+  const colors = useChartColors();
 
   useEffect(() => {
     const checkMobile = () => {
@@ -110,14 +117,13 @@ const WorldMap = ({ data }: { data: any[] }) => {
   
   const colorScale = scaleQuantize<string>()
     .domain([0, maxValue])
-    .range([
-      "#E8F5E9", "#C8E6C9", "#A5D6A7", "#81C784", "#66BB6A", 
-      "#4CAF50", "#43A047", "#388E3C", "#2E7D32", "#1B5E20"
-    ]);
+    .range(isDark ? colors.mapColors.dark : colors.mapColors.light);
 
   const getCountryColor = (countryCode: string) => {
     const country = data.find(d => d.code === countryCode);
-    if (!country || country.value === 0) return "#E8E8E8";
+    if (!country || country.value === 0) {
+      return isDark ? "#2D3039" : "#E8E8E8";
+    }
     return colorScale(country.value);
   };
 
@@ -178,10 +184,10 @@ const WorldMap = ({ data }: { data: any[] }) => {
   };
 
   return (
-    <div className="relative w-full h-[300px] md:h-[350px] rounded-xl overflow-hidden bg-gradient-to-br from-secondary/20 to-background">
+    <div className="relative w-full h-[250px] md:h-[300px] lg:h-[350px] rounded-xl overflow-hidden bg-gradient-to-br from-secondary/30 to-background border border-border/50">
       <ComposableMap
         projectionConfig={{
-          scale: isMobile ? 80 : 120,
+          scale: isMobile ? 60 : 100,
           center: [0, 20]
         }}
         className="w-full h-full"
@@ -200,19 +206,19 @@ const WorldMap = ({ data }: { data: any[] }) => {
                     key={geo.rsmKey}
                     geography={geo}
                     fill={color}
-                    stroke="#ffffff"
-                    strokeWidth={0.5}
+                    stroke={isDark ? "#1A1A2E" : "#FFFFFF"}
+                    strokeWidth={1.2}
                     style={{
                       default: {
                         outline: "none",
                         transition: "all 0.3s ease"
                       },
                       hover: {
-                        fill: "#4ADE80",
+                        fill: isDark ? "#4ADE80" : "#1FB07E",
                         outline: "none",
                         cursor: "pointer",
-                        stroke: "#1FB07E",
-                        strokeWidth: 1.5
+                        stroke: isDark ? "#4ADE80" : "#1FB07E",
+                        strokeWidth: 2
                       },
                       pressed: {
                         outline: "none"
@@ -227,25 +233,31 @@ const WorldMap = ({ data }: { data: any[] }) => {
             const position = coords[country.code];
             if (!position) return null;
             
+            const size = Math.max(4, Math.min(10, country.value / maxValue * 8 + 3));
+            
             return (
               <Marker key={country.code} coordinates={position}>
                 <circle
-                  r={Math.max(4, Math.min(12, country.value / maxValue * 10 + 3))}
-                  fill="#4ADE80"
-                  stroke="#1FB07E"
+                  r={size}
+                  fill={isDark ? "#4ADE80" : "#1FB07E"}
+                  stroke={isDark ? "#1FB07E" : "#FFFFFF"}
                   strokeWidth={1.5}
                   className="animate-pulse"
                   style={{
-                    opacity: 0.8,
+                    opacity: 0.9,
                     cursor: 'pointer',
                     transition: 'all 0.3s ease'
                   }}
                 />
                 <circle
-                  r={Math.max(6, Math.min(16, country.value / maxValue * 14 + 4))}
-                  fill="#4ADE80"
-                  fillOpacity={0.2}
+                  r={size * 1.6}
+                  fill={isDark ? "#4ADE80" : "#1FB07E"}
+                  fillOpacity={0.15}
                   stroke="none"
+                  className="animate-ping"
+                  style={{
+                    animationDuration: '2s'
+                  }}
                 />
               </Marker>
             );
@@ -253,24 +265,26 @@ const WorldMap = ({ data }: { data: any[] }) => {
         </ZoomableGroup>
       </ComposableMap>
       
+      {/* Legend */}
       {data.length > 0 && (
-        <div className="absolute bottom-4 left-4 glass-card rounded-lg p-3">
+        <div className="absolute bottom-3 left-3 glass-card rounded-lg px-3 py-2 border border-border/50">
           <div className="flex items-center gap-2 text-xs">
-            <span className="text-muted-foreground">Low</span>
+            <span className="text-muted-foreground text-[10px] md:text-xs">Low</span>
             <div className="flex gap-0.5">
-              {['#E8F5E9', '#C8E6C9', '#A5D6A7', '#81C784', '#66BB6A', '#4CAF50', '#2E7D32'].map((color, i) => (
-                <div key={i} className="w-4 h-3 rounded" style={{ backgroundColor: color }} />
+              {(isDark ? colors.mapColors.dark : colors.mapColors.light).slice(0, 7).map((color, i) => (
+                <div key={i} className="w-3 h-3 md:w-4 md:h-3 rounded-sm" style={{ backgroundColor: color }} />
               ))}
             </div>
-            <span className="text-muted-foreground">High</span>
+            <span className="text-muted-foreground text-[10px] md:text-xs">High</span>
           </div>
         </div>
       )}
       
+      {/* Country count badge */}
       {data.length > 0 && (
-        <div className="absolute top-4 right-4 glass-card rounded-lg px-3 py-1.5">
-          <span className="text-xs font-medium text-foreground">
-            {data.length} Countries
+        <div className="absolute top-3 right-3 glass-card rounded-lg px-3 py-1.5 border border-border/50">
+          <span className="text-[10px] md:text-xs font-medium text-foreground">
+            {data.length} {data.length === 1 ? 'Country' : 'Countries'}
           </span>
         </div>
       )}
@@ -903,10 +917,10 @@ export default function Analytics() {
             )}
           </div>
 
-          {/* Countries with Map */}
+          {/* Countries with Map - IMPROVED VISIBILITY */}
           {countryData.length > 0 && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-6">
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-2">
                 <h3 className="font-heading font-semibold text-foreground text-lg flex items-center gap-2">
                   <Globe className="w-5 h-5 text-success" />
                   Global Reach
@@ -919,19 +933,19 @@ export default function Analytics() {
               {/* World Map */}
               <WorldMap data={countryData} />
               
-              {/* Country List with Flags */}
-              <div className="mt-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+              {/* Country List with Flags - IMPROVED VISIBILITY */}
+              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
                 {countryData.slice(0, 8).map((country) => {
                   return (
                     <div 
                       key={country.name} 
-                      className="flex items-center justify-between p-2 rounded-lg hover:bg-secondary/10 transition-colors border border-transparent hover:border-border/50"
+                      className="flex items-center justify-between p-3 rounded-lg bg-secondary/20 hover:bg-secondary/40 transition-all duration-200 border border-border/50 hover:border-primary/30"
                     >
-                      <span className="text-foreground flex items-center gap-2 text-sm">
-                        <span className="text-xl w-8 text-center">{getFlagEmoji(country.code || '')}</span>
-                        <span className="font-medium truncate max-w-[100px]">{country.name}</span>
+                      <span className="text-foreground flex items-center gap-3 text-sm">
+                        <span className="text-2xl w-8 text-center flex-shrink-0">{getFlagEmoji(country.code || '')}</span>
+                        <span className="font-medium truncate max-w-[80px] sm:max-w-[100px]">{country.name}</span>
                       </span>
-                      <span className="font-mono text-sm font-semibold text-primary">
+                      <span className="font-mono text-sm font-semibold text-primary bg-primary/10 px-2 py-1 rounded-md">
                         {country.value.toLocaleString()}
                       </span>
                     </div>
@@ -948,12 +962,12 @@ export default function Analytics() {
                 <Monitor className="w-5 h-5 text-info" />
                 Top Browsers
               </h3>
-              <div className="space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {browserData.slice(0, 6).map((b) => {
                   const maxVal = browserData[0]?.value || 1;
                   const pct = Math.round((b.value / maxVal) * 100);
                   return (
-                    <div key={b.name}>
+                    <div key={b.name} className="p-3 rounded-lg bg-secondary/10 hover:bg-secondary/20 transition-colors">
                       <div className="flex justify-between text-sm mb-1">
                         <span className="text-foreground flex items-center gap-2">
                           <span className="text-xl">{b.icon || '🌐'}</span>
@@ -981,12 +995,12 @@ export default function Analytics() {
                 <Monitor className="w-5 h-5 text-accent" />
                 Operating Systems
               </h3>
-              <div className="space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {osData.slice(0, 6).map((o) => {
                   const maxVal = osData[0]?.value || 1;
                   const pct = Math.round((o.value / maxVal) * 100);
                   return (
-                    <div key={o.name}>
+                    <div key={o.name} className="p-3 rounded-lg bg-secondary/10 hover:bg-secondary/20 transition-colors">
                       <div className="flex justify-between text-sm mb-1">
                         <span className="text-foreground flex items-center gap-2">
                           <span className="text-xl">{o.icon || '💻'}</span>
@@ -1014,12 +1028,12 @@ export default function Analytics() {
                 <Link2 className="w-5 h-5 text-success" />
                 Top Referrers
               </h3>
-              <div className="space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {referrerData.slice(0, 6).map((r) => {
                   const maxVal = referrerData[0]?.value || 1;
                   const pct = Math.round((r.value / maxVal) * 100);
                   return (
-                    <div key={r.name}>
+                    <div key={r.name} className="p-3 rounded-lg bg-secondary/10 hover:bg-secondary/20 transition-colors">
                       <div className="flex justify-between text-sm mb-1">
                         <span className="text-foreground truncate font-medium">{r.name || "Direct"}</span>
                         <span className="font-mono text-muted-foreground">{r.value.toLocaleString()}</span>
@@ -1046,7 +1060,7 @@ export default function Analytics() {
               </h3>
               <div className="space-y-2">
                 {recentClicks.slice(0, 8).map((click, index) => (
-                  <div key={index} className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-secondary/10 transition-colors border-b border-border last:border-0">
+                  <div key={index} className="flex flex-col sm:flex-row sm:items-center justify-between py-2 px-3 rounded-lg hover:bg-secondary/10 transition-colors border-b border-border last:border-0 gap-2">
                     <div className="flex items-center gap-3 min-w-0">
                       <MousePointerClick className="w-4 h-4 text-primary shrink-0" />
                       <div className="min-w-0">
@@ -1061,7 +1075,7 @@ export default function Analytics() {
                         )}
                       </div>
                     </div>
-                    <span className="text-xs text-muted-foreground shrink-0 ml-2">
+                    <span className="text-xs text-muted-foreground shrink-0">
                       {click.clicked_at ? formatDistance(new Date(click.clicked_at), new Date(), { addSuffix: true }) : "Just now"}
                     </span>
                   </div>
