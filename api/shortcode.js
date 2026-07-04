@@ -31,13 +31,13 @@ export default async function handler(req, res) {
   }
 
   try {
-    console.log(`Processing shortCode: ${shortCode}`);
+    console.log(`🔴 Processing shortCode: ${shortCode}`);
     
     const apiKey = process.env.SHORTIO_API_KEY || process.env.VITE_SHORTIO_API_KEY;
     const domain = process.env.VITE_SHORTIO_DOMAIN || 's.linkforge.website';
 
     if (!apiKey) {
-      console.error('API key missing');
+      console.error('❌ API key missing');
       return res.status(500).json({ error: 'API key not configured' });
     }
 
@@ -54,7 +54,7 @@ export default async function handler(req, res) {
 
     if (!linkInfoResponse.ok) {
       const errorText = await linkInfoResponse.text();
-      console.error('Link info error:', linkInfoResponse.status);
+      console.error('❌ Link info error:', linkInfoResponse.status);
       return res.status(linkInfoResponse.status).json({ 
         error: 'Link not found',
         details: errorText
@@ -68,7 +68,7 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: 'Link ID not found' });
     }
 
-    console.log(`Found link ID: ${linkId} for shortCode: ${shortCode}`);
+    console.log(`✅ Found link ID: ${linkId} for shortCode: ${shortCode}`);
 
     // Step 2: Get statistics from Short.io
     const statsResponse = await fetch(
@@ -83,7 +83,7 @@ export default async function handler(req, res) {
 
     if (!statsResponse.ok) {
       const errorText = await statsResponse.text();
-      console.error('Stats error:', statsResponse.status);
+      console.error('❌ Stats error:', statsResponse.status);
       return res.status(statsResponse.status).json({ 
         error: 'Failed to fetch stats',
         details: errorText
@@ -91,7 +91,53 @@ export default async function handler(req, res) {
     }
 
     const statsData = await statsResponse.json();
-    console.log('Stats data received');
+    console.log('✅ Stats data received');
+
+    // ============================================
+    // FIX: Calculate total clicks from detailed data
+    // ============================================
+    
+    // Method 1: From browser data
+    let calculatedTotal = 0;
+    if (statsData.browser && Array.isArray(statsData.browser)) {
+      const browserTotal = statsData.browser.reduce((sum, item) => sum + (item.score || 0), 0);
+      calculatedTotal = Math.max(calculatedTotal, browserTotal);
+      console.log(`📊 Browser total: ${browserTotal}`);
+    }
+    
+    // Method 2: From country data
+    if (statsData.country && Array.isArray(statsData.country)) {
+      const countryTotal = statsData.country.reduce((sum, item) => sum + (item.score || 0), 0);
+      calculatedTotal = Math.max(calculatedTotal, countryTotal);
+      console.log(`📊 Country total: ${countryTotal}`);
+    }
+    
+    // Method 3: From OS data
+    if (statsData.os && Array.isArray(statsData.os)) {
+      const osTotal = statsData.os.reduce((sum, item) => sum + (item.score || 0), 0);
+      calculatedTotal = Math.max(calculatedTotal, osTotal);
+      console.log(`📊 OS total: ${osTotal}`);
+    }
+    
+    // Method 4: From referrer data
+    if (statsData.referer && Array.isArray(statsData.referer)) {
+      const refererTotal = statsData.referer.reduce((sum, item) => sum + (item.score || 0), 0);
+      calculatedTotal = Math.max(calculatedTotal, refererTotal);
+      console.log(`📊 Referer total: ${refererTotal}`);
+    }
+
+    // Method 5: From clicksByDate
+    if (statsData.clicksByDate) {
+      const dateTotal = Object.values(statsData.clicksByDate).reduce((sum, val) => sum + (typeof val === 'number' ? val : 0), 0);
+      calculatedTotal = Math.max(calculatedTotal, dateTotal);
+      console.log(`📊 Date total: ${dateTotal}`);
+    }
+
+    // Use the calculated total if it's higher than the reported totalClicks
+    const reportedTotal = statsData.totalClicks || 0;
+    const finalTotal = Math.max(reportedTotal, calculatedTotal);
+    
+    console.log(`📊 Reported: ${reportedTotal}, Calculated: ${calculatedTotal}, Final: ${finalTotal}`);
 
     // Country name mapping
     const countryNames = {
@@ -99,7 +145,21 @@ export default async function handler(req, res) {
       'US': 'United States',
       'GB': 'United Kingdom',
       'CA': 'Canada',
-      // Add more as needed
+      'AU': 'Australia',
+      'DE': 'Germany',
+      'FR': 'France',
+      'IN': 'India',
+      'JP': 'Japan',
+      'BR': 'Brazil',
+      'ZA': 'South Africa',
+      'PK': 'Pakistan',
+      'NG': 'Nigeria',
+      'EG': 'Egypt',
+      'SA': 'Saudi Arabia',
+      'AE': 'UAE',
+      'TR': 'Turkey',
+      'RU': 'Russia',
+      'CN': 'China',
     };
 
     // OS Icon mapping
@@ -128,7 +188,7 @@ export default async function handler(req, res) {
       'Unknown': '🌐'
     };
 
-    // Transform clicksByDate to ensure it's in the right format
+    // Transform clicksByDate
     const clicksByDate = statsData.clicksByDate || {};
     const formattedClicksByDate = {};
     Object.entries(clicksByDate).forEach(([date, count]) => {
@@ -136,32 +196,35 @@ export default async function handler(req, res) {
         const parsedDate = new Date(date);
         if (!isNaN(parsedDate.getTime())) {
           const formattedDate = format(parsedDate, 'yyyy-MM-dd');
-          formattedClicksByDate[formattedDate] = count;
+          formattedClicksByDate[formattedDate] = typeof count === 'number' ? count : 0;
         }
       } catch (e) {
         console.warn('Could not parse date:', date);
       }
     });
 
-    // ✅ Transform data for frontend - FULL DATA
+    // ============================================
+    // TRANSFORM DATA WITH FIXED TOTAL CLICKS
+    // ============================================
     const transformedData = {
-      totalClicks: statsData.totalClicks || 0,
-      humanClicks: statsData.humanClicks || 0,
-      clicks: statsData.totalClicks || 0,
+      // ✅ Use the calculated total
+      totalClicks: finalTotal,
+      humanClicks: statsData.humanClicks || finalTotal,
+      clicks: finalTotal,
       totalClicksChange: statsData.totalClicksChange || '0',
       humanClicksChange: statsData.humanClicksChange || '0',
       clickStatistics: statsData.clickStatistics || { datasets: [] },
       clicksByDate: formattedClicksByDate,
       interval: statsData.interval || { startDate: null, endDate: null, prevStartDate: null, prevEndDate: null },
       
-      // ✅ Raw data from Short.io
+      // Raw data from Short.io
       browser: statsData.browser || [],
       country: statsData.country || [],
       city: statsData.city || [],
       os: statsData.os || [],
       referer: statsData.referer || [],
       
-      // ✅ Convert to Record format with full country names and icons
+      // Convert to Record format with full country names and icons
       browsers: statsData.browser?.reduce((acc, item) => {
         acc[item.browser] = {
           count: item.score,
@@ -196,9 +259,11 @@ export default async function handler(req, res) {
       recentClicks: statsData.recentClicks || [],
     };
 
+    console.log(`✅ Returning data with ${finalTotal} total clicks`);
     return res.status(200).json(transformedData);
+
   } catch (error) {
-    console.error('Error:', error);
+    console.error('❌ Error:', error);
     return res.status(500).json({ 
       error: 'Internal server error',
       details: error.message
