@@ -2,7 +2,11 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Plus, Link2, Copy, Check, Trash2, QrCode, ExternalLink, Download, MousePointerClick, RefreshCw } from "lucide-react";
+import { 
+  Plus, Link2, Copy, Check, Trash2, QrCode, ExternalLink, 
+  Download, MousePointerClick, RefreshCw, Globe, Calendar,
+  Clock, BarChart3, TrendingUp, Users, Eye, Zap
+} from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import QRCode from "qrcode";
 import { Link } from "react-router-dom";
@@ -10,7 +14,11 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useClerkAuth";
 import { toast } from "sonner";
-import { createShortLink } from "@/lib/shortio";
+import { 
+  createShortLink, 
+  getMultipleLinkClicks,
+  getLinkClicks 
+} from "@/lib/shortio";
 
 interface LinkData {
   id: string;
@@ -44,32 +52,17 @@ export default function MyLinks() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showQR, setShowQR] = useState<string | null>(null);
   const [suggestedAlias, setSuggestedAlias] = useState("");
+  const [clickCounts, setClickCounts] = useState<Record<string, number>>({});
+  const [loadingClicks, setLoadingClicks] = useState<Record<string, boolean>>({});
 
+  // ============================================
+  // FETCH LINKS FROM SUPABASE + CLICKS FROM SHORT.IO
+  // ============================================
   const fetchLinks = useCallback(async () => {
-    if (!user) return;
-    
-    try {
-      const { data } = await supabase
-        .from("links")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
-        
-      setLinks(data || []);
+    if (!user) {
       setLoading(false);
-      
-      // ✅ Clicks are already in the data from Supabase!
-      // No need to fetch from Short.io - INSTANT!
-    } catch (error) {
-      console.error("Error fetching links:", error);
-      setLoading(false);
+      return;
     }
-  }, [user]);
-
-  // ✅ Refresh from Supabase (INSTANT!)
-  const refreshClicks = useCallback(async () => {
-    if (!links.length) return;
-    setRefreshing(true);
     
     try {
       const { data, error } = await supabase
@@ -77,23 +70,73 @@ export default function MyLinks() {
         .select("*")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
-      
+        
       if (error) throw error;
       
       setLinks(data || []);
-      toast.success("Data refreshed instantly!");
+      
+      // ✅ Fetch click counts from Short.io for all links
+      if (data && data.length > 0) {
+        const shortCodes = data.map(link => link.short_code);
+        const counts = await getMultipleLinkClicks(shortCodes);
+        
+        const result: Record<string, number> = {};
+        data.forEach(link => {
+          result[link.id] = counts[link.short_code] || 0;
+        });
+        setClickCounts(result);
+      }
+    } catch (error) {
+      console.error("Error fetching links:", error);
+      toast.error("Failed to load links");
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
+
+  // ============================================
+  // REFRESH CLICKS FROM SHORT.IO
+  // ============================================
+  const refreshClicks = useCallback(async () => {
+    if (!links.length) {
+      toast.info("No links to refresh");
+      return;
+    }
+    
+    setRefreshing(true);
+    
+    const loadingState: Record<string, boolean> = {};
+    links.forEach(link => { loadingState[link.id] = true; });
+    setLoadingClicks(loadingState);
+    
+    try {
+      const shortCodes = links.map(link => link.short_code);
+      const counts = await getMultipleLinkClicks(shortCodes);
+      
+      const result: Record<string, number> = {};
+      links.forEach(link => {
+        result[link.id] = counts[link.short_code] || 0;
+      });
+      setClickCounts(result);
+      toast.success(`✅ Click counts updated from Short.io!`);
     } catch (e) {
       console.error("Refresh error:", e);
-      toast.error("Failed to refresh");
+      toast.error("Failed to refresh clicks");
     } finally {
       setRefreshing(false);
+      const resetLoading: Record<string, boolean> = {};
+      links.forEach(link => { resetLoading[link.id] = false; });
+      setLoadingClicks(resetLoading);
     }
-  }, [links, user]);
+  }, [links]);
 
   useEffect(() => {
     fetchLinks();
   }, [fetchLinks]);
 
+  // ============================================
+  // CREATE NEW LINK
+  // ============================================
   const checkAliasExists = async (alias: string): Promise<boolean> => {
     const { data } = await supabase
       .from("links")
@@ -137,7 +180,7 @@ export default function MyLinks() {
       // ✅ Create in Short.io
       const result = await createShortLink(url, shortCode);
       
-      // ✅ Save to Supabase with clicks: 0
+      // ✅ Save to Supabase
       const { error } = await supabase.from("links").insert({
         user_id: user.id,
         original_url: url,
@@ -171,10 +214,14 @@ export default function MyLinks() {
       } else {
         toast.error(err.message || "Failed to create link");
       }
+    } finally {
+      setCreating(false);
     }
-    setCreating(false);
   };
 
+  // ============================================
+  // UTILITY FUNCTIONS
+  // ============================================
   const downloadQR = async (link: LinkData) => {
     try {
       const dataUrl = await QRCode.toDataURL(link.original_url, { width: 512, margin: 2 });
@@ -213,6 +260,9 @@ export default function MyLinks() {
     }
   };
 
+  // ============================================
+  // RENDER
+  // ============================================
   if (!user) {
     return (
       <div className="glass-card rounded-xl p-12 text-center">
@@ -228,9 +278,13 @@ export default function MyLinks() {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
-          <h1 className="font-heading text-2xl font-bold text-foreground">My Links</h1>
+          <h1 className="font-heading text-2xl font-bold text-foreground flex items-center gap-2">
+            <Link2 className="w-6 h-6 text-primary" />
+            My Links
+          </h1>
           <p className="text-sm text-muted-foreground">{links.length} links created</p>
         </div>
         <div className="flex items-center gap-2">
@@ -242,15 +296,16 @@ export default function MyLinks() {
               disabled={refreshing}
             >
               <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-              {refreshing ? "Refreshing..." : "Refresh"}
+              {refreshing ? "Updating..." : "Refresh Clicks"}
             </Button>
           )}
           <Button variant="hero" size="sm" onClick={() => setShowCreate(!showCreate)}>
-            <Plus className="w-4 h-4" /> New Link
+            <Plus className="w-4 h-4 mr-2" /> New Link
           </Button>
         </div>
       </div>
 
+      {/* Create Link Form */}
       {showCreate && (
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="glass-card rounded-xl p-5">
           <form onSubmit={createLink} className="space-y-4">
@@ -303,6 +358,7 @@ export default function MyLinks() {
         </motion.div>
       )}
 
+      {/* Loading State */}
       {loading ? (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
@@ -313,22 +369,24 @@ export default function MyLinks() {
           ))}
         </div>
       ) : links.length === 0 ? (
+        /* Empty State */
         <div className="glass-card rounded-xl p-12 text-center">
           <Link2 className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
           <h3 className="font-heading text-lg font-semibold text-foreground mb-2">No links yet</h3>
           <p className="text-sm text-muted-foreground mb-4">Create your first shortened link to get started.</p>
           <Button variant="hero" size="sm" onClick={() => setShowCreate(true)}>
-            <Plus className="w-4 h-4" /> Create Link
+            <Plus className="w-4 h-4 mr-2" /> Create Link
           </Button>
         </div>
       ) : (
+        /* Links List */
         <div className="space-y-3">
           {links.map((link) => (
             <motion.div
               key={link.id}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="glass-card rounded-xl p-5"
+              className="glass-card rounded-xl p-5 hover:border-primary/20 transition-all duration-200"
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1">
@@ -341,7 +399,7 @@ export default function MyLinks() {
                     >
                       {(link.short_url || getShortUrl(link.short_code)).replace(/^https?:\/\//, "")}
                     </a>
-                    <button onClick={() => copyLink(link)} className="text-muted-foreground hover:text-foreground">
+                    <button onClick={() => copyLink(link)} className="text-muted-foreground hover:text-foreground transition-colors">
                       {copiedId === link.id ? <Check className="w-3.5 h-3.5 text-success" /> : <Copy className="w-3.5 h-3.5" />}
                     </button>
                   </div>
@@ -349,12 +407,18 @@ export default function MyLinks() {
                     <ExternalLink className="w-3 h-3 shrink-0" />
                     <span className="truncate">{link.original_url}</span>
                   </div>
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground mt-2">
-                    <span>Created {new Date(link.created_at).toLocaleDateString()}</span>
+                  <div className="flex items-center gap-4 text-xs text-muted-foreground mt-2">
+                    <span className="flex items-center gap-1">
+                      <Calendar className="w-3 h-3" />
+                      Created {new Date(link.created_at).toLocaleDateString()}
+                    </span>
                     <span className="flex items-center gap-1 text-primary font-semibold">
                       <MousePointerClick className="w-3 h-3" />
-                      {/* ✅ Clicks are from Supabase - INSTANT! */}
-                      {link.clicks || 0} clicks
+                      {loadingClicks[link.id] ? (
+                        <span className="animate-pulse">...</span>
+                      ) : (
+                        clickCounts[link.id] ?? 0
+                      )} clicks
                     </span>
                   </div>
                 </div>
@@ -379,7 +443,7 @@ export default function MyLinks() {
                     <QRCodeSVG value={link.original_url} size={160} />
                   </div>
                   <Button variant="outline" size="sm" onClick={() => downloadQR(link)}>
-                    <Download className="w-4 h-4" /> Download PNG
+                    <Download className="w-4 h-4 mr-2" /> Download PNG
                   </Button>
                 </motion.div>
               )}

@@ -2,15 +2,23 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Link2, MousePointerClick, QrCode, TrendingUp, ArrowUpRight, Plus, Sparkles, Copy, Check } from "lucide-react";
+import { Clock } from 'lucide-react';
+
+import { 
+  Link2, MousePointerClick, QrCode, TrendingUp, ArrowUpRight, 
+  Plus, Sparkles, Copy, Check, Calendar, Eye, Zap 
+} from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useClerkAuth";
 import { toast } from "sonner";
-import { createShortLink } from "@/lib/shortio";
+import { 
+  createShortLink, 
+  getUserTotalClicks, 
+  getMultipleLinkClicks 
+} from "@/lib/shortio";
 
-// ✅ Make sure this matches your Supabase table schema
 interface LinkData {
   id: string;
   short_code: string;
@@ -21,12 +29,6 @@ interface LinkData {
   created_at: string;
   is_active: boolean;
   custom_alias: string | null;
-  user_id?: string;
-  expires_at?: string | null;
-  password_hash?: string | null;
-  tiny_url?: string | null;
-  qr_settings?: any;
-  updated_at?: string;
 }
 
 export default function Overview() {
@@ -39,8 +41,11 @@ export default function Overview() {
   const [lastCreated, setLastCreated] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [clickCounts, setClickCounts] = useState<Record<string, number>>({});
 
-  // ✅ Fetch data with clicks from Supabase
+  // ============================================
+  // FETCH DATA FROM SUPABASE + CLICKS FROM SHORT.IO
+  // ============================================
   const fetchData = useCallback(async () => {
     if (!user) {
       setLoading(false);
@@ -54,37 +59,33 @@ export default function Overview() {
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
-      if (error) {
-        console.error("Error fetching links:", error);
-        setLoading(false);
-        return;
-      }
+      if (error) throw error;
 
-      // ✅ Properly type the data
-      const links: LinkData[] = (allLinks || []).map((item: any) => ({
-        id: item.id,
-        short_code: item.short_code,
-        short_url: item.short_url,
-        original_url: item.original_url,
-        title: item.title || null,
-        clicks: item.clicks || 0,
-        created_at: item.created_at,
-        is_active: item.is_active,
-        custom_alias: item.custom_alias || null
-      }));
-
+      const links = allLinks || [];
       setStats((prev) => ({ ...prev, links: linkCount || 0 }));
       setRecentLinks(links.slice(0, 5));
 
-      // ✅ Calculate total clicks
-      let totalClicks = 0;
-      links.forEach(link => {
-        totalClicks += (link.clicks || 0);
-      });
-      setStats((prev) => ({ ...prev, clicks: totalClicks }));
-      
+      // ✅ Get total clicks from Short.io
+      if (links.length > 0) {
+        const totalClicks = await getUserTotalClicks(user.id);
+        setStats((prev) => ({ ...prev, clicks: totalClicks }));
+        
+        // Get individual click counts for recent links
+        const shortCodes = links.slice(0, 5).map(link => link.short_code);
+        const counts = await getMultipleLinkClicks(shortCodes);
+        
+        const result: Record<string, number> = {};
+        links.slice(0, 5).forEach(link => {
+          result[link.id] = counts[link.short_code] || 0;
+        });
+        setClickCounts(result);
+      } else {
+        setStats((prev) => ({ ...prev, clicks: 0 }));
+        setClickCounts({});
+      }
     } catch (error) {
       console.error("Error fetching data:", error);
+      toast.error("Failed to load dashboard data");
     } finally {
       setLoading(false);
     }
@@ -94,50 +95,55 @@ export default function Overview() {
     fetchData();
   }, [fetchData]);
 
-const handleQuickCreate = async (e: React.FormEvent) => {
-  e.preventDefault();
-  if (!quickUrl.trim() || !user) return;
-  try {
-    new URL(quickUrl.trim());
-  } catch {
-    toast.error("Please enter a valid URL (https://...)");
-    return;
-  }
-  setCreating(true);
-  try {
-    const shortCode = Math.random().toString(36).substring(2, 8);
+  // ============================================
+  // CREATE QUICK LINK
+  // ============================================
+  const handleQuickCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickUrl.trim() || !user) {
+      toast.error("Please enter a URL and log in");
+      return;
+    }
     
-    // ✅ Create in Short.io
-    const { shortUrl } = await createShortLink(quickUrl.trim(), shortCode);
+    try {
+      new URL(quickUrl.trim());
+    } catch {
+      toast.error("Please enter a valid URL (https://...)");
+      return;
+    }
     
-    // ✅ Save to Supabase with type assertion
-    const { error } = await supabase
-      .from("links")
-      .insert({
+    setCreating(true);
+    try {
+      const shortCode = Math.random().toString(36).substring(2, 8);
+      
+      // ✅ Create in Short.io
+      const { shortUrl } = await createShortLink(quickUrl.trim(), shortCode);
+      
+      // ✅ Save to Supabase
+      const { error } = await supabase.from("links").insert({
         user_id: user.id,
         original_url: quickUrl.trim(),
         short_code: shortCode,
         short_url: shortUrl,
         is_active: true,
-        clicks: 0, // This works
-      } as any); // ✅ Add 'as any' to bypass type checking
-    
-    if (error) {
-      toast.error(error.message);
-      return;
+        clicks: 0,
+      });
+      
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+      
+      setLastCreated(shortUrl);
+      setQuickUrl("");
+      toast.success("✅ Short link created!");
+      fetchData();
+    } catch (e: any) {
+      toast.error(e.message || "Failed to shorten URL");
+    } finally {
+      setCreating(false);
     }
-    
-    setLastCreated(shortUrl);
-    setQuickUrl("");
-    toast.success("Short link created!");
-    fetchData();
-  } catch (e) {
-    const error = e as Error;
-    toast.error(error.message || "Failed to shorten URL");
-  } finally {
-    setCreating(false);
-  }
-};
+  };
 
   const copyShort = () => {
     if (!lastCreated) return;
@@ -146,11 +152,38 @@ const handleQuickCreate = async (e: React.FormEvent) => {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  // ============================================
+  // RENDER
+  // ============================================
   const statCards = [
-    { label: "Total Links", value: stats.links, icon: Link2, color: "text-primary" },
-    { label: "Total Clicks", value: stats.clicks, icon: MousePointerClick, color: "text-info" },
-    { label: "Active Links", value: stats.links, icon: TrendingUp, color: "text-success" },
-    { label: "QR Codes", value: stats.links, icon: QrCode, color: "text-accent" },
+    { 
+      label: "Total Links", 
+      value: stats.links, 
+      icon: Link2, 
+      color: "text-primary",
+      bg: "bg-primary/10"
+    },
+    { 
+      label: "Total Clicks", 
+      value: stats.clicks, 
+      icon: MousePointerClick, 
+      color: "text-info",
+      bg: "bg-info/10"
+    },
+    { 
+      label: "Active Links", 
+      value: stats.links, 
+      icon: TrendingUp, 
+      color: "text-success",
+      bg: "bg-success/10"
+    },
+    { 
+      label: "QR Codes", 
+      value: stats.links, 
+      icon: QrCode, 
+      color: "text-accent",
+      bg: "bg-accent/10"
+    },
   ];
 
   const userName = user?.fullName || user?.email?.split("@")[0] || "there";
@@ -183,9 +216,11 @@ const handleQuickCreate = async (e: React.FormEvent) => {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="min-w-0 shrink">
-          <h1 className="font-heading text-2xl font-bold text-foreground">
+          <h1 className="font-heading text-2xl font-bold text-foreground flex items-center gap-2">
+            <Zap className="w-6 h-6 text-primary" />
             Welcome{userName !== "there" ? `, ${userName}` : ""} 👋
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
@@ -196,11 +231,12 @@ const handleQuickCreate = async (e: React.FormEvent) => {
         </div>
         <Link to="/dashboard/links" className="shrink-0">
           <Button variant="hero" size="sm">
-            <Plus className="w-4 h-4" /> New Link
+            <Plus className="w-4 h-4 mr-2" /> New Link
           </Button>
         </Link>
       </div>
 
+      {/* Quick Create */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -226,7 +262,7 @@ const handleQuickCreate = async (e: React.FormEvent) => {
               <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
             ) : (
               <>
-                <Plus className="w-4 h-4" /> Shorten
+                <Plus className="w-4 h-4 mr-2" /> Shorten
               </>
             )}
           </Button>
@@ -246,6 +282,7 @@ const handleQuickCreate = async (e: React.FormEvent) => {
         )}
       </motion.div>
 
+      {/* Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {statCards.map((stat, i) => (
           <motion.div
@@ -253,18 +290,24 @@ const handleQuickCreate = async (e: React.FormEvent) => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.05 }}
-            className="glass-card rounded-xl p-5"
+            className={`glass-card rounded-xl p-5 ${stat.bg} border border-border/50 hover:border-primary/20 transition-all duration-200`}
           >
-            <stat.icon className={`w-5 h-5 ${stat.color} mb-3`} />
-            <div className="font-heading text-2xl font-bold text-foreground">{stat.value}</div>
+            <div className="flex items-center justify-between">
+              <stat.icon className={`w-5 h-5 ${stat.color}`} />
+              <span className="text-2xl font-bold text-foreground">{stat.value}</span>
+            </div>
             <div className="text-xs text-muted-foreground mt-1">{stat.label}</div>
           </motion.div>
         ))}
       </div>
 
+      {/* Recent Links */}
       <div className="glass-card rounded-xl p-5">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-heading font-semibold text-foreground">Recent Links</h2>
+          <h2 className="font-heading font-semibold text-foreground flex items-center gap-2">
+            <Clock className="w-4 h-4 text-primary" />
+            Recent Links
+          </h2>
           <Link to="/dashboard/links" className="text-sm text-primary hover:underline flex items-center gap-1">
             View all <ArrowUpRight className="w-3 h-3" />
           </Link>
@@ -275,26 +318,29 @@ const handleQuickCreate = async (e: React.FormEvent) => {
             <p className="text-muted-foreground">No links yet. Create your first short link!</p>
             <Link to="/dashboard/links">
               <Button variant="hero" size="sm" className="mt-4">
-                <Plus className="w-4 h-4" /> Create Link
+                <Plus className="w-4 h-4 mr-2" /> Create Link
               </Button>
             </Link>
           </div>
         ) : (
           <div className="space-y-2">
             {recentLinks.map((link) => (
-              <div key={link.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                <div className="min-w-0">
+              <div key={link.id} className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-secondary/10 transition-colors border-b border-border last:border-0">
+                <div className="min-w-0 flex-1">
                   <div className="font-mono text-sm text-primary truncate">
                     {link.short_url || `https://s.linkforge.website/${link.short_code}`}
                   </div>
                   <div className="text-xs text-muted-foreground truncate">{link.original_url}</div>
                 </div>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <div className="flex items-center gap-3 text-xs text-muted-foreground shrink-0 ml-4">
                   <span className="flex items-center gap-1 text-primary font-semibold">
-                    <MousePointerClick className="w-3 h-3" />
-                    {link.clicks || 0} clicks
+                    <Eye className="w-3 h-3" />
+                    {clickCounts[link.id] ?? 0} clicks
                   </span>
-                  <span>{new Date(link.created_at).toLocaleDateString()}</span>
+                  <span className="flex items-center gap-1">
+                    <Calendar className="w-3 h-3" />
+                    {new Date(link.created_at).toLocaleDateString()}
+                  </span>
                 </div>
               </div>
             ))}
