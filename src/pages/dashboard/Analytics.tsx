@@ -107,25 +107,27 @@ export default function Analytics() {
   const [progress, setProgress] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const processStatsData = useCallback((allStats: any[], total: number, humanTotal: number) => {
-    // Process daily clicks
-    const dailyMap: Record<string, number> = {};
-    const now = new Date();
-    let todayCount = 0;
+      const processStatsData = useCallback((allStats: any[], total: number, humanTotal: number) => {
+        // Process daily clicks
+        const dailyMap: Record<string, number> = {};
+        const now = new Date();
+        let todayCount = 0;
 
     allStats.forEach((stats) => {
-      if (stats.clicksByDate) {
-        Object.entries(stats.clicksByDate).forEach(([date, count]: [string, any]) => {
-          const countNum = typeof count === 'number' ? count : 0;
-          if (countNum > 0) {
-            try {
-              const formattedDate = format(new Date(date), 'yyyy-MM-dd');
-              dailyMap[formattedDate] = (dailyMap[formattedDate] || 0) + countNum;
-              const clickDate = new Date(date);
-              if (clickDate.toDateString() === now.toDateString()) {
-                todayCount += countNum;
-              }
-            } catch (e) {
+    if (stats.clicksByDate) {
+      Object.entries(stats.clicksByDate).forEach(([date, count]: [string, any]) => {
+        const countNum = typeof count === 'number' ? count : 0;
+        if (countNum > 0) {
+          try {
+            const formattedDate = format(new Date(date), 'yyyy-MM-dd');
+            dailyMap[formattedDate] = (dailyMap[formattedDate] || 0) + countNum;
+              // ✅ FIX: Check if this date is today
+            const clickDate = new Date(date);
+            const today = new Date();
+            if (clickDate.toDateString() === today.toDateString()) {
+              todayCount += countNum;
+            }
+          } catch (e) {
               // Skip invalid dates
             }
           }
@@ -134,23 +136,29 @@ export default function Analytics() {
     });
 
     if (Object.keys(dailyMap).length === 0 && total > 0) {
-      const todayStr = format(now, 'yyyy-MM-dd');
-      dailyMap[todayStr] = total;
-    }
+    const todayStr = format(now, 'yyyy-MM-dd');
+    dailyMap[todayStr] = total;
+    todayCount = total; // All clicks are today
+  }
+
+  const todayStr = format(now, 'yyyy-MM-dd');
+  if (dailyMap[todayStr] && todayCount === 0) {
+    todayCount = dailyMap[todayStr];
+  }
 
     setClicksToday(todayCount);
 
     const days: { date: string; clicks: number; formattedDate: string }[] = [];
-    for (let i = 29; i >= 0; i--) {
-      const date = startOfDay(subDays(new Date(), i));
-      const label = format(date, "MMM d");
-      const dateStr = format(date, "yyyy-MM-dd");
-      days.push({
-        date: label,
-        formattedDate: dateStr,
-        clicks: dailyMap[dateStr] || 0,
-      });
-    }
+  for (let i = 29; i >= 0; i--) {
+    const date = startOfDay(subDays(new Date(), i));
+    const label = format(date, "MMM d");
+    const dateStr = format(date, "yyyy-MM-dd");
+    days.push({
+      date: label,
+      formattedDate: dateStr,
+      clicks: dailyMap[dateStr] || 0,
+    });
+  }
     setDailyClicksData(days);
 
     // Process device data
