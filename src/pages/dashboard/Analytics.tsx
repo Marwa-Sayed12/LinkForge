@@ -12,6 +12,10 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell,
 } from "recharts";
+import {
+  ComposableMap, Geographies, Geography, Marker, ZoomableGroup
+} from "react-simple-maps";
+import { scaleQuantize } from "d3-scale";
 import { useTheme } from "@/components/ThemeProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useClerkAuth";
@@ -20,11 +24,14 @@ import { format, subDays, startOfDay, formatDistance } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
-// Flag function
+const geoUrl = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
+
+// Flag function - improved for all devices
 const getFlagEmoji = (countryCode: string) => {
+  if (!countryCode) return '🌍';
   try {
-    const codePoints = countryCode
-      .toUpperCase()
+    const code = countryCode.toUpperCase().substring(0, 2);
+    const codePoints = code
       .split('')
       .map(char => 127397 + char.charCodeAt(0));
     return String.fromCodePoint(...codePoints);
@@ -33,7 +40,7 @@ const getFlagEmoji = (countryCode: string) => {
   }
 };
 
-// OS Icon mapping with simple emoji
+// OS Icon mapping
 const OS_ICONS: Record<string, string> = {
   'Windows': '🪟',
   'Mac OS X': '🍎',
@@ -46,7 +53,7 @@ const OS_ICONS: Record<string, string> = {
   'Unknown': '💻'
 };
 
-// Browser Icon mapping with simple emoji
+// Browser Icon mapping
 const BROWSER_ICONS: Record<string, string> = {
   'Chrome': '🌐',
   'Firefox': '🦊',
@@ -86,6 +93,191 @@ interface LinkWithStats {
   stats?: any;
 }
 
+// World Map Component
+const WorldMap = ({ data }: { data: any[] }) => {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  const maxValue = data.length > 0 ? Math.max(...data.map(d => d.value)) : 1;
+  
+  const colorScale = scaleQuantize<string>()
+    .domain([0, maxValue])
+    .range([
+      "#E8F5E9", "#C8E6C9", "#A5D6A7", "#81C784", "#66BB6A", 
+      "#4CAF50", "#43A047", "#388E3C", "#2E7D32", "#1B5E20"
+    ]);
+
+  const getCountryColor = (countryCode: string) => {
+    const country = data.find(d => d.code === countryCode);
+    if (!country || country.value === 0) return "#E8E8E8";
+    return colorScale(country.value);
+  };
+
+  const getCountryName = (countryCode: string) => {
+    const country = data.find(d => d.code === countryCode);
+    return country ? country.name : countryCode;
+  };
+
+  const getCountryClicks = (countryCode: string) => {
+    const country = data.find(d => d.code === countryCode);
+    return country ? country.value : 0;
+  };
+
+  // Country coordinates for markers
+  const coords: Record<string, [number, number]> = {
+    'US': [-100, 40],
+    'AF': [67, 33],
+    'GB': [-3, 55],
+    'CA': [-100, 55],
+    'AU': [134, -25],
+    'DE': [10, 51],
+    'FR': [2, 47],
+    'IN': [78, 20],
+    'JP': [138, 36],
+    'BR': [-55, -15],
+    'ZA': [25, -30],
+    'PK': [70, 30],
+    'NG': [8, 10],
+    'EG': [30, 26],
+    'SA': [45, 24],
+    'AE': [54, 24],
+    'TR': [35, 39],
+    'RU': [90, 60],
+    'CN': [105, 35],
+    'IT': [12, 42],
+    'ES': [-4, 40],
+    'NL': [5, 52],
+    'SE': [15, 60],
+    'NO': [10, 60],
+    'DK': [10, 56],
+    'FI': [25, 60],
+    'IE': [-8, 53],
+    'PT': [-8, 40],
+    'GR': [22, 38],
+    'PL': [19, 52],
+    'UA': [31, 49],
+    'RO': [25, 46],
+    'HU': [19, 47],
+    'AT': [14, 47],
+    'CH': [8, 47],
+    'BE': [4, 50],
+    'CZ': [15, 50],
+    'SK': [19, 49],
+    'SI': [15, 46],
+    'HR': [16, 45],
+    'RS': [21, 44],
+    'BG': [25, 43],
+  };
+
+  return (
+    <div className="relative w-full h-[300px] md:h-[350px] rounded-xl overflow-hidden bg-gradient-to-br from-secondary/20 to-background">
+      <ComposableMap
+        projectionConfig={{
+          scale: isMobile ? 80 : 120,
+          center: [0, 20]
+        }}
+        className="w-full h-full"
+      >
+        <ZoomableGroup zoom={1}>
+          <Geographies geography={geoUrl}>
+            {({ geographies }) =>
+              geographies.map((geo) => {
+                const countryCode = geo.id;
+                const color = getCountryColor(countryCode);
+                const countryName = getCountryName(countryCode);
+                const clicks = getCountryClicks(countryCode);
+                
+                return (
+                  <Geography
+                    key={geo.rsmKey}
+                    geography={geo}
+                    fill={color}
+                    stroke="#ffffff"
+                    strokeWidth={0.5}
+                    style={{
+                      default: {
+                        outline: "none",
+                        transition: "all 0.3s ease"
+                      },
+                      hover: {
+                        fill: "#4ADE80",
+                        outline: "none",
+                        cursor: "pointer",
+                        stroke: "#1FB07E",
+                        strokeWidth: 1.5
+                      },
+                      pressed: {
+                        outline: "none"
+                      }
+                    }}
+                  />
+                );
+              })
+            }
+          </Geographies>
+          {data.length > 0 && data.map((country) => {
+            const position = coords[country.code];
+            if (!position) return null;
+            
+            return (
+              <Marker key={country.code} coordinates={position}>
+                <circle
+                  r={Math.max(4, Math.min(12, country.value / maxValue * 10 + 3))}
+                  fill="#4ADE80"
+                  stroke="#1FB07E"
+                  strokeWidth={1.5}
+                  className="animate-pulse"
+                  style={{
+                    opacity: 0.8,
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease'
+                  }}
+                />
+                <circle
+                  r={Math.max(6, Math.min(16, country.value / maxValue * 14 + 4))}
+                  fill="#4ADE80"
+                  fillOpacity={0.2}
+                  stroke="none"
+                />
+              </Marker>
+            );
+          })}
+        </ZoomableGroup>
+      </ComposableMap>
+      
+      {data.length > 0 && (
+        <div className="absolute bottom-4 left-4 glass-card rounded-lg p-3">
+          <div className="flex items-center gap-2 text-xs">
+            <span className="text-muted-foreground">Low</span>
+            <div className="flex gap-0.5">
+              {['#E8F5E9', '#C8E6C9', '#A5D6A7', '#81C784', '#66BB6A', '#4CAF50', '#2E7D32'].map((color, i) => (
+                <div key={i} className="w-4 h-3 rounded" style={{ backgroundColor: color }} />
+              ))}
+            </div>
+            <span className="text-muted-foreground">High</span>
+          </div>
+        </div>
+      )}
+      
+      {data.length > 0 && (
+        <div className="absolute top-4 right-4 glass-card rounded-lg px-3 py-1.5">
+          <span className="text-xs font-medium text-foreground">
+            {data.length} Countries
+          </span>
+        </div>
+      )}
+    </div>
+  );
+};
+
 export default function Analytics() {
   const { user } = useAuth();
   const colors = useChartColors();
@@ -107,27 +299,26 @@ export default function Analytics() {
   const [progress, setProgress] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-      const processStatsData = useCallback((allStats: any[], total: number, humanTotal: number) => {
-        // Process daily clicks
-        const dailyMap: Record<string, number> = {};
-        const now = new Date();
-        let todayCount = 0;
+  const processStatsData = useCallback((allStats: any[], total: number, humanTotal: number) => {
+    // Process daily clicks
+    const dailyMap: Record<string, number> = {};
+    const now = new Date();
+    let todayCount = 0;
 
     allStats.forEach((stats) => {
-    if (stats.clicksByDate) {
-      Object.entries(stats.clicksByDate).forEach(([date, count]: [string, any]) => {
-        const countNum = typeof count === 'number' ? count : 0;
-        if (countNum > 0) {
-          try {
-            const formattedDate = format(new Date(date), 'yyyy-MM-dd');
-            dailyMap[formattedDate] = (dailyMap[formattedDate] || 0) + countNum;
-              // ✅ FIX: Check if this date is today
-            const clickDate = new Date(date);
-            const today = new Date();
-            if (clickDate.toDateString() === today.toDateString()) {
-              todayCount += countNum;
-            }
-          } catch (e) {
+      if (stats.clicksByDate) {
+        Object.entries(stats.clicksByDate).forEach(([date, count]: [string, any]) => {
+          const countNum = typeof count === 'number' ? count : 0;
+          if (countNum > 0) {
+            try {
+              const formattedDate = format(new Date(date), 'yyyy-MM-dd');
+              dailyMap[formattedDate] = (dailyMap[formattedDate] || 0) + countNum;
+              const clickDate = new Date(date);
+              const today = new Date();
+              if (clickDate.toDateString() === today.toDateString()) {
+                todayCount += countNum;
+              }
+            } catch (e) {
               // Skip invalid dates
             }
           }
@@ -136,29 +327,29 @@ export default function Analytics() {
     });
 
     if (Object.keys(dailyMap).length === 0 && total > 0) {
-    const todayStr = format(now, 'yyyy-MM-dd');
-    dailyMap[todayStr] = total;
-    todayCount = total; // All clicks are today
-  }
+      const todayStr = format(now, 'yyyy-MM-dd');
+      dailyMap[todayStr] = total;
+      todayCount = total;
+    }
 
-  const todayStr = format(now, 'yyyy-MM-dd');
-  if (dailyMap[todayStr] && todayCount === 0) {
-    todayCount = dailyMap[todayStr];
-  }
+    const todayStr = format(now, 'yyyy-MM-dd');
+    if (dailyMap[todayStr] && todayCount === 0) {
+      todayCount = dailyMap[todayStr];
+    }
 
     setClicksToday(todayCount);
 
     const days: { date: string; clicks: number; formattedDate: string }[] = [];
-  for (let i = 29; i >= 0; i--) {
-    const date = startOfDay(subDays(new Date(), i));
-    const label = format(date, "MMM d");
-    const dateStr = format(date, "yyyy-MM-dd");
-    days.push({
-      date: label,
-      formattedDate: dateStr,
-      clicks: dailyMap[dateStr] || 0,
-    });
-  }
+    for (let i = 29; i >= 0; i--) {
+      const date = startOfDay(subDays(new Date(), i));
+      const label = format(date, "MMM d");
+      const dateStr = format(date, "yyyy-MM-dd");
+      days.push({
+        date: label,
+        formattedDate: dateStr,
+        clicks: dailyMap[dateStr] || 0,
+      });
+    }
     setDailyClicksData(days);
 
     // Process device data
@@ -569,7 +760,7 @@ export default function Analytics() {
         </div>
       )}
 
-      {/* Stats Cards - 2 per row on mobile, 3 per row on tablet, 6 per row on desktop */}
+      {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {stats.map((stat, i) => (
           <motion.div
@@ -712,141 +903,139 @@ export default function Analytics() {
             )}
           </div>
 
-          {/* Countries, Browsers, OS, Referrers - 2 per row */}
-          <div className="grid md:grid-cols-2 gap-6">
-            {/* Countries with Flags */}
-            {countryData.length > 0 && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-6">
-                <h3 className="font-heading font-semibold text-foreground mb-4 text-lg flex items-center gap-2">
+          {/* Countries with Map */}
+          {countryData.length > 0 && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-heading font-semibold text-foreground text-lg flex items-center gap-2">
                   <Globe className="w-5 h-5 text-success" />
-                  Top Countries
+                  Global Reach
                 </h3>
-                <div className="space-y-3">
-                  {countryData.slice(0, 6).map((country) => {
-                    const maxVal = countryData[0]?.value || 1;
-                    const pct = Math.round((country.value / maxVal) * 100);
-                    return (
-                      <div key={country.name}>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span className="text-foreground flex items-center gap-2">
-                            <span className="text-xl">{getFlagEmoji(country.code || '')}</span>
-                            <span className="font-medium">{country.name}</span>
-                          </span>
-                          <span className="font-mono text-muted-foreground">{country.value.toLocaleString()}</span>
-                        </div>
-                        <div className="h-2 rounded-full bg-secondary overflow-hidden">
-                          <div
-                            className="h-full rounded-full transition-all"
-                            style={{ width: `${pct}%`, backgroundColor: colors.primary }}
-                          />
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                          <MapPin className="w-3 h-3" />
-                          {country.value} clicks from {country.name}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </motion.div>
-            )}
+                <span className="text-sm font-normal text-muted-foreground">
+                  {countryData.reduce((sum, c) => sum + c.value, 0)} total clicks
+                </span>
+              </div>
+              
+              {/* World Map */}
+              <WorldMap data={countryData} />
+              
+              {/* Country List with Flags */}
+              <div className="mt-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                {countryData.slice(0, 8).map((country) => {
+                  return (
+                    <div 
+                      key={country.name} 
+                      className="flex items-center justify-between p-2 rounded-lg hover:bg-secondary/10 transition-colors border border-transparent hover:border-border/50"
+                    >
+                      <span className="text-foreground flex items-center gap-2 text-sm">
+                        <span className="text-xl w-8 text-center">{getFlagEmoji(country.code || '')}</span>
+                        <span className="font-medium truncate max-w-[100px]">{country.name}</span>
+                      </span>
+                      <span className="font-mono text-sm font-semibold text-primary">
+                        {country.value.toLocaleString()}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </motion.div>
+          )}
 
-            {/* Browsers */}
-            {browserData.length > 0 && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-6">
-                <h3 className="font-heading font-semibold text-foreground mb-4 text-lg flex items-center gap-2">
-                  <Monitor className="w-5 h-5 text-info" />
-                  Top Browsers
-                </h3>
-                <div className="space-y-3">
-                  {browserData.slice(0, 6).map((b) => {
-                    const maxVal = browserData[0]?.value || 1;
-                    const pct = Math.round((b.value / maxVal) * 100);
-                    return (
-                      <div key={b.name}>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span className="text-foreground flex items-center gap-2">
-                            <span className="text-xl">{b.icon || '🌐'}</span>
-                            <span className="font-medium">{b.name}</span>
-                          </span>
-                          <span className="font-mono text-muted-foreground">{b.value.toLocaleString()}</span>
-                        </div>
-                        <div className="h-2 rounded-full bg-secondary overflow-hidden">
-                          <div
-                            className="h-full rounded-full transition-all"
-                            style={{ width: `${pct}%`, backgroundColor: colors.secondary }}
-                          />
-                        </div>
+          {/* Browsers */}
+          {browserData.length > 0 && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-6">
+              <h3 className="font-heading font-semibold text-foreground mb-4 text-lg flex items-center gap-2">
+                <Monitor className="w-5 h-5 text-info" />
+                Top Browsers
+              </h3>
+              <div className="space-y-3">
+                {browserData.slice(0, 6).map((b) => {
+                  const maxVal = browserData[0]?.value || 1;
+                  const pct = Math.round((b.value / maxVal) * 100);
+                  return (
+                    <div key={b.name}>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="text-foreground flex items-center gap-2">
+                          <span className="text-xl">{b.icon || '🌐'}</span>
+                          <span className="font-medium">{b.name}</span>
+                        </span>
+                        <span className="font-mono text-muted-foreground">{b.value.toLocaleString()}</span>
                       </div>
-                    );
-                  })}
-                </div>
-              </motion.div>
-            )}
+                      <div className="h-2 rounded-full bg-secondary overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{ width: `${pct}%`, backgroundColor: colors.secondary }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </motion.div>
+          )}
 
-            {/* OS */}
-            {osData.length > 0 && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-6">
-                <h3 className="font-heading font-semibold text-foreground mb-4 text-lg flex items-center gap-2">
-                  <Monitor className="w-5 h-5 text-accent" />
-                  Operating Systems
-                </h3>
-                <div className="space-y-3">
-                  {osData.slice(0, 6).map((o) => {
-                    const maxVal = osData[0]?.value || 1;
-                    const pct = Math.round((o.value / maxVal) * 100);
-                    return (
-                      <div key={o.name}>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span className="text-foreground flex items-center gap-2">
-                            <span className="text-xl">{o.icon || '💻'}</span>
-                            <span className="font-medium">{o.name}</span>
-                          </span>
-                          <span className="font-mono text-muted-foreground">{o.value.toLocaleString()}</span>
-                        </div>
-                        <div className="h-2 rounded-full bg-secondary overflow-hidden">
-                          <div
-                            className="h-full rounded-full transition-all"
-                            style={{ width: `${pct}%`, backgroundColor: colors.accent }}
-                          />
-                        </div>
+          {/* OS */}
+          {osData.length > 0 && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-6">
+              <h3 className="font-heading font-semibold text-foreground mb-4 text-lg flex items-center gap-2">
+                <Monitor className="w-5 h-5 text-accent" />
+                Operating Systems
+              </h3>
+              <div className="space-y-3">
+                {osData.slice(0, 6).map((o) => {
+                  const maxVal = osData[0]?.value || 1;
+                  const pct = Math.round((o.value / maxVal) * 100);
+                  return (
+                    <div key={o.name}>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="text-foreground flex items-center gap-2">
+                          <span className="text-xl">{o.icon || '💻'}</span>
+                          <span className="font-medium">{o.name}</span>
+                        </span>
+                        <span className="font-mono text-muted-foreground">{o.value.toLocaleString()}</span>
                       </div>
-                    );
-                  })}
-                </div>
-              </motion.div>
-            )}
+                      <div className="h-2 rounded-full bg-secondary overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{ width: `${pct}%`, backgroundColor: colors.accent }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </motion.div>
+          )}
 
-            {/* Referrers */}
-            {referrerData.length > 0 && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-6">
-                <h3 className="font-heading font-semibold text-foreground mb-4 text-lg flex items-center gap-2">
-                  <Link2 className="w-5 h-5 text-success" />
-                  Top Referrers
-                </h3>
-                <div className="space-y-3">
-                  {referrerData.slice(0, 6).map((r) => {
-                    const maxVal = referrerData[0]?.value || 1;
-                    const pct = Math.round((r.value / maxVal) * 100);
-                    return (
-                      <div key={r.name}>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span className="text-foreground truncate font-medium">{r.name || "Direct"}</span>
-                          <span className="font-mono text-muted-foreground">{r.value.toLocaleString()}</span>
-                        </div>
-                        <div className="h-2 rounded-full bg-secondary overflow-hidden">
-                          <div
-                            className="h-full rounded-full transition-all"
-                            style={{ width: `${pct}%`, backgroundColor: colors.success }}
-                          />
-                        </div>
+          {/* Referrers */}
+          {referrerData.length > 0 && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-6">
+              <h3 className="font-heading font-semibold text-foreground mb-4 text-lg flex items-center gap-2">
+                <Link2 className="w-5 h-5 text-success" />
+                Top Referrers
+              </h3>
+              <div className="space-y-3">
+                {referrerData.slice(0, 6).map((r) => {
+                  const maxVal = referrerData[0]?.value || 1;
+                  const pct = Math.round((r.value / maxVal) * 100);
+                  return (
+                    <div key={r.name}>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="text-foreground truncate font-medium">{r.name || "Direct"}</span>
+                        <span className="font-mono text-muted-foreground">{r.value.toLocaleString()}</span>
                       </div>
-                    );
-                  })}
-                </div>
-              </motion.div>
-            )}
-          </div>
+                      <div className="h-2 rounded-full bg-secondary overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{ width: `${pct}%`, backgroundColor: colors.success }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </motion.div>
+          )}
 
           {/* Recent Activity */}
           {recentClicks.length > 0 && (
