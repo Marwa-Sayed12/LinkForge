@@ -136,7 +136,7 @@ const WorldMap = ({ data }: { data: any[] }) => {
   const getCountryColor = (countryCode: string) => {
     const country = data.find(d => d.code === countryCode);
     if (!country || country.value === 0) {
-      return isDark ? "#dfe7e6" : "#adb2b2";
+      return isDark ? "#dfe7e6" : "#d4e1e1";
     }
     return colorScale(country.value);
   };

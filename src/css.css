@@ -17,7 +17,7 @@
 
 /* Map size variations for different screen sizes */
 .map-container {
-  height: 270px; /* Mobile default - BIGGER */
+  height: 250px; /* Mobile default - BIGGER */
 }
 
 @media (min-width: 768px) {
@@ -315,7 +315,6 @@
 .map-zoom-controls {
   position: absolute;
   top: 16px;
-  right: 80px;
   display: flex;
   flex-direction: column;
   gap: 4px;
