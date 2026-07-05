@@ -185,8 +185,9 @@ const WorldMap = ({ data }: { data: any[] }) => {
   };
 
   return (
-    <div className="background relative w-full h-[300px] md:h-[400px] lg:h-[500px] rounded-xl overflow-hidden bg-gradient-to-br from-secondary/30 to-background border border-border/50">
-  
+    <div className={`map-container ${isDark ? 'map-container-dark' : 'map-container-light'}`}>
+        <div className="map-overlay" />
+
       <ComposableMap
         projectionConfig={{
           scale: isMobile ? 60 : 100,
@@ -268,12 +269,32 @@ const WorldMap = ({ data }: { data: any[] }) => {
       </ComposableMap>
       
       
+      {/* Legend */}
+      {data.length > 0 && (
+        <div className="map-legend">
+          <div className="flex items-center gap-2">
+            <span className="legend-text">Low</span>
+            <div className="legend-colors">
+              {(isDark ? colors.mapColors.dark : colors.mapColors.light).slice(0, 7).map((color, i) => (
+                <div key={i} className="legend-color-bar" style={{ backgroundColor: color }} />
+              ))}
+            </div>
+            <span className="legend-text">High</span>
+          </div>
+        </div>
+      )}
+      
       {/* Country count badge */}
       {data.length > 0 && (
-        <div className="absolute top-3 right-3 glass-card rounded-lg px-3 py-1.5 border border-border/50">
-          <span className="text-[10px] md:text-xs font-medium text-foreground">
-            {data.length} {data.length === 1 ? 'Country' : 'Countries'}
-          </span>
+        <div className="map-badge">
+          <span className="map-badge-text">🌍 {data.length} {data.length === 1 ? 'Country' : 'Countries'}</span>
+        </div>
+      )}
+
+      {/* Watermark */}
+      {data.length > 0 && (
+        <div className="map-watermark">
+          <span className="map-watermark-text">LinkForge Analytics</span>
         </div>
       )}
     </div>
@@ -907,41 +928,39 @@ export default function Analytics() {
 
           {/* Countries with Map - IMPROVED VISIBILITY */}
           {countryData.length > 0 && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-2">
-                <h3 className="font-heading font-semibold text-foreground text-lg flex items-center gap-2">
-                  <Globe className="w-5 h-5 text-success" />
-                  Global Reach
-                </h3>
-                <span className="text-sm font-normal text-muted-foreground">
-                  {countryData.reduce((sum, c) => sum + c.value, 0)} total clicks
-                </span>
-              </div>
-              
-              {/* World Map */}
-              <WorldMap data={countryData} />
-              
-              {/* Country List with Flags - IMPROVED VISIBILITY */}
-              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                {countryData.slice(0, 8).map((country) => {
-                  return (
-                    <div 
-                      key={country.name} 
-                      className="flex items-center justify-between p-3 rounded-lg bg-secondary/20 hover:bg-secondary/40 transition-all duration-200 border border-border/50 hover:border-primary/30"
-                    >
-                      <span className="text-foreground flex items-center gap-3 text-sm">
-                        <span className="text-2xl w-8 text-center flex-shrink-0">{getFlagEmoji(country.code || '')}</span>
-                        <span className="font-medium truncate max-w-[80px] sm:max-w-[100px]">{country.name}</span>
-                      </span>
-                      <span className="font-mono text-sm font-semibold text-primary bg-primary/10 px-2 py-1 rounded-md">
-                        {country.value.toLocaleString()}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </motion.div>
-          )}
+  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-6">
+    <div className="section-header">
+      <h3 className="section-title">
+        <Globe className="w-5 h-5 text-success" />
+        Global Reach
+      </h3>
+      <span className="section-subtitle">
+        {countryData.reduce((sum, c) => sum + c.value, 0)} total clicks
+      </span>
+    </div>
+    
+    {/* World Map */}
+    <WorldMap data={countryData} />
+    
+    {/* Country List with Flags */}
+    <div className="country-grid">
+      {countryData.slice(0, 8).map((country) => {
+        return (
+          <div 
+            key={country.name} 
+            className="country-card"
+          >
+            <div className="flex items-center min-w-0">
+              <span className="country-flag">{getFlagEmoji(country.code || '')}</span>
+              <span className="country-name">{country.name}</span>
+            </div>
+            <span className="country-clicks">{country.value.toLocaleString()}</span>
+          </div>
+        );
+      })}
+    </div>
+  </motion.div>
+)}
 
           {/* Browsers */}
           {browserData.length > 0 && (
