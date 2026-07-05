@@ -116,7 +116,7 @@ background-image: linear-gradient(-225deg, #E3FDF5 0%, #eee6ff 100%);
   position: absolute;
   top: 12px;
   right: 12px;
-  background: rgba(255, 255, 255, 0.8);
+  background-image: linear-gradient(to right, #a8caba 0%, #302638 100%);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   border-radius: 8px;
@@ -126,7 +126,7 @@ background-image: linear-gradient(-225deg, #E3FDF5 0%, #eee6ff 100%);
 }
 
 .dark .map-badge {
-  background: rgba(30, 30, 60, 0.8);
+  background-image: linear-gradient(to right, #a4a5a5 0%, #45455a 100%);
   border-color: rgba(255, 255, 255, 0.1);
 }
 
