@@ -101,7 +101,7 @@ interface LinkWithStats {
 // World Map Component
 const WorldMap = ({ data }: { data: any[] }) => {
   const [isMobile, setIsMobile] = useState(false);
-    const [zoom, setZoom] = useState(1.4);
+    const [zoom, setZoom] = useState(1.2);
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
   const colors = useChartColors();
@@ -222,7 +222,7 @@ const WorldMap = ({ data }: { data: any[] }) => {
                     key={geo.rsmKey}
                     geography={geo}
                     fill={color}
-                    stroke={isDark ? "#b5b5b7" : "#d6d3e4"}
+                    stroke={isDark ? "#b2b9b8" : "#d6d3e4"}
                     strokeWidth={1.2}
                     style={{
                       default: {

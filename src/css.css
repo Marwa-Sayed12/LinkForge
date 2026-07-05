@@ -17,7 +17,7 @@
 
 /* Map size variations for different screen sizes */
 .map-container {
-  height: 250px; /* Mobile default - BIGGER */
+  height: 220px; /* Mobile default - BIGGER */
 }
 
 @media (min-width: 768px) {
