@@ -101,7 +101,7 @@ interface LinkWithStats {
 // World Map Component
 const WorldMap = ({ data }: { data: any[] }) => {
   const [isMobile, setIsMobile] = useState(false);
-    const [zoom, setZoom] = useState(2);
+    const [zoom, setZoom] = useState(1.4);
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
   const colors = useChartColors();
@@ -136,7 +136,7 @@ const WorldMap = ({ data }: { data: any[] }) => {
   const getCountryColor = (countryCode: string) => {
     const country = data.find(d => d.code === countryCode);
     if (!country || country.value === 0) {
-      return isDark ? "#dfe7e6" : "#96a1a1";
+      return isDark ? "#b9c1c0" : "#96a1a1";
     }
     return colorScale(country.value);
   };
