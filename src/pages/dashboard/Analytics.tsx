@@ -222,7 +222,7 @@ const WorldMap = ({ data }: { data: any[] }) => {
                     key={geo.rsmKey}
                     geography={geo}
                     fill={color}
-                    stroke={isDark ? "#bfd5d2" : "#cbd1d0"}
+                    stroke={isDark ? "#bfd5d2" : "#a6aeac"}
                     strokeWidth={1.2}
                     style={{
                       default: {
