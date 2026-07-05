@@ -1,0 +1,419 @@
+/* src/pages/dashboard/Analytics.css */
+
+/* ============================================
+   MAP CONTAINER STYLES
+   ============================================ */
+
+/* Main map container - controls size and background */
+.map-container {
+  position: relative;
+  width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  transition: all 0.3s ease;
+}
+
+/* Map size variations for different screen sizes */
+.map-container {
+  height: 300px; /* Mobile default */
+}
+
+@media (min-width: 768px) {
+  .map-container {
+    height: 400px; /* Tablet */
+  }
+}
+
+@media (min-width: 1024px) {
+  .map-container {
+    height: 500px; /* Desktop */
+  }
+}
+
+/* Light theme background */
+.map-container-light {
+  background: linear-gradient(135deg, #e8f0fe 0%, #d4e4f7 30%, #c5d9f2 60%, #b8cfe8 100%);
+  box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.05);
+}
+
+/* Dark theme background */
+.map-container-dark {
+  background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 30%, #16213e 60%, #0f3460 100%);
+  box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.5);
+}
+
+/* Gradient overlay for better visibility */
+.map-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.05) 0%, transparent 30%, transparent 100%);
+}
+
+/* ============================================
+   MAP LEGEND STYLES
+   ============================================ */
+
+/* Legend container - bottom left corner */
+.map-legend {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 8px;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Dark theme legend */
+.dark .map-legend {
+  background: rgba(30, 30, 60, 0.8);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Legend text */
+.legend-text {
+  font-size: 10px;
+  font-weight: 500;
+  color: #6B7280;
+}
+
+.dark .legend-text {
+  color: #9CA3AF;
+}
+
+/* Legend color bars */
+.legend-colors {
+  display: flex;
+  gap: 2px;
+}
+
+.legend-color-bar {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+}
+
+@media (min-width: 768px) {
+  .legend-color-bar {
+    width: 16px;
+    height: 12px;
+  }
+  .legend-text {
+    font-size: 12px;
+  }
+}
+
+/* ============================================
+   COUNTRY BADGE STYLES (Top Right)
+   ============================================ */
+
+.map-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 8px;
+  padding: 6px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.dark .map-badge {
+  background: rgba(30, 30, 60, 0.8);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.map-badge-text {
+  font-size: 10px;
+  font-weight: 500;
+  color: #1F2937;
+}
+
+.dark .map-badge-text {
+  color: #F9FAFB;
+}
+
+@media (min-width: 768px) {
+  .map-badge-text {
+    font-size: 12px;
+  }
+}
+
+/* ============================================
+   WATERMARK STYLES
+   ============================================ */
+
+.map-watermark {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  opacity: 0.3;
+}
+
+.map-watermark-text {
+  font-size: 8px;
+  font-family: monospace;
+  color: #6B7280;
+}
+
+.dark .map-watermark-text {
+  color: #9CA3AF;
+}
+
+@media (min-width: 768px) {
+  .map-watermark-text {
+    font-size: 10px;
+  }
+}
+
+/* ============================================
+   COUNTRY LIST CARD STYLES
+   ============================================ */
+
+/* Individual country card */
+.country-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.03);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
+}
+
+.dark .country-card {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Country card hover effect */
+.country-card:hover {
+  background: rgba(0, 0, 0, 0.06);
+  border-color: rgba(31, 176, 126, 0.3);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.dark .country-card:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(74, 222, 128, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* Country flag styling */
+.country-flag {
+  font-size: 24px;
+  width: 32px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+/* Country name styling */
+.country-name {
+  font-weight: 500;
+  color: #1F2937;
+  font-size: 14px;
+  margin-left: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 80px;
+}
+
+.dark .country-name {
+  color: #F9FAFB;
+}
+
+@media (min-width: 640px) {
+  .country-name {
+    max-width: 100px;
+  }
+}
+
+/* Click count badge */
+.country-clicks {
+  font-family: monospace;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1FB07E;
+  background: rgba(31, 176, 126, 0.1);
+  padding: 4px 8px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.dark .country-clicks {
+  color: #4ADE80;
+  background: rgba(74, 222, 128, 0.15);
+}
+
+/* ============================================
+   COUNTRY GRID LAYOUT
+   ============================================ */
+
+.country-grid {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+/* Responsive grid columns */
+.country-grid {
+  grid-template-columns: 1fr; /* 1 column on mobile */
+}
+
+@media (min-width: 640px) {
+  .country-grid {
+    grid-template-columns: repeat(2, 1fr); /* 2 columns on small tablets */
+  }
+}
+
+@media (min-width: 768px) {
+  .country-grid {
+    grid-template-columns: repeat(3, 1fr); /* 3 columns on tablets */
+  }
+}
+
+@media (min-width: 1024px) {
+  .country-grid {
+    grid-template-columns: repeat(4, 1fr); /* 4 columns on desktop */
+  }
+}
+
+/* ============================================
+   SECTION HEADER STYLES
+   ============================================ */
+
+.section-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+@media (min-width: 640px) {
+  .section-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.section-title {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  color: #1F2937;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dark .section-title {
+  color: #F9FAFB;
+}
+
+.section-subtitle {
+  font-size: 14px;
+  font-weight: 400;
+  color: #6B7280;
+}
+
+.dark .section-subtitle {
+  color: #9CA3AF;
+}
+
+/* ============================================
+   RESPONSIVE MAP SCALE
+   ============================================ */
+
+/* Map SVG container */
+.map-svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* ============================================
+   ANIMATIONS
+   ============================================ */
+
+/* Pulsing animation for markers */
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.map-marker-pulse {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+/* Ping animation for marker rings */
+@keyframes ping {
+  0% {
+    transform: scale(1);
+    opacity: 0.3;
+  }
+  100% {
+    transform: scale(2.5);
+    opacity: 0;
+  }
+}
+
+.map-marker-ping {
+  animation: ping 2s ease-in-out infinite;
+}
+
+/* ============================================
+   GLASS CARD OVERRIDES FOR MAP
+   ============================================ */
+
+.map-glass-card {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+}
+
+.dark .map-glass-card {
+  background: rgba(30, 30, 60, 0.7);
+  border-color: rgba(255, 255, 255, 0.05);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+/* ============================================
+   RESPONSIVE FONT SIZES
+   ============================================ */
+
+@media (max-width: 640px) {
+  .country-flag {
+    font-size: 20px;
+    width: 28px;
+  }
+  .country-name {
+    font-size: 12px;
+    max-width: 60px;
+  }
+  .country-clicks {
+    font-size: 12px;
+    padding: 2px 6px;
+  }
+}

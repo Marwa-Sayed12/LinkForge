@@ -8,6 +8,7 @@ import {
   Smartphone, Laptop, Tablet, Chrome, 
   ChevronRight, Calendar, Eye, Target, PieChart as PieChartIcon
 } from "lucide-react";
+import '../../css.css';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell,
@@ -184,7 +185,8 @@ const WorldMap = ({ data }: { data: any[] }) => {
   };
 
   return (
-    <div className="relative w-full h-[250px] md:h-[300px] lg:h-[350px] rounded-xl overflow-hidden bg-gradient-to-br from-secondary/30 to-background border border-border/50">
+    <div className="background relative w-full h-[300px] md:h-[400px] lg:h-[500px] rounded-xl overflow-hidden bg-gradient-to-br from-secondary/30 to-background border border-border/50">
+  
       <ComposableMap
         projectionConfig={{
           scale: isMobile ? 60 : 100,
@@ -265,20 +267,6 @@ const WorldMap = ({ data }: { data: any[] }) => {
         </ZoomableGroup>
       </ComposableMap>
       
-      {/* Legend */}
-      {data.length > 0 && (
-        <div className="absolute bottom-3 left-3 glass-card rounded-lg px-3 py-2 border border-border/50">
-          <div className="flex items-center gap-2 text-xs">
-            <span className="text-muted-foreground text-[10px] md:text-xs">Low</span>
-            <div className="flex gap-0.5">
-              {(isDark ? colors.mapColors.dark : colors.mapColors.light).slice(0, 7).map((color, i) => (
-                <div key={i} className="w-3 h-3 md:w-4 md:h-3 rounded-sm" style={{ backgroundColor: color }} />
-              ))}
-            </div>
-            <span className="text-muted-foreground text-[10px] md:text-xs">High</span>
-          </div>
-        </div>
-      )}
       
       {/* Country count badge */}
       {data.length > 0 && (
@@ -893,7 +881,7 @@ export default function Analytics() {
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-6">
                 <h3 className="font-heading font-semibold text-foreground mb-4 text-lg flex items-center gap-2">
                   <PieChartIcon className="w-5 h-5 text-info" />
-                  Device Distribution
+                  Device Distribution 
                 </h3>
                 <ResponsiveContainer width="100%" height={240}>
                   <PieChart>
