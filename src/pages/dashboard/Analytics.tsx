@@ -101,6 +101,7 @@ interface LinkWithStats {
 // World Map Component
 const WorldMap = ({ data }: { data: any[] }) => {
   const [isMobile, setIsMobile] = useState(false);
+    const [zoom, setZoom] = useState(1);
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
   const colors = useChartColors();
@@ -114,6 +115,18 @@ const WorldMap = ({ data }: { data: any[] }) => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  const handleZoomIn = () => {
+    setZoom(prev => Math.min(prev + 0.2, 2.5));
+  };
+
+  const handleZoomOut = () => {
+    setZoom(prev => Math.max(prev - 0.2, 0.5));
+  };
+
+  const handleZoomReset = () => {
+    setZoom(1);
+  };
+
   const maxValue = data.length > 0 ? Math.max(...data.map(d => d.value)) : 1;
   
   const colorScale = scaleQuantize<string>()
@@ -123,7 +136,7 @@ const WorldMap = ({ data }: { data: any[] }) => {
   const getCountryColor = (countryCode: string) => {
     const country = data.find(d => d.code === countryCode);
     if (!country || country.value === 0) {
-      return isDark ? "#2D3039" : "#E8E8E8";
+      return isDark ? "#dfe7e6" : "#adb2b2";
     }
     return colorScale(country.value);
   };
@@ -267,6 +280,47 @@ const WorldMap = ({ data }: { data: any[] }) => {
           })}
         </ZoomableGroup>
       </ComposableMap>
+
+      {/* ============================================
+          ZOOM CONTROLS - ADDED HERE
+          ============================================ */}
+      <div className="map-zoom-controls">
+        <button 
+          className="map-zoom-btn" 
+          onClick={handleZoomIn}
+          aria-label="Zoom in"
+          title="Zoom in"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="8"/>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            <line x1="11" y1="8" x2="11" y2="14"/>
+            <line x1="8" y1="11" x2="14" y2="11"/>
+          </svg>
+        </button>
+        <button 
+          className="map-zoom-btn" 
+          onClick={handleZoomOut}
+          aria-label="Zoom out"
+          title="Zoom out"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="8"/>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            <line x1="8" y1="11" x2="14" y2="11"/>
+          </svg>
+        </button>
+        <button 
+          className="map-zoom-btn map-zoom-reset" 
+          onClick={handleZoomReset}
+          aria-label="Reset zoom"
+          title="Reset zoom"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 12a9 9 0 1 0 9-9m0 0v6m0-6h-6"/>
+          </svg>
+        </button>
+      </div>
       
       
       {/* Legend */}
