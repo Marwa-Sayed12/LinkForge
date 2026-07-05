@@ -136,7 +136,7 @@ const WorldMap = ({ data }: { data: any[] }) => {
   const getCountryColor = (countryCode: string) => {
     const country = data.find(d => d.code === countryCode);
     if (!country || country.value === 0) {
-      return isDark ? "#b9c1c0" : "#96a1a1";
+      return isDark ? "#8fa6a3" : "#cfe2e0";
     }
     return colorScale(country.value);
   };
@@ -222,7 +222,7 @@ const WorldMap = ({ data }: { data: any[] }) => {
                     key={geo.rsmKey}
                     geography={geo}
                     fill={color}
-                    stroke={isDark ? "#b2b9b8" : "#d6d3e4"}
+                    stroke={isDark ? "#bfd5d2" : "#cbd1d0"}
                     strokeWidth={1.2}
                     style={{
                       default: {
