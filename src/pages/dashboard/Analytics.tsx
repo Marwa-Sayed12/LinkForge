@@ -203,12 +203,12 @@ const WorldMap = ({ data }: { data: any[] }) => {
 
       <ComposableMap
         projectionConfig={{
-          scale: isMobile ? 60 : 100,
+          scale: isMobile ? 60 * zoom : 100 * zoom,  // ← Add zoom here
           center: [0, 20]
         }}
         className="w-full h-full"
       >
-        <ZoomableGroup zoom={1}>
+      <ZoomableGroup zoom={zoom}>
           <Geographies geography={geoUrl}>
             {({ geographies }) =>
               geographies.map((geo) => {
@@ -222,7 +222,7 @@ const WorldMap = ({ data }: { data: any[] }) => {
                     key={geo.rsmKey}
                     geography={geo}
                     fill={color}
-                    stroke={isDark ? "#1A1A2E" : "#FFFFFF"}
+                    stroke={isDark ? "#b5b5b7" : "#d6d3e4"}
                     strokeWidth={1.2}
                     style={{
                       default: {
@@ -340,7 +340,7 @@ const WorldMap = ({ data }: { data: any[] }) => {
       
       {/* Country count badge */}
       {data.length > 0 && (
-        <div className="map-badge">
+        <div className="map-badge absolute top-3 left-3 glass-card rounded-lg px-3 py-1.5 border border-border/50">
           <span className="map-badge-text">🌍 {data.length} {data.length === 1 ? 'Country' : 'Countries'}</span>
         </div>
       )}
