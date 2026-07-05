@@ -315,6 +315,7 @@
 .map-zoom-controls {
   position: absolute;
   top: 16px;
+  right: 20px;
   display: flex;
   flex-direction: column;
   gap: 4px;
