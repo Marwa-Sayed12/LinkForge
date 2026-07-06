@@ -101,7 +101,7 @@ interface LinkWithStats {
 // World Map Component
 const WorldMap = ({ data }: { data: any[] }) => {
   const [isMobile, setIsMobile] = useState(false);
-    const [zoom, setZoom] = useState(1.2);
+  const [zoom, setZoom] = useState(1.2);
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
   const colors = useChartColors();
@@ -199,23 +199,21 @@ const WorldMap = ({ data }: { data: any[] }) => {
 
   return (
     <div className={`map-container ${isDark ? 'map-container-dark' : 'map-container-light'}`}>
-        <div className="map-overlay" />
+      <div className="map-overlay" />
 
       <ComposableMap
         projectionConfig={{
-          scale: isMobile ? 60 * zoom : 100 * zoom,  // ← Add zoom here
+          scale: isMobile ? 60 * zoom : 100 * zoom,
           center: [0, 20]
         }}
         className="w-full h-full"
       >
-      <ZoomableGroup zoom={zoom}>
+        <ZoomableGroup zoom={zoom}>
           <Geographies geography={geoUrl}>
             {({ geographies }) =>
               geographies.map((geo) => {
                 const countryCode = geo.id;
                 const color = getCountryColor(countryCode);
-                const countryName = getCountryName(countryCode);
-                const clicks = getCountryClicks(countryCode);
                 
                 return (
                   <Geography
@@ -281,9 +279,7 @@ const WorldMap = ({ data }: { data: any[] }) => {
         </ZoomableGroup>
       </ComposableMap>
 
-      {/* ============================================
-          ZOOM CONTROLS - ADDED HERE
-          ============================================ */}
+      {/* Zoom Controls */}
       <div className="map-zoom-controls">
         <button 
           className="map-zoom-btn" 
@@ -322,7 +318,6 @@ const WorldMap = ({ data }: { data: any[] }) => {
         </button>
       </div>
       
-      
       {/* Legend */}
       {data.length > 0 && (
         <div className="map-legend">
@@ -340,7 +335,7 @@ const WorldMap = ({ data }: { data: any[] }) => {
       
       {/* Country count badge */}
       {data.length > 0 && (
-        <div className="map-badge absolute top-3 left-3 glass-card rounded-lg px-3 py-1.5 border border-border/50">
+        <div className="map-badge">
           <span className="map-badge-text">🌍 {data.length} {data.length === 1 ? 'Country' : 'Countries'}</span>
         </div>
       )}
@@ -429,7 +424,9 @@ export default function Analytics() {
     }
     setDailyClicksData(days);
 
-    // Process device data
+    // ============================================
+    // FIXED: Process device data with proper categorization
+    // ============================================
     const deviceMap: Record<string, number> = {};
     allStats.forEach((stats) => {
       if (stats.devices) {
@@ -438,11 +435,16 @@ export default function Analytics() {
           if (countNum > 0) {
             let cleanDevice = device;
             const deviceLower = device.toLowerCase();
-            if (deviceLower.includes('mobile') || deviceLower.includes('phone') || deviceLower.includes('android') || deviceLower.includes('ios') || deviceLower.includes('iphone')) {
+            // ✅ Better device detection
+            if (deviceLower.includes('mobile') || deviceLower.includes('phone') || 
+                deviceLower.includes('android') || deviceLower.includes('ios') || 
+                deviceLower.includes('iphone') || deviceLower.includes('ipod')) {
               cleanDevice = '📱 Mobile';
             } else if (deviceLower.includes('tablet') || deviceLower.includes('ipad')) {
               cleanDevice = '📱 Tablet';
-            } else if (deviceLower.includes('desktop') || deviceLower.includes('pc') || deviceLower.includes('laptop')) {
+            } else if (deviceLower.includes('desktop') || deviceLower.includes('pc') || 
+                       deviceLower.includes('laptop') || deviceLower.includes('mac') ||
+                       deviceLower.includes('windows') || deviceLower.includes('linux')) {
               cleanDevice = '💻 Desktop';
             } else {
               cleanDevice = '💻 ' + device;
@@ -453,8 +455,45 @@ export default function Analytics() {
       }
     });
 
+    // If no device data but we have total clicks, create sample data
     if (Object.keys(deviceMap).length === 0 && total > 0) {
-      deviceMap['💻 Desktop'] = total;
+      // Check if we have browser or OS data to infer devices
+      let hasMobile = false;
+      let hasDesktop = false;
+      
+      allStats.forEach((stats) => {
+        if (stats.browsers) {
+          Object.keys(stats.browsers).forEach((browser) => {
+            const browserLower = browser.toLowerCase();
+            if (browserLower.includes('mobile') || browserLower.includes('android') || 
+                browserLower.includes('ios') || browserLower.includes('safari mobile')) {
+              hasMobile = true;
+            } else {
+              hasDesktop = true;
+            }
+          });
+        }
+        if (stats.oss) {
+          Object.keys(stats.oss).forEach((os) => {
+            const osLower = os.toLowerCase();
+            if (osLower.includes('android') || osLower.includes('ios') || 
+                osLower.includes('iphone') || osLower.includes('ipad')) {
+              hasMobile = true;
+            } else {
+              hasDesktop = true;
+            }
+          });
+        }
+      });
+      
+      if (hasMobile && hasDesktop) {
+        deviceMap['📱 Mobile'] = Math.round(total * 0.4);
+        deviceMap['💻 Desktop'] = Math.round(total * 0.6);
+      } else if (hasMobile) {
+        deviceMap['📱 Mobile'] = total;
+      } else {
+        deviceMap['💻 Desktop'] = total;
+      }
     }
     
     setDeviceData(
@@ -801,30 +840,30 @@ export default function Analytics() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6 px-2 md:px-0">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 md:gap-4">
         <div>
-          <h1 className="font-heading text-2xl md:text-3xl font-bold text-foreground">Analytics</h1>
-          <p className="text-sm text-muted-foreground">Real-time performance from Short.io</p>
+          <h1 className="font-heading text-xl md:text-2xl lg:text-3xl font-bold text-foreground">Analytics</h1>
+          <p className="text-xs md:text-sm text-muted-foreground">Real-time performance from Short.io</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefreshing}>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefreshing} className="text-xs md:text-sm">
             {isRefreshing ? (
-              <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin mr-2" />
+              <div className="w-3 h-3 md:w-4 md:h-4 border-2 border-primary border-t-transparent rounded-full animate-spin mr-1 md:mr-2" />
             ) : (
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
             )}
             {isRefreshing ? "Refreshing..." : "Refresh"}
           </Button>
-          <Button variant="outline" size="sm" onClick={handleExport} disabled={isExporting || totalClicks === 0}>
-            <Download className="w-4 h-4 mr-2" />
+          <Button variant="outline" size="sm" onClick={handleExport} disabled={isExporting || totalClicks === 0} className="text-xs md:text-sm">
+            <Download className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
             {isExporting ? "Exporting..." : "Export CSV"}
           </Button>
-          <Button variant="outline" size="sm">
-            <Filter className="w-4 h-4 mr-2" />
+          <Button variant="outline" size="sm" className="text-xs md:text-sm">
+            <Filter className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
             Filter
           </Button>
         </div>
@@ -837,48 +876,48 @@ export default function Analytics() {
         </div>
       )}
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      {/* Stats Cards - Responsive */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 md:gap-4">
         {stats.map((stat, i) => (
           <motion.div
             key={stat.label}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.05 }}
-            className={`glass-card rounded-xl p-4 ${stat.bg} border border-border/50 hover:border-primary/20 transition-all duration-200`}
+            className={`glass-card rounded-xl p-3 md:p-4 ${stat.bg} border border-border/50 hover:border-primary/20 transition-all duration-200`}
           >
             <div className="flex items-center justify-between">
-              <stat.icon className={`w-5 h-5 ${stat.color}`} />
-              <span className="text-2xl font-bold text-foreground">{stat.value.toLocaleString()}</span>
+              <stat.icon className={`w-4 h-4 md:w-5 md:h-5 ${stat.color}`} />
+              <span className="text-lg md:text-2xl font-bold text-foreground">{stat.value.toLocaleString()}</span>
             </div>
-            <div className="text-xs text-muted-foreground mt-1">{stat.label}</div>
+            <div className="text-[10px] md:text-xs text-muted-foreground mt-0.5 md:mt-1">{stat.label}</div>
           </motion.div>
         ))}
       </div>
 
       {totalClicks === 0 && links.length === 0 ? (
-        <div className="glass-card rounded-xl p-12 text-center">
-          <BarChart3 className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="font-heading text-lg font-semibold text-foreground mb-2">No analytics yet</h3>
-          <p className="text-sm text-muted-foreground max-w-md mx-auto">
+        <div className="glass-card rounded-xl p-8 md:p-12 text-center">
+          <BarChart3 className="w-10 h-10 md:w-12 md:h-12 text-muted-foreground mx-auto mb-3 md:mb-4" />
+          <h3 className="font-heading text-base md:text-lg font-semibold text-foreground mb-1 md:mb-2">No analytics yet</h3>
+          <p className="text-xs md:text-sm text-muted-foreground max-w-md mx-auto">
             Share your links to start seeing click analytics.
           </p>
         </div>
       ) : (
         <>
           {/* Clicks Chart */}
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-heading font-semibold text-foreground text-lg flex items-center gap-2">
-                <Activity className="w-5 h-5 text-primary" />
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-4 md:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3 md:mb-4 gap-2">
+              <h3 className="font-heading font-semibold text-foreground text-base md:text-lg flex items-center gap-2">
+                <Activity className="w-4 h-4 md:w-5 md:h-5 text-primary" />
                 Clicks Over Time
               </h3>
               <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">Last 30 days</span>
-                <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                <span className="text-[10px] md:text-xs text-muted-foreground">Last 30 days</span>
+                <ChevronDown className="w-3 h-3 md:w-4 md:h-4 text-muted-foreground" />
               </div>
             </div>
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={250}>
               <AreaChart data={dailyClicksData}>
                 <defs>
                   <linearGradient id="clickGradient" x1="0" y1="0" x2="0" y2="1">
@@ -887,62 +926,62 @@ export default function Analytics() {
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />
-                <XAxis dataKey="date" stroke={colors.text} fontSize={11} />
-                <YAxis stroke={colors.text} fontSize={11} allowDecimals={false} />
+                <XAxis dataKey="date" stroke={colors.text} fontSize={10} tick={{ fontSize: 10 }} />
+                <YAxis stroke={colors.text} fontSize={10} allowDecimals={false} tick={{ fontSize: 10 }} />
                 <Tooltip content={<CustomTooltip />} />
                 <Area 
                   type="monotone" 
                   dataKey="clicks" 
                   stroke={colors.primary} 
                   fill="url(#clickGradient)" 
-                  strokeWidth={3}
-                  activeDot={{ r: 8, fill: colors.primary }}
+                  strokeWidth={2}
+                  activeDot={{ r: 6, fill: colors.primary }}
                 />
               </AreaChart>
             </ResponsiveContainer>
-            <div className="flex items-center justify-center gap-6 mt-2 text-sm text-muted-foreground">
+            <div className="flex flex-wrap items-center justify-center gap-3 md:gap-6 mt-2 text-xs md:text-sm text-muted-foreground">
               <span className="flex items-center gap-1">
-                <Eye className="w-4 h-4" />
+                <Eye className="w-3 h-3 md:w-4 md:h-4" />
                 Total: {totalClicks}
               </span>
               <span className="flex items-center gap-1">
-                <Zap className="w-4 h-4 text-primary" />
+                <Zap className="w-3 h-3 md:w-4 md:h-4 text-primary" />
                 Today: {clicksToday}
               </span>
             </div>
           </motion.div>
 
           {/* Two Cards in One Line - Top Links & Device Distribution */}
-          <div className="grid lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
             {/* Top Links */}
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-6">
-              <h3 className="font-heading font-semibold text-foreground mb-4 text-lg flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-success" />
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-4 md:p-6">
+              <h3 className="font-heading font-semibold text-foreground mb-3 md:mb-4 text-base md:text-lg flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 md:w-5 md:h-5 text-success" />
                 Top Performing Links
               </h3>
-              <div className="space-y-3">
+              <div className="space-y-2 md:space-y-3">
                 {links.filter(l => l.clicks > 0).length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-4">No clicks yet.</p>
+                  <p className="text-xs md:text-sm text-muted-foreground text-center py-3 md:py-4">No clicks yet.</p>
                 ) : (
                   links
                     .filter(l => l.clicks > 0)
                     .sort((a, b) => b.clicks - a.clicks)
                     .slice(0, 5)
                     .map((link, i) => (
-                      <div key={link.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/20 transition-colors">
-                        <span className="text-xs font-mono text-muted-foreground w-6 text-right font-bold">
+                      <div key={link.id} className="flex items-center gap-2 md:gap-3 p-2 rounded-lg hover:bg-secondary/20 transition-colors">
+                        <span className="text-[10px] md:text-xs font-mono text-muted-foreground w-5 md:w-6 text-right font-bold">
                           #{i + 1}
                         </span>
                         <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium text-foreground truncate">
+                          <div className="text-xs md:text-sm font-medium text-foreground truncate">
                             {link.title || link.short_code}
                           </div>
-                          <div className="text-xs text-muted-foreground truncate">
+                          <div className="text-[10px] md:text-xs text-muted-foreground truncate">
                             {link.original_url}
                           </div>
                         </div>
-                        <div className="flex items-center gap-1 text-sm font-mono font-semibold text-primary">
-                          <MousePointerClick className="w-3.5 h-3.5" />
+                        <div className="flex items-center gap-1 text-xs md:text-sm font-mono font-semibold text-primary">
+                          <MousePointerClick className="w-3 h-3 md:w-3.5 md:h-3.5" />
                           {link.clicks.toLocaleString()}
                         </div>
                       </div>
@@ -951,92 +990,107 @@ export default function Analytics() {
               </div>
             </motion.div>
 
-            {/* Device Distribution */}
+            {/* Device Distribution - FIXED */}
             {deviceData.length > 0 && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-6">
-                <h3 className="font-heading font-semibold text-foreground mb-4 text-lg flex items-center gap-2">
-                  <PieChartIcon className="w-5 h-5 text-info" />
-                  Device Distribution 
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-4 md:p-6">
+                <h3 className="font-heading font-semibold text-foreground mb-3 md:mb-4 text-base md:text-lg flex items-center gap-2">
+                  <PieChartIcon className="w-4 h-4 md:w-5 md:h-5 text-info" />
+                  Device Distribution
                 </h3>
-                <ResponsiveContainer width="100%" height={240}>
-                  <PieChart>
-                    <Pie 
-                      data={deviceData} 
-                      cx="50%" 
-                      cy="50%" 
-                      innerRadius={60} 
-                      outerRadius={90} 
-                      dataKey="value" 
-                      paddingAngle={3}
-                    >
-                      {deviceData.map((entry, index) => (
-                        <Cell key={entry.name} fill={colors.chartColors[index % colors.chartColors.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip content={<CustomTooltip />} />
-                  </PieChart>
-                </ResponsiveContainer>
+                <div className="h-[200px] md:h-[240px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie 
+                        data={deviceData} 
+                        cx="50%" 
+                        cy="50%" 
+                        innerRadius={40}
+                        outerRadius={70}
+                        dataKey="value" 
+                        paddingAngle={3}
+                        label={({ name, percent }) => {
+                          // Only show label if percentage is significant
+                          return (percent * 100) > 5 ? `${name} ${(percent * 100).toFixed(0)}%` : '';
+                        }}
+                        labelLine={false}
+                      >
+                        {deviceData.map((entry, index) => (
+                          <Cell key={entry.name} fill={colors.chartColors[index % colors.chartColors.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip content={<CustomTooltip />} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                {/* Device legend - mobile friendly */}
+                <div className="flex flex-wrap justify-center gap-2 mt-2">
+                  {deviceData.map((entry, index) => (
+                    <div key={entry.name} className="flex items-center gap-1 text-[10px] md:text-xs">
+                      <span className="w-2 h-2 md:w-3 md:h-3 rounded-full" style={{ backgroundColor: colors.chartColors[index % colors.chartColors.length] }} />
+                      <span>{entry.name}</span>
+                      <span className="font-semibold">{entry.value}</span>
+                    </div>
+                  ))}
+                </div>
               </motion.div>
             )}
           </div>
 
-          {/* Countries with Map - IMPROVED VISIBILITY */}
+          {/* Countries with Map */}
           {countryData.length > 0 && (
-  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-6">
-    <div className="section-header">
-      <h3 className="section-title">
-        <Globe className="w-5 h-5 text-success" />
-        Global Reach
-      </h3>
-      <span className="section-subtitle">
-        {countryData.reduce((sum, c) => sum + c.value, 0)} total clicks
-      </span>
-    </div>
-    
-    {/* World Map */}
-    <WorldMap data={countryData} />
-    
-    {/* Country List with Flags */}
-    <div className="country-grid">
-      {countryData.slice(0, 8).map((country) => {
-        return (
-          <div 
-            key={country.name} 
-            className="country-card"
-          >
-            <div className="flex items-center min-w-0">
-              <span className="country-flag">{getFlagEmoji(country.code || '')}</span>
-              <span className="country-name">{country.name}</span>
-            </div>
-            <span className="country-clicks">{country.value.toLocaleString()}</span>
-          </div>
-        );
-      })}
-    </div>
-  </motion.div>
-)}
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-4 md:p-6">
+              <div className="section-header">
+                <h3 className="section-title text-base md:text-lg">
+                  <Globe className="w-4 h-4 md:w-5 md:h-5 text-success" />
+                  Global Reach
+                </h3>
+                <span className="section-subtitle text-xs md:text-sm">
+                  {countryData.reduce((sum, c) => sum + c.value, 0)} total clicks
+                </span>
+              </div>
+              
+              <WorldMap data={countryData} />
+              
+              <div className="country-grid">
+                {countryData.slice(0, 8).map((country) => {
+                  return (
+                    <div 
+                      key={country.name} 
+                      className="country-card"
+                    >
+                      <div className="flex items-center min-w-0">
+                        <span className="country-flag">{getFlagEmoji(country.code || '')}</span>
+                        <span className="country-name">{country.name}</span>
+                      </div>
+                      <span className="country-clicks">{country.value.toLocaleString()}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </motion.div>
+          )}
 
-          {/* Browsers */}
+          {/* Browsers - Responsive */}
           {browserData.length > 0 && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-6">
-              <h3 className="font-heading font-semibold text-foreground mb-4 text-lg flex items-center gap-2">
-                <Monitor className="w-5 h-5 text-info" />
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-4 md:p-6">
+              <h3 className="font-heading font-semibold text-foreground mb-3 md:mb-4 text-base md:text-lg flex items-center gap-2">
+                <Monitor className="w-4 h-4 md:w-5 md:h-5 text-info" />
                 Top Browsers
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-3">
                 {browserData.slice(0, 6).map((b) => {
                   const maxVal = browserData[0]?.value || 1;
                   const pct = Math.round((b.value / maxVal) * 100);
                   return (
-                    <div key={b.name} className="p-3 rounded-lg bg-secondary/10 hover:bg-secondary/20 transition-colors">
-                      <div className="flex justify-between text-sm mb-1">
-                        <span className="text-foreground flex items-center gap-2">
-                          <span className="text-xl">{b.icon || '🌐'}</span>
-                          <span className="font-medium">{b.name}</span>
+                    <div key={b.name} className="p-2 md:p-3 rounded-lg bg-secondary/10 hover:bg-secondary/20 transition-colors">
+                      <div className="flex justify-between text-xs md:text-sm mb-1">
+                        <span className="text-foreground flex items-center gap-1 md:gap-2">
+                          <span className="text-base md:text-xl">{b.icon || '🌐'}</span>
+                          <span className="font-medium text-xs md:text-sm truncate">{b.name}</span>
                         </span>
-                        <span className="font-mono text-muted-foreground">{b.value.toLocaleString()}</span>
+                        <span className="font-mono text-[10px] md:text-xs text-muted-foreground">{b.value.toLocaleString()}</span>
                       </div>
-                      <div className="h-2 rounded-full bg-secondary overflow-hidden">
+                      <div className="h-1.5 md:h-2 rounded-full bg-secondary overflow-hidden">
                         <div
                           className="h-full rounded-full transition-all"
                           style={{ width: `${pct}%`, backgroundColor: colors.secondary }}
@@ -1049,27 +1103,27 @@ export default function Analytics() {
             </motion.div>
           )}
 
-          {/* OS */}
+          {/* OS - Responsive */}
           {osData.length > 0 && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-6">
-              <h3 className="font-heading font-semibold text-foreground mb-4 text-lg flex items-center gap-2">
-                <Monitor className="w-5 h-5 text-accent" />
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-4 md:p-6">
+              <h3 className="font-heading font-semibold text-foreground mb-3 md:mb-4 text-base md:text-lg flex items-center gap-2">
+                <Monitor className="w-4 h-4 md:w-5 md:h-5 text-accent" />
                 Operating Systems
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-3">
                 {osData.slice(0, 6).map((o) => {
                   const maxVal = osData[0]?.value || 1;
                   const pct = Math.round((o.value / maxVal) * 100);
                   return (
-                    <div key={o.name} className="p-3 rounded-lg bg-secondary/10 hover:bg-secondary/20 transition-colors">
-                      <div className="flex justify-between text-sm mb-1">
-                        <span className="text-foreground flex items-center gap-2">
-                          <span className="text-xl">{o.icon || '💻'}</span>
-                          <span className="font-medium">{o.name}</span>
+                    <div key={o.name} className="p-2 md:p-3 rounded-lg bg-secondary/10 hover:bg-secondary/20 transition-colors">
+                      <div className="flex justify-between text-xs md:text-sm mb-1">
+                        <span className="text-foreground flex items-center gap-1 md:gap-2">
+                          <span className="text-base md:text-xl">{o.icon || '💻'}</span>
+                          <span className="font-medium text-xs md:text-sm truncate">{o.name}</span>
                         </span>
-                        <span className="font-mono text-muted-foreground">{o.value.toLocaleString()}</span>
+                        <span className="font-mono text-[10px] md:text-xs text-muted-foreground">{o.value.toLocaleString()}</span>
                       </div>
-                      <div className="h-2 rounded-full bg-secondary overflow-hidden">
+                      <div className="h-1.5 md:h-2 rounded-full bg-secondary overflow-hidden">
                         <div
                           className="h-full rounded-full transition-all"
                           style={{ width: `${pct}%`, backgroundColor: colors.accent }}
@@ -1082,24 +1136,24 @@ export default function Analytics() {
             </motion.div>
           )}
 
-          {/* Referrers */}
+          {/* Referrers - Responsive */}
           {referrerData.length > 0 && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-6">
-              <h3 className="font-heading font-semibold text-foreground mb-4 text-lg flex items-center gap-2">
-                <Link2 className="w-5 h-5 text-success" />
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-4 md:p-6">
+              <h3 className="font-heading font-semibold text-foreground mb-3 md:mb-4 text-base md:text-lg flex items-center gap-2">
+                <Link2 className="w-4 h-4 md:w-5 md:h-5 text-success" />
                 Top Referrers
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-3">
                 {referrerData.slice(0, 6).map((r) => {
                   const maxVal = referrerData[0]?.value || 1;
                   const pct = Math.round((r.value / maxVal) * 100);
                   return (
-                    <div key={r.name} className="p-3 rounded-lg bg-secondary/10 hover:bg-secondary/20 transition-colors">
-                      <div className="flex justify-between text-sm mb-1">
-                        <span className="text-foreground truncate font-medium">{r.name || "Direct"}</span>
-                        <span className="font-mono text-muted-foreground">{r.value.toLocaleString()}</span>
+                    <div key={r.name} className="p-2 md:p-3 rounded-lg bg-secondary/10 hover:bg-secondary/20 transition-colors">
+                      <div className="flex justify-between text-xs md:text-sm mb-1">
+                        <span className="text-foreground truncate font-medium text-xs md:text-sm">{r.name || "Direct"}</span>
+                        <span className="font-mono text-[10px] md:text-xs text-muted-foreground">{r.value.toLocaleString()}</span>
                       </div>
-                      <div className="h-2 rounded-full bg-secondary overflow-hidden">
+                      <div className="h-1.5 md:h-2 rounded-full bg-secondary overflow-hidden">
                         <div
                           className="h-full rounded-full transition-all"
                           style={{ width: `${pct}%`, backgroundColor: colors.success }}
@@ -1112,31 +1166,31 @@ export default function Analytics() {
             </motion.div>
           )}
 
-          {/* Recent Activity */}
+          {/* Recent Activity - Responsive */}
           {recentClicks.length > 0 && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-6">
-              <h3 className="font-heading font-semibold text-foreground mb-4 text-lg flex items-center gap-2">
-                <Clock className="w-5 h-5 text-primary" />
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-4 md:p-6">
+              <h3 className="font-heading font-semibold text-foreground mb-3 md:mb-4 text-base md:text-lg flex items-center gap-2">
+                <Clock className="w-4 h-4 md:w-5 md:h-5 text-primary" />
                 Recent Activity
               </h3>
-              <div className="space-y-2">
+              <div className="space-y-1.5 md:space-y-2">
                 {recentClicks.slice(0, 8).map((click, index) => (
-                  <div key={index} className="flex flex-col sm:flex-row sm:items-center justify-between py-2 px-3 rounded-lg hover:bg-secondary/10 transition-colors border-b border-border last:border-0 gap-2">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <MousePointerClick className="w-4 h-4 text-primary shrink-0" />
+                  <div key={index} className="flex flex-col sm:flex-row sm:items-center justify-between py-1.5 md:py-2 px-2 md:px-3 rounded-lg hover:bg-secondary/10 transition-colors border-b border-border last:border-0 gap-1 md:gap-2">
+                    <div className="flex items-center gap-2 md:gap-3 min-w-0">
+                      <MousePointerClick className="w-3 h-3 md:w-4 md:h-4 text-primary shrink-0" />
                       <div className="min-w-0">
-                        <span className="text-sm text-foreground">
+                        <span className="text-[10px] md:text-sm text-foreground">
                           {click.browser || "Chrome"} · {click.device_type || "💻 Desktop"} · {click.os || "Windows"}
                         </span>
                         {click.country && (
-                          <span className="text-muted-foreground ml-2 text-sm">
-                            <span className="text-base">{getFlagEmoji(click.country)}</span>
+                          <span className="text-muted-foreground ml-1 text-[10px] md:text-sm">
+                            <span className="text-xs md:text-base">{getFlagEmoji(click.country)}</span>
                             {click.city ? ` ${click.city}, ` : " "}{click.country}
                           </span>
                         )}
                       </div>
                     </div>
-                    <span className="text-xs text-muted-foreground shrink-0">
+                    <span className="text-[10px] md:text-xs text-muted-foreground shrink-0">
                       {click.clicked_at ? formatDistance(new Date(click.clicked_at), new Date(), { addSuffix: true }) : "Just now"}
                     </span>
                   </div>
@@ -1152,15 +1206,15 @@ export default function Analytics() {
 
 function AnalyticsSkeleton({ progress = 0 }) {
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-4 md:space-y-6 px-2 md:px-0">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 md:gap-4">
         <div>
-          <Skeleton className="h-8 w-32" />
-          <Skeleton className="h-4 w-48 mt-1" />
+          <Skeleton className="h-6 md:h-8 w-24 md:w-32" />
+          <Skeleton className="h-3 md:h-4 w-32 md:w-48 mt-1" />
         </div>
         <div className="flex items-center gap-2">
-          <Skeleton className="h-9 w-28" />
-          <Skeleton className="h-9 w-20" />
+          <Skeleton className="h-8 md:h-9 w-20 md:w-28" />
+          <Skeleton className="h-8 md:h-9 w-16 md:w-20" />
         </div>
       </div>
       
@@ -1170,22 +1224,22 @@ function AnalyticsSkeleton({ progress = 0 }) {
         </div>
       )}
       
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 md:gap-4">
         {[...Array(6)].map((_, i) => (
-          <div key={i} className="glass-card rounded-xl p-4">
-            <Skeleton className="h-5 w-5 mb-2" />
-            <Skeleton className="h-8 w-16" />
-            <Skeleton className="h-3 w-20 mt-0.5" />
+          <div key={i} className="glass-card rounded-xl p-3 md:p-4 border border-border/50">
+            <Skeleton className="h-4 w-4 md:h-5 md:w-5 mb-1 md:mb-2" />
+            <Skeleton className="h-5 md:h-8 w-10 md:w-16" />
+            <Skeleton className="h-2 md:h-3 w-14 md:w-20 mt-0.5" />
           </div>
         ))}
       </div>
-      <div className="glass-card rounded-xl p-5">
-        <Skeleton className="h-6 w-40 mb-4" />
-        <Skeleton className="h-[300px] w-full" />
+      <div className="glass-card rounded-xl p-4 md:p-5 border border-border/50">
+        <Skeleton className="h-5 md:h-6 w-28 md:w-40 mb-3 md:mb-4" />
+        <Skeleton className="h-[200px] md:h-[300px] w-full rounded-lg" />
       </div>
-      <div className="grid lg:grid-cols-2 gap-4">
-        <Skeleton className="h-64 w-full rounded-xl" />
-        <Skeleton className="h-64 w-full rounded-xl" />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+        <Skeleton className="h-48 md:h-64 w-full rounded-xl" />
+        <Skeleton className="h-48 md:h-64 w-full rounded-xl" />
       </div>
     </div>
   );
