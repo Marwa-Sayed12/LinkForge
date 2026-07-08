@@ -390,87 +390,146 @@ export default function Analytics() {
   const [progress, setProgress] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-    const processStatsData = useCallback((allStats: any[], total: number, humanTotal: number) => {
-      // Process daily clicks
-      const dailyMap: Record<string, number> = {};
-      const now = new Date();
-      let todayCount = 0;
+const processStatsData = useCallback((allStats: any[], total: number, humanTotal: number) => {
+  // Process daily clicks
+  const dailyMap: Record<string, number> = {};
+  const now = new Date();
+  let todayCount = 0;
 
-    allStats.forEach((stats) => {
-    if (stats.clicksByDate) {
-      console.log('📊 Raw clicksByDate:', stats.clicksByDate); // Debug: See what Short.io returns
-      
-      Object.entries(stats.clicksByDate).forEach(([date, count]: [string, any]) => {
-        const countNum = typeof count === 'number' ? count : 0;
-        if (countNum > 0) {
-          try {
-            // ✅ FIX: Handle the date format from Short.io
-            // Short.io returns dates like: "2024-07-04" or "2024-07-04T00:00:00.000Z"
-            let parsedDate: Date | null = null;
-            
-            // Clean the date string - remove timezone info if present
-            let cleanDate = date;
-            if (date.includes('T')) {
-              cleanDate = date.split('T')[0];
+  allStats.forEach((stats) => {
+    // ✅ Debug: Log what we actually get from Short.io
+    console.log('📊 Full stats object:', JSON.stringify(stats, null, 2));
+    console.log('📊 clicksByDate:', stats.clicksByDate);
+    console.log('📊 clickStatistics:', stats.clickStatistics);
+    console.log('📊 browser data:', stats.browser);
+    
+    // ✅ Try to get clicks from clickStatistics if clicksByDate is empty
+    const clicksData = stats.clicksByDate || {};
+    
+    // If clicksByDate is empty, try to extract from clickStatistics
+    if (Object.keys(clicksData).length === 0 && stats.clickStatistics) {
+      console.log('📊 Trying clickStatistics instead...');
+      // clickStatistics might have the data in a different format
+      const statsData = stats.clickStatistics;
+      if (statsData && statsData.datasets && statsData.datasets.length > 0) {
+        const dataset = statsData.datasets[0];
+        if (dataset && dataset.data) {
+          // Try to match dates with data
+          const labels = statsData.labels || [];
+          const data = dataset.data || [];
+          labels.forEach((label: string, index: number) => {
+            if (data[index] > 0) {
+              clicksData[label] = data[index];
             }
-            if (date.includes('+')) {
-              cleanDate = date.split('+')[0];
-            }
-            if (date.includes('Z')) {
-              cleanDate = date.replace('Z', '');
-            }
-            
-            // Parse the clean date
-            const parts = cleanDate.split('-');
-            if (parts.length === 3) {
-              const year = parseInt(parts[0]);
-              const month = parseInt(parts[1]) - 1; // JavaScript months are 0-indexed
-              const day = parseInt(parts[2]);
-              parsedDate = new Date(year, month, day);
-            }
-            
-            if (parsedDate && !isNaN(parsedDate.getTime())) {
-              const formattedDate = format(parsedDate, 'yyyy-MM-dd');
-              dailyMap[formattedDate] = (dailyMap[formattedDate] || 0) + countNum;
-              
-              // Check if this date is today
-              const today = new Date();
-              if (parsedDate.getFullYear() === today.getFullYear() &&
-                  parsedDate.getMonth() === today.getMonth() &&
-                  parsedDate.getDate() === today.getDate()) {
-                todayCount += countNum;
-              }
-              
-              console.log(`✅ Date: ${formattedDate}, Clicks: ${countNum}`); // Debug
-            } else {
-              console.warn('⚠️ Could not parse date:', date);
-            }
-          } catch (e) {
-            console.warn('⚠️ Error parsing date:', date, e);
+          });
+        }
+      }
+    }
+    
+    // If we still have no data, try to get from browser/country arrays
+    if (Object.keys(clicksData).length === 0) {
+      console.log('📊 No date data found, checking browser/country arrays...');
+      // Check if we have browser data with dates
+      if (stats.browser && Array.isArray(stats.browser) && stats.browser.length > 0) {
+        // We can't get dates from browser data, but we know there are clicks
+        // Use today's date as fallback but distribute across days if we have multiple stats
+        const todayStr = format(now, 'yyyy-MM-dd');
+        // Only add if we haven't already added today
+        if (!clicksData[todayStr]) {
+          // Calculate total from browser data
+          const browserTotal = stats.browser.reduce((sum: number, item: any) => sum + (item.score || 0), 0);
+          if (browserTotal > 0) {
+            clicksData[todayStr] = browserTotal;
           }
         }
-      });
+      }
     }
+    
+    console.log('📊 Final clicksData:', clicksData);
+
+    // Now process the clicksData
+    Object.entries(clicksData).forEach(([date, count]: [string, any]) => {
+      const countNum = typeof count === 'number' ? count : 0;
+      if (countNum > 0) {
+        try {
+          // Parse the date
+          let parsedDate: Date | null = null;
+          
+          // Clean the date string
+          let cleanDate = String(date);
+          if (cleanDate.includes('T')) {
+            cleanDate = cleanDate.split('T')[0];
+          }
+          if (cleanDate.includes('+')) {
+            cleanDate = cleanDate.split('+')[0];
+          }
+          if (cleanDate.includes('Z')) {
+            cleanDate = cleanDate.replace('Z', '');
+          }
+          
+          // Try to parse as YYYY-MM-DD
+          const parts = cleanDate.split('-');
+          if (parts.length === 3) {
+            const year = parseInt(parts[0]);
+            const month = parseInt(parts[1]) - 1;
+            const day = parseInt(parts[2]);
+            if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+              parsedDate = new Date(year, month, day);
+            }
+          }
+          
+          // If still invalid, try new Date directly
+          if (!parsedDate || isNaN(parsedDate.getTime())) {
+            parsedDate = new Date(cleanDate);
+          }
+          
+          if (parsedDate && !isNaN(parsedDate.getTime())) {
+            const formattedDate = format(parsedDate, 'yyyy-MM-dd');
+            dailyMap[formattedDate] = (dailyMap[formattedDate] || 0) + countNum;
+            
+            // Check if this date is today
+            const today = new Date();
+            if (parsedDate.getFullYear() === today.getFullYear() &&
+                parsedDate.getMonth() === today.getMonth() &&
+                parsedDate.getDate() === today.getDate()) {
+              todayCount += countNum;
+            }
+            
+            console.log(`✅ Date: ${formattedDate}, Clicks: ${countNum}`);
+          } else {
+            console.warn('⚠️ Could not parse date:', date);
+          }
+        } catch (e) {
+          console.warn('⚠️ Error parsing date:', date, e);
+        }
+      }
+    });
   });
 
-  // If no daily data but we have total clicks, count them as today
+  // If we have total clicks but no daily data, create distribution
   if (Object.keys(dailyMap).length === 0 && total > 0) {
+    console.log('📊 No daily data, creating distribution from total:', total);
+    
+    // Check if we have link creation dates to distribute clicks
     const todayStr = format(now, 'yyyy-MM-dd');
+    // Put all clicks on today as fallback
     dailyMap[todayStr] = total;
     todayCount = total;
   }
 
-    // Ensure todayCount is calculated correctly
-    // Ensure todayCount is calculated correctly
-      const todayStr = format(now, 'yyyy-MM-dd');
-      if (dailyMap[todayStr] && todayCount === 0) {
-        todayCount = dailyMap[todayStr];
-      }
+  // Ensure todayCount is calculated correctly
+  const todayStr = format(now, 'yyyy-MM-dd');
+  if (dailyMap[todayStr] && todayCount === 0) {
+    todayCount = dailyMap[todayStr];
+  }
 
-    setClicksToday(todayCount);
+  console.log('📊 Final dailyMap:', dailyMap);
+  console.log('📊 Today count:', todayCount);
 
-    // Build the last 30 days array with proper date formatting
-   const days: { date: string; clicks: number; fullDate: string; isToday: boolean }[] = [];
+  setClicksToday(todayCount);
+
+  // Build the last 30 days array
+  const days: { date: string; clicks: number; fullDate: string; isToday: boolean }[] = [];
   for (let i = 29; i >= 0; i--) {
     const date = startOfDay(subDays(now, i));
     const label = format(date, "MMM d");
