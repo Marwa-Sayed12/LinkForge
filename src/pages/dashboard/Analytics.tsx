@@ -101,15 +101,16 @@ interface LinkWithStats {
 // Custom Tooltip for the chart
 const CustomChartTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
+    const data = payload[0].payload;
     return (
-      <div className="bg-background/95 backdrop-blur-md border border-border/50 rounded-lg shadow-lg p-3">
-        <p className="text-sm font-semibold text-foreground mb-1">{label}</p>
+      <div className="bg-background/95 backdrop-blur-md border border-border/50 rounded-lg shadow-lg p-3 max-w-[200px]">
+        <p className="text-sm font-semibold text-foreground mb-1">{data.fullDate || label}</p>
         <p className="text-sm text-primary font-medium">
           {payload[0].value} clicks
         </p>
-        <p className="text-[10px] text-muted-foreground mt-1">
-          {payload[0].payload.fullDate || label}
-        </p>
+        {data.isToday && (
+          <p className="text-[10px] text-primary/80 mt-1">📍 Today</p>
+        )}
       </div>
     );
   }
@@ -401,32 +402,68 @@ export default function Analytics() {
           const countNum = typeof count === 'number' ? count : 0;
           if (countNum > 0) {
             try {
-              const parsedDate = new Date(date);
-              if (!isNaN(parsedDate.getTime())) {
+              // ✅ FIX: Parse date correctly - handle different formats
+              let parsedDate: Date | null = null;
+              
+              // Try parsing as ISO string
+              try {
+                parsedDate = new Date(date);
+              } catch (e) {
+                // Try parsing as date-fns format
+                try {
+                  parsedDate = parseISO(date);
+                } catch (e2) {
+                  // Try manual parsing for "YYYY-MM-DD" format
+                  const parts = date.split('-');
+                  if (parts.length === 3) {
+                    parsedDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                  }
+                }
+              }
+              
+              if (parsedDate && !isNaN(parsedDate.getTime())) {
                 const formattedDate = format(parsedDate, 'yyyy-MM-dd');
                 dailyMap[formattedDate] = (dailyMap[formattedDate] || 0) + countNum;
                 
-                // ✅ FIX: Check if this date is today using isToday from date-fns
+                // Check if this date is today
                 if (isToday(parsedDate)) {
                   todayCount += countNum;
                 }
+              } else {
+                // Fallback: try to extract date from string
+                const dateMatch = date.match(/(\d{4})-(\d{2})-(\d{2})/);
+                if (dateMatch) {
+                  const fallbackDate = new Date(
+                    parseInt(dateMatch[1]),
+                    parseInt(dateMatch[2]) - 1,
+                    parseInt(dateMatch[3])
+                  );
+                  if (!isNaN(fallbackDate.getTime())) {
+                    const formattedDate = format(fallbackDate, 'yyyy-MM-dd');
+                    dailyMap[formattedDate] = (dailyMap[formattedDate] || 0) + countNum;
+                    
+                    if (isToday(fallbackDate)) {
+                      todayCount += countNum;
+                    }
+                  }
+                }
               }
             } catch (e) {
-              // Skip invalid dates
+              console.warn('Could not parse date:', date);
             }
           }
         });
       }
     });
 
-    // ✅ FIX: If no daily data but we have total clicks, count them as today
+    // If no daily data but we have total clicks, count them as today
     if (Object.keys(dailyMap).length === 0 && total > 0) {
       const todayStr = format(now, 'yyyy-MM-dd');
       dailyMap[todayStr] = total;
       todayCount = total;
     }
 
-    // ✅ FIX: Ensure todayCount is calculated correctly from dailyMap
+    // Ensure todayCount is calculated correctly
     const todayStr = format(now, 'yyyy-MM-dd');
     if (dailyMap[todayStr] && todayCount === 0) {
       todayCount = dailyMap[todayStr];
@@ -926,7 +963,7 @@ export default function Analytics() {
         </div>
       ) : (
         <>
-          {/* Clicks Chart - FIXED */}
+          {/* Clicks Chart */}
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-4 md:p-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3 md:mb-4 gap-2">
               <h3 className="font-heading font-semibold text-foreground text-base md:text-lg flex items-center gap-2">
