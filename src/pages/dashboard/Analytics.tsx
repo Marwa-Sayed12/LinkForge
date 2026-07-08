@@ -21,13 +21,13 @@ import { useTheme } from "@/components/ThemeProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useClerkAuth";
 import { getShortIoStats } from "@/lib/shortio";
-import { format, subDays, startOfDay, formatDistance } from "date-fns";
+import { format, subDays, startOfDay, formatDistance, isToday, parseISO } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const geoUrl = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 
-// Flag function - improved for all devices
+// Flag function
 const getFlagEmoji = (countryCode: string) => {
   if (!countryCode) return '🌍';
   try {
@@ -97,6 +97,24 @@ interface LinkWithStats {
   clicks: number;
   stats?: any;
 }
+
+// Custom Tooltip for the chart
+const CustomChartTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-background/95 backdrop-blur-md border border-border/50 rounded-lg shadow-lg p-3">
+        <p className="text-sm font-semibold text-foreground mb-1">{label}</p>
+        <p className="text-sm text-primary font-medium">
+          {payload[0].value} clicks
+        </p>
+        <p className="text-[10px] text-muted-foreground mt-1">
+          {payload[0].payload.fullDate || label}
+        </p>
+      </div>
+    );
+  }
+  return null;
+};
 
 // World Map Component
 const WorldMap = ({ data }: { data: any[] }) => {
@@ -383,12 +401,15 @@ export default function Analytics() {
           const countNum = typeof count === 'number' ? count : 0;
           if (countNum > 0) {
             try {
-              const formattedDate = format(new Date(date), 'yyyy-MM-dd');
-              dailyMap[formattedDate] = (dailyMap[formattedDate] || 0) + countNum;
-              const clickDate = new Date(date);
-              const today = new Date();
-              if (clickDate.toDateString() === today.toDateString()) {
-                todayCount += countNum;
+              const parsedDate = new Date(date);
+              if (!isNaN(parsedDate.getTime())) {
+                const formattedDate = format(parsedDate, 'yyyy-MM-dd');
+                dailyMap[formattedDate] = (dailyMap[formattedDate] || 0) + countNum;
+                
+                // ✅ FIX: Check if this date is today using isToday from date-fns
+                if (isToday(parsedDate)) {
+                  todayCount += countNum;
+                }
               }
             } catch (e) {
               // Skip invalid dates
@@ -398,12 +419,14 @@ export default function Analytics() {
       }
     });
 
+    // ✅ FIX: If no daily data but we have total clicks, count them as today
     if (Object.keys(dailyMap).length === 0 && total > 0) {
       const todayStr = format(now, 'yyyy-MM-dd');
       dailyMap[todayStr] = total;
       todayCount = total;
     }
 
+    // ✅ FIX: Ensure todayCount is calculated correctly from dailyMap
     const todayStr = format(now, 'yyyy-MM-dd');
     if (dailyMap[todayStr] && todayCount === 0) {
       todayCount = dailyMap[todayStr];
@@ -411,22 +434,22 @@ export default function Analytics() {
 
     setClicksToday(todayCount);
 
-    const days: { date: string; clicks: number; formattedDate: string }[] = [];
+    // Build the last 30 days array with proper date formatting
+    const days: { date: string; clicks: number; fullDate: string; isToday: boolean }[] = [];
     for (let i = 29; i >= 0; i--) {
-      const date = startOfDay(subDays(new Date(), i));
+      const date = startOfDay(subDays(now, i));
       const label = format(date, "MMM d");
       const dateStr = format(date, "yyyy-MM-dd");
       days.push({
         date: label,
-        formattedDate: dateStr,
+        fullDate: format(date, "EEEE, MMMM d, yyyy"),
         clicks: dailyMap[dateStr] || 0,
+        isToday: i === 0,
       });
     }
     setDailyClicksData(days);
 
-    // ============================================
-    // FIXED: Process device data with proper categorization
-    // ============================================
+    // Process device data
     const deviceMap: Record<string, number> = {};
     allStats.forEach((stats) => {
       if (stats.devices) {
@@ -435,7 +458,6 @@ export default function Analytics() {
           if (countNum > 0) {
             let cleanDevice = device;
             const deviceLower = device.toLowerCase();
-            // ✅ Better device detection
             if (deviceLower.includes('mobile') || deviceLower.includes('phone') || 
                 deviceLower.includes('android') || deviceLower.includes('ios') || 
                 deviceLower.includes('iphone') || deviceLower.includes('ipod')) {
@@ -457,7 +479,6 @@ export default function Analytics() {
 
     // If no device data but we have total clicks, create sample data
     if (Object.keys(deviceMap).length === 0 && total > 0) {
-      // Check if we have browser or OS data to infer devices
       let hasMobile = false;
       let hasDesktop = false;
       
@@ -876,7 +897,7 @@ export default function Analytics() {
         </div>
       )}
 
-      {/* Stats Cards - Responsive */}
+      {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 md:gap-4">
         {stats.map((stat, i) => (
           <motion.div
@@ -905,7 +926,7 @@ export default function Analytics() {
         </div>
       ) : (
         <>
-          {/* Clicks Chart */}
+          {/* Clicks Chart - FIXED */}
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-4 md:p-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3 md:mb-4 gap-2">
               <h3 className="font-heading font-semibold text-foreground text-base md:text-lg flex items-center gap-2">
@@ -926,28 +947,53 @@ export default function Analytics() {
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />
-                <XAxis dataKey="date" stroke={colors.text} fontSize={10} tick={{ fontSize: 10 }} />
-                <YAxis stroke={colors.text} fontSize={10} allowDecimals={false} tick={{ fontSize: 10 }} />
-                <Tooltip content={<CustomTooltip />} />
+                <XAxis 
+                  dataKey="date" 
+                  stroke={colors.text} 
+                  fontSize={10} 
+                  tick={{ fontSize: 10 }}
+                  interval={2}
+                />
+                <YAxis 
+                  stroke={colors.text} 
+                  fontSize={10} 
+                  allowDecimals={false} 
+                  tick={{ fontSize: 10 }}
+                  domain={[0, 'auto']}
+                />
+                <Tooltip content={<CustomChartTooltip />} />
                 <Area 
                   type="monotone" 
                   dataKey="clicks" 
                   stroke={colors.primary} 
                   fill="url(#clickGradient)" 
                   strokeWidth={2}
-                  activeDot={{ r: 6, fill: colors.primary }}
+                  activeDot={{ 
+                    r: 6, 
+                    fill: colors.primary,
+                    stroke: colors.tooltipBg,
+                    strokeWidth: 2,
+                  }}
                 />
               </AreaChart>
             </ResponsiveContainer>
             <div className="flex flex-wrap items-center justify-center gap-3 md:gap-6 mt-2 text-xs md:text-sm text-muted-foreground">
               <span className="flex items-center gap-1">
                 <Eye className="w-3 h-3 md:w-4 md:h-4" />
-                Total: {totalClicks}
+                Total: <span className="font-semibold text-foreground">{totalClicks}</span>
               </span>
               <span className="flex items-center gap-1">
                 <Zap className="w-3 h-3 md:w-4 md:h-4 text-primary" />
-                Today: {clicksToday}
+                Today: <span className="font-semibold text-primary">{clicksToday}</span>
               </span>
+              {dailyClicksData.length > 0 && (
+                <span className="flex items-center gap-1">
+                  <Calendar className="w-3 h-3 md:w-4 md:h-4" />
+                  Peak: <span className="font-semibold text-accent">
+                    {Math.max(...dailyClicksData.map(d => d.clicks))} clicks
+                  </span>
+                </span>
+              )}
             </div>
           </motion.div>
 
@@ -990,7 +1036,7 @@ export default function Analytics() {
               </div>
             </motion.div>
 
-            {/* Device Distribution - FIXED */}
+            {/* Device Distribution */}
             {deviceData.length > 0 && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-4 md:p-6">
                 <h3 className="font-heading font-semibold text-foreground mb-3 md:mb-4 text-base md:text-lg flex items-center gap-2">
@@ -1009,7 +1055,6 @@ export default function Analytics() {
                         dataKey="value" 
                         paddingAngle={3}
                         label={({ name, percent }) => {
-                          // Only show label if percentage is significant
                           return (percent * 100) > 5 ? `${name} ${(percent * 100).toFixed(0)}%` : '';
                         }}
                         labelLine={false}
@@ -1018,11 +1063,10 @@ export default function Analytics() {
                           <Cell key={entry.name} fill={colors.chartColors[index % colors.chartColors.length]} />
                         ))}
                       </Pie>
-                      <Tooltip content={<CustomTooltip />} />
+                      <Tooltip content={CustomTooltip} />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
-                {/* Device legend - mobile friendly */}
                 <div className="flex flex-wrap justify-center gap-2 mt-2">
                   {deviceData.map((entry, index) => (
                     <div key={entry.name} className="flex items-center gap-1 text-[10px] md:text-xs">
@@ -1070,7 +1114,7 @@ export default function Analytics() {
             </motion.div>
           )}
 
-          {/* Browsers - Responsive */}
+          {/* Browsers */}
           {browserData.length > 0 && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-4 md:p-6">
               <h3 className="font-heading font-semibold text-foreground mb-3 md:mb-4 text-base md:text-lg flex items-center gap-2">
@@ -1103,7 +1147,7 @@ export default function Analytics() {
             </motion.div>
           )}
 
-          {/* OS - Responsive */}
+          {/* OS */}
           {osData.length > 0 && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-4 md:p-6">
               <h3 className="font-heading font-semibold text-foreground mb-3 md:mb-4 text-base md:text-lg flex items-center gap-2">
@@ -1136,7 +1180,7 @@ export default function Analytics() {
             </motion.div>
           )}
 
-          {/* Referrers - Responsive */}
+          {/* Referrers */}
           {referrerData.length > 0 && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-4 md:p-6">
               <h3 className="font-heading font-semibold text-foreground mb-3 md:mb-4 text-base md:text-lg flex items-center gap-2">
@@ -1166,7 +1210,7 @@ export default function Analytics() {
             </motion.div>
           )}
 
-          {/* Recent Activity - Responsive */}
+          {/* Recent Activity */}
           {recentClicks.length > 0 && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-4 md:p-6">
               <h3 className="font-heading font-semibold text-foreground mb-3 md:mb-4 text-base md:text-lg flex items-center gap-2">
