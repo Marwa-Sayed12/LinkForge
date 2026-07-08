@@ -390,187 +390,173 @@ export default function Analytics() {
   const [progress, setProgress] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const processStatsData = useCallback((allStats: any[], total: number, humanTotal: number) => {
-    // Process daily clicks
-    const dailyMap: Record<string, number> = {};
-    const now = new Date();
-    let todayCount = 0;
+    const processStatsData = useCallback((allStats: any[], total: number, humanTotal: number) => {
+      // Process daily clicks
+      const dailyMap: Record<string, number> = {};
+      const now = new Date();
+      let todayCount = 0;
 
     allStats.forEach((stats) => {
-      if (stats.clicksByDate) {
-        Object.entries(stats.clicksByDate).forEach(([date, count]: [string, any]) => {
-          const countNum = typeof count === 'number' ? count : 0;
-          if (countNum > 0) {
-            try {
-              // ✅ FIX: Better date parsing
-              let parsedDate: Date | null = null;
-              
-              // Try different date formats
-              if (date.includes('T')) {
-                // ISO format
-                parsedDate = new Date(date);
-              } else if (date.includes('-')) {
-                // YYYY-MM-DD format
-                const parts = date.split('-').map(Number);
-                if (parts.length === 3) {
-                  parsedDate = new Date(parts[0], parts[1] - 1, parts[2]);
-                }
-              } else if (date.includes('/')) {
-                // MM/DD/YYYY format
-                const parts = date.split('/').map(Number);
-                if (parts.length === 3) {
-                  parsedDate = new Date(parts[2], parts[0] - 1, parts[1]);
-                }
-              }
-              
-              // Also try parseISO as fallback
-              if (!parsedDate || isNaN(parsedDate.getTime())) {
-                try {
-                  parsedDate = parseISO(date);
-                } catch (e) {
-                  // Ignore
-                }
-              }
-              
-              if (parsedDate && !isNaN(parsedDate.getTime())) {
-                const formattedDate = format(parsedDate, 'yyyy-MM-dd');
-                dailyMap[formattedDate] = (dailyMap[formattedDate] || 0) + countNum;
-                
-                // Check if this date is today
-                if (isToday(parsedDate)) {
-                  todayCount += countNum;
-                }
-              } else {
-                // Last resort: try to extract date with regex
-                const dateMatch = String(date).match(/(\d{4})-(\d{2})-(\d{2})/);
-                if (dateMatch) {
-                  const fallbackDate = new Date(
-                    parseInt(dateMatch[1]),
-                    parseInt(dateMatch[2]) - 1,
-                    parseInt(dateMatch[3])
-                  );
-                  if (!isNaN(fallbackDate.getTime())) {
-                    const formattedDate = format(fallbackDate, 'yyyy-MM-dd');
-                    dailyMap[formattedDate] = (dailyMap[formattedDate] || 0) + countNum;
-                    
-                    if (isToday(fallbackDate)) {
-                      todayCount += countNum;
-                    }
-                  }
-                }
-              }
-            } catch (e) {
-              console.warn('Could not parse date:', date);
+    if (stats.clicksByDate) {
+      console.log('📊 Raw clicksByDate:', stats.clicksByDate); // Debug: See what Short.io returns
+      
+      Object.entries(stats.clicksByDate).forEach(([date, count]: [string, any]) => {
+        const countNum = typeof count === 'number' ? count : 0;
+        if (countNum > 0) {
+          try {
+            // ✅ FIX: Handle the date format from Short.io
+            // Short.io returns dates like: "2024-07-04" or "2024-07-04T00:00:00.000Z"
+            let parsedDate: Date | null = null;
+            
+            // Clean the date string - remove timezone info if present
+            let cleanDate = date;
+            if (date.includes('T')) {
+              cleanDate = date.split('T')[0];
             }
+            if (date.includes('+')) {
+              cleanDate = date.split('+')[0];
+            }
+            if (date.includes('Z')) {
+              cleanDate = date.replace('Z', '');
+            }
+            
+            // Parse the clean date
+            const parts = cleanDate.split('-');
+            if (parts.length === 3) {
+              const year = parseInt(parts[0]);
+              const month = parseInt(parts[1]) - 1; // JavaScript months are 0-indexed
+              const day = parseInt(parts[2]);
+              parsedDate = new Date(year, month, day);
+            }
+            
+            if (parsedDate && !isNaN(parsedDate.getTime())) {
+              const formattedDate = format(parsedDate, 'yyyy-MM-dd');
+              dailyMap[formattedDate] = (dailyMap[formattedDate] || 0) + countNum;
+              
+              // Check if this date is today
+              const today = new Date();
+              if (parsedDate.getFullYear() === today.getFullYear() &&
+                  parsedDate.getMonth() === today.getMonth() &&
+                  parsedDate.getDate() === today.getDate()) {
+                todayCount += countNum;
+              }
+              
+              console.log(`✅ Date: ${formattedDate}, Clicks: ${countNum}`); // Debug
+            } else {
+              console.warn('⚠️ Could not parse date:', date);
+            }
+          } catch (e) {
+            console.warn('⚠️ Error parsing date:', date, e);
           }
-        });
-      }
-    });
-
-    // If no daily data but we have total clicks, count them as today
-    if (Object.keys(dailyMap).length === 0 && total > 0) {
-      const todayStr = format(now, 'yyyy-MM-dd');
-      dailyMap[todayStr] = total;
-      todayCount = total;
+        }
+      });
     }
+  });
+
+  // If no daily data but we have total clicks, count them as today
+  if (Object.keys(dailyMap).length === 0 && total > 0) {
+    const todayStr = format(now, 'yyyy-MM-dd');
+    dailyMap[todayStr] = total;
+    todayCount = total;
+  }
 
     // Ensure todayCount is calculated correctly
-    const todayStr = format(now, 'yyyy-MM-dd');
-    if (dailyMap[todayStr] && todayCount === 0) {
-      todayCount = dailyMap[todayStr];
-    }
+    // Ensure todayCount is calculated correctly
+      const todayStr = format(now, 'yyyy-MM-dd');
+      if (dailyMap[todayStr] && todayCount === 0) {
+        todayCount = dailyMap[todayStr];
+      }
 
     setClicksToday(todayCount);
 
     // Build the last 30 days array with proper date formatting
-    const days: { date: string; clicks: number; fullDate: string; isToday: boolean }[] = [];
-    for (let i = 29; i >= 0; i--) {
-      const date = startOfDay(subDays(now, i));
-      const label = format(date, "MMM d");
-      const dateStr = format(date, "yyyy-MM-dd");
-      days.push({
-        date: label,
-        fullDate: format(date, "EEEE, MMMM d, yyyy"),
-        clicks: dailyMap[dateStr] || 0,
-        isToday: i === 0,
-      });
-    }
-    setDailyClicksData(days);
+   const days: { date: string; clicks: number; fullDate: string; isToday: boolean }[] = [];
+  for (let i = 29; i >= 0; i--) {
+    const date = startOfDay(subDays(now, i));
+    const label = format(date, "MMM d");
+    const dateStr = format(date, "yyyy-MM-dd");
+    days.push({
+      date: label,
+      fullDate: format(date, "EEEE, MMMM d, yyyy"),
+      clicks: dailyMap[dateStr] || 0,
+      isToday: i === 0,
+    });
+  }
+  setDailyClicksData(days);
 
     // Process device data
-    const deviceMap: Record<string, number> = {};
+ const deviceMap: Record<string, number> = {};
+  allStats.forEach((stats) => {
+    if (stats.devices) {
+      Object.entries(stats.devices).forEach(([device, count]: [string, any]) => {
+        const countNum = typeof count === 'number' ? count : 0;
+        if (countNum > 0) {
+          let cleanDevice = device;
+          const deviceLower = device.toLowerCase();
+          if (deviceLower.includes('mobile') || deviceLower.includes('phone') || 
+              deviceLower.includes('android') || deviceLower.includes('ios') || 
+              deviceLower.includes('iphone') || deviceLower.includes('ipod')) {
+            cleanDevice = '📱 Mobile';
+          } else if (deviceLower.includes('tablet') || deviceLower.includes('ipad')) {
+            cleanDevice = '📱 Tablet';
+          } else if (deviceLower.includes('desktop') || deviceLower.includes('pc') || 
+                     deviceLower.includes('laptop') || deviceLower.includes('mac') ||
+                     deviceLower.includes('windows') || deviceLower.includes('linux')) {
+            cleanDevice = '💻 Desktop';
+          } else {
+            cleanDevice = '💻 ' + device;
+          }
+          deviceMap[cleanDevice] = (deviceMap[cleanDevice] || 0) + countNum;
+        }
+      });
+    }
+  });
+
+  if (Object.keys(deviceMap).length === 0 && total > 0) {
+    let hasMobile = false;
+    let hasDesktop = false;
+    
     allStats.forEach((stats) => {
-      if (stats.devices) {
-        Object.entries(stats.devices).forEach(([device, count]: [string, any]) => {
-          const countNum = typeof count === 'number' ? count : 0;
-          if (countNum > 0) {
-            let cleanDevice = device;
-            const deviceLower = device.toLowerCase();
-            if (deviceLower.includes('mobile') || deviceLower.includes('phone') || 
-                deviceLower.includes('android') || deviceLower.includes('ios') || 
-                deviceLower.includes('iphone') || deviceLower.includes('ipod')) {
-              cleanDevice = '📱 Mobile';
-            } else if (deviceLower.includes('tablet') || deviceLower.includes('ipad')) {
-              cleanDevice = '📱 Tablet';
-            } else if (deviceLower.includes('desktop') || deviceLower.includes('pc') || 
-                       deviceLower.includes('laptop') || deviceLower.includes('mac') ||
-                       deviceLower.includes('windows') || deviceLower.includes('linux')) {
-              cleanDevice = '💻 Desktop';
-            } else {
-              cleanDevice = '💻 ' + device;
-            }
-            deviceMap[cleanDevice] = (deviceMap[cleanDevice] || 0) + countNum;
+      if (stats.browsers) {
+        Object.keys(stats.browsers).forEach((browser) => {
+          const browserLower = browser.toLowerCase();
+          if (browserLower.includes('mobile') || browserLower.includes('android') || 
+              browserLower.includes('ios') || browserLower.includes('safari mobile')) {
+            hasMobile = true;
+          } else {
+            hasDesktop = true;
+          }
+        });
+      }
+      if (stats.oss) {
+        Object.keys(stats.oss).forEach((os) => {
+          const osLower = os.toLowerCase();
+          if (osLower.includes('android') || osLower.includes('ios') || 
+              osLower.includes('iphone') || osLower.includes('ipad')) {
+            hasMobile = true;
+          } else {
+            hasDesktop = true;
           }
         });
       }
     });
-
-    // If no device data but we have total clicks, create sample data
-    if (Object.keys(deviceMap).length === 0 && total > 0) {
-      let hasMobile = false;
-      let hasDesktop = false;
-      
-      allStats.forEach((stats) => {
-        if (stats.browsers) {
-          Object.keys(stats.browsers).forEach((browser) => {
-            const browserLower = browser.toLowerCase();
-            if (browserLower.includes('mobile') || browserLower.includes('android') || 
-                browserLower.includes('ios') || browserLower.includes('safari mobile')) {
-              hasMobile = true;
-            } else {
-              hasDesktop = true;
-            }
-          });
-        }
-        if (stats.oss) {
-          Object.keys(stats.oss).forEach((os) => {
-            const osLower = os.toLowerCase();
-            if (osLower.includes('android') || osLower.includes('ios') || 
-                osLower.includes('iphone') || osLower.includes('ipad')) {
-              hasMobile = true;
-            } else {
-              hasDesktop = true;
-            }
-          });
-        }
-      });
-      
-      if (hasMobile && hasDesktop) {
-        deviceMap['📱 Mobile'] = Math.round(total * 0.4);
-        deviceMap['💻 Desktop'] = Math.round(total * 0.6);
-      } else if (hasMobile) {
-        deviceMap['📱 Mobile'] = total;
-      } else {
-        deviceMap['💻 Desktop'] = total;
-      }
-    }
     
-    setDeviceData(
-      Object.entries(deviceMap)
-        .map(([name, value]) => ({ name, value }))
-        .sort((a, b) => b.value - a.value)
-        .slice(0, 8)
-    );
+    if (hasMobile && hasDesktop) {
+      deviceMap['📱 Mobile'] = Math.round(total * 0.4);
+      deviceMap['💻 Desktop'] = Math.round(total * 0.6);
+    } else if (hasMobile) {
+      deviceMap['📱 Mobile'] = total;
+    } else {
+      deviceMap['💻 Desktop'] = total;
+    }
+  }
+  
+  setDeviceData(
+    Object.entries(deviceMap)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 8)
+  );
 
     // Process country data with flags
     const countryMap: Record<string, { count: number; code: string }> = {};
