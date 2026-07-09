@@ -391,7 +391,6 @@ export default function Analytics() {
   const [isMobile, setIsMobile] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // ✅ FIX: Move this useEffect inside the component
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 640);
@@ -408,7 +407,6 @@ export default function Analytics() {
     let todayCount = 0;
 
     allStats.forEach((stats) => {
-      // ✅ FIX: Parse clickStatistics properly
       if (stats.clickStatistics && stats.clickStatistics.datasets) {
         const dataset = stats.clickStatistics.datasets[0];
         if (dataset && dataset.data) {
@@ -418,7 +416,6 @@ export default function Analytics() {
               try {
                 let parsedDate: Date | null = null;
                 
-                // Parse the date from the x value
                 if (typeof item.x === 'string') {
                   const dateStr = item.x;
                   const dateMatch = dateStr.match(/(\d{4})-(\d{2})-(\d{2})/);
@@ -454,7 +451,6 @@ export default function Analytics() {
         }
       }
       
-      // Also check clicksByDate as fallback
       if (stats.clicksByDate) {
         Object.entries(stats.clicksByDate).forEach(([date, count]: [string, any]) => {
           const countNum = typeof count === 'number' ? count : 0;
@@ -465,7 +461,6 @@ export default function Analytics() {
       }
     });
 
-    // If we have total clicks but no daily data, create distribution
     if (Object.keys(dailyMap).length === 0 && total > 0) {
       const todayStr = format(now, 'yyyy-MM-dd');
       dailyMap[todayStr] = total;
@@ -474,7 +469,6 @@ export default function Analytics() {
 
     setClicksToday(todayCount);
 
-    // Build the last 30 days array
     const days: { date: string; clicks: number; fullDate: string; isToday: boolean }[] = [];
     for (let i = 29; i >= 0; i--) {
       const date = startOfDay(subDays(now, i));
@@ -689,39 +683,48 @@ export default function Analytics() {
     allStats.forEach((stats) => {
       if (stats.recentClicks && Array.isArray(stats.recentClicks)) {
         stats.recentClicks.forEach((click: any) => {
-          // Better device detection
           let deviceType = 'Desktop';
           let deviceIcon = '💻';
           
-          const userAgent = click.userAgent || click.user_agent || '';
-          const device = click.device || click.device_type || '';
+          const userAgent = (click.userAgent || click.user_agent || click.ua || '').toLowerCase();
+          const device = (click.device || click.device_type || '').toLowerCase();
           
-          if (userAgent.toLowerCase().includes('mobile') || 
-              device.toLowerCase().includes('mobile') ||
-              device.toLowerCase().includes('phone')) {
+          const isMobile = userAgent.includes('mobile') || 
+                 userAgent.includes('android') || 
+                 userAgent.includes('iphone') || 
+                 userAgent.includes('ipod') ||
+                 userAgent.includes('blackberry') ||
+                 device.includes('mobile') ||
+                 device.includes('phone');
+
+          const isTablet = userAgent.includes('tablet') || 
+                 userAgent.includes('ipad') ||
+                 device.includes('tablet') ||
+                 device.includes('ipad');
+
+          if (isMobile && !isTablet) {
             deviceType = '📱 Mobile';
             deviceIcon = '📱';
-          } else if (userAgent.toLowerCase().includes('tablet') || 
-                    device.toLowerCase().includes('tablet') ||
-                    device.toLowerCase().includes('ipad')) {
+          } else if (isTablet) {
             deviceType = '📱 Tablet';
             deviceIcon = '📱';
+          } else {
+            deviceType = '💻 Desktop';
+            deviceIcon = '💻';
           }
           
-          // Better OS detection
           let os = click.os || click.operating_system || 'Unknown';
-          if (userAgent.toLowerCase().includes('windows')) os = 'Windows';
-          else if (userAgent.toLowerCase().includes('mac')) os = 'macOS';
-          else if (userAgent.toLowerCase().includes('linux')) os = 'Linux';
-          else if (userAgent.toLowerCase().includes('android')) os = 'Android';
-          else if (userAgent.toLowerCase().includes('ios') || userAgent.toLowerCase().includes('iphone')) os = 'iOS';
+          if (userAgent.includes('windows')) os = 'Windows';
+          else if (userAgent.includes('mac')) os = 'macOS';
+          else if (userAgent.includes('linux')) os = 'Linux';
+          else if (userAgent.includes('android')) os = 'Android';
+          else if (userAgent.includes('ios') || userAgent.includes('iphone')) os = 'iOS';
           
-          // Better browser detection
           let browser = click.browser || 'Unknown';
-          if (userAgent.toLowerCase().includes('chrome') && !userAgent.toLowerCase().includes('edg')) browser = 'Chrome';
-          else if (userAgent.toLowerCase().includes('firefox')) browser = 'Firefox';
-          else if (userAgent.toLowerCase().includes('safari') && !userAgent.toLowerCase().includes('chrome')) browser = 'Safari';
-          else if (userAgent.toLowerCase().includes('edg')) browser = 'Edge';
+          if (userAgent.includes('chrome') && !userAgent.includes('edg')) browser = 'Chrome';
+          else if (userAgent.includes('firefox')) browser = 'Firefox';
+          else if (userAgent.includes('safari') && !userAgent.includes('chrome')) browser = 'Safari';
+          else if (userAgent.includes('edg')) browser = 'Edge';
           
           allRecentClicks.push({
             ...click,
@@ -749,7 +752,7 @@ export default function Analytics() {
       });
     }
     
-      setRecentClicks(
+    setRecentClicks(
       allRecentClicks
         .sort((a, b) => new Date(b.clicked_at).getTime() - new Date(a.clicked_at).getTime())
         .slice(0, 10)
@@ -991,7 +994,7 @@ export default function Analytics() {
         </div>
       ) : (
         <>
-          {/* Clicks Chart */}
+          {/* Clicks Chart - FIXED with margins */}
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-3 md:p-5 lg:p-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3 md:mb-4 gap-2">
               <h3 className="font-heading font-semibold text-foreground text-base md:text-lg flex items-center gap-2">
@@ -1002,8 +1005,11 @@ export default function Analytics() {
                 <ChevronDown className="w-3 h-3 md:w-4 md:h-4 text-muted-foreground" />
               </div>
             </div>
-            <ResponsiveContainer width="100%" height={250}>
-              <AreaChart data={dailyClicksData}>
+            <ResponsiveContainer width="100%" height={isMobile ? 200 : 250}>
+              <AreaChart 
+                data={dailyClicksData}
+                margin={{ top: 10, right: 5, left: isMobile ? -15 : 0, bottom: 5 }}
+              >
                 <defs>
                   <linearGradient id="clickGradient" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor={colors.primary} stopOpacity={0.3} />
@@ -1013,23 +1019,21 @@ export default function Analytics() {
                 <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />
                 <XAxis 
                   dataKey="date" 
-                 fontSize={isMobile ? 8 : 10} 
+                  fontSize={isMobile ? 8 : 10} 
                   tick={{ fontSize: isMobile ? 8 : 10 }}
                   interval={isMobile ? 4 : 2}
                   tickMargin={isMobile ? 4 : 8}
                   angle={isMobile ? -45 : 0}
                   textAnchor={isMobile ? "end" : "middle"}
-                  height={isMobile ? 40 : 30
-
-                  }
-
+                  height={isMobile ? 40 : 30}
                 />
                 <YAxis 
                   stroke={colors.text} 
-                  fontSize={10} 
+                  fontSize={isMobile ? 8 : 10} 
                   allowDecimals={false} 
-                  tick={{ fontSize: 10 }}
+                  tick={{ fontSize: isMobile ? 8 : 10 }}
                   domain={[0, 'auto']}
+                  width={isMobile ? 25 : 35}
                 />
                 <Tooltip content={CustomChartTooltip} />
                 <Area 
@@ -1037,9 +1041,9 @@ export default function Analytics() {
                   dataKey="clicks" 
                   stroke={colors.primary} 
                   fill="url(#clickGradient)" 
-                  strokeWidth={2}
+                  strokeWidth={isMobile ? 2 : 2.5}
                   activeDot={{ 
-                    r: 6, 
+                    r: isMobile ? 4 : 6, 
                     fill: colors.primary,
                     stroke: colors.tooltipBg,
                     strokeWidth: 2,
@@ -1047,7 +1051,7 @@ export default function Analytics() {
                 />
               </AreaChart>
             </ResponsiveContainer>
-            <div className="flex flex-wrap items-center justify-center gap-3 md:gap-6 mt-2 text-xs md:text-sm text-muted-foreground">
+            <div className="flex flex-wrap items-center justify-center gap-2 md:gap-6 mt-2 text-xs md:text-sm text-muted-foreground">
               <span className="flex items-center gap-1">
                 <Eye className="w-3 h-3 md:w-4 md:h-4" />
                 Total: <span className="font-semibold text-foreground">{totalClicks}</span>
@@ -1106,7 +1110,7 @@ export default function Analytics() {
               </div>
             </motion.div>
 
-            {/* Device Distribution */}
+            {/* Device Distribution - FIXED bigger on mobile */}
             {deviceData.length > 0 && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-3 md:p-6">
                 <h3 className="font-heading font-semibold text-foreground mb-2 md:mb-4 text-sm md:text-lg flex items-center gap-2">
@@ -1114,15 +1118,15 @@ export default function Analytics() {
                   Device Distribution
                 </h3>
                 
-                <div className="h-[220px] sm:h-[200px] md:h-[240px]">
+                <div className="h-[260px] sm:h-[240px] md:h-[280px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie 
                         data={deviceData} 
                         cx="50%" 
                         cy="50%" 
-                        innerRadius={isMobile ? 30 : 50}
-                        outerRadius={isMobile ? 60 : 90}
+                        innerRadius={isMobile ? 40 : 55}
+                        outerRadius={isMobile ? 75 : 100}
                         dataKey="value" 
                         paddingAngle={3}
                         label={({ name, percent }) => {
@@ -1290,78 +1294,69 @@ export default function Analytics() {
           )}
 
           {/* Recent Activity */}
-          {/* Recent Activity - FIXED */}
-{recentClicks.length > 0 && (
-  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-4 md:p-6">
-    <h3 className="font-heading font-semibold text-foreground mb-3 md:mb-4 text-base md:text-lg flex items-center gap-2">
-      <Clock className="w-4 h-4 md:w-5 md:h-5 text-primary" />
-      Recent Activity
-    </h3>
-    <div className="space-y-2 md:space-y-3">
-      {recentClicks.slice(0, 8).map((click, index) => {
-        // Get device icon
-        const deviceIcon = click.device_type?.includes('Mobile') ? '📱' : 
-                          click.device_type?.includes('Tablet') ? '📱' : '💻';
-        
-        // Get country flag
-        const countryFlag = click.country ? getFlagEmoji(click.country) : '🌍';
-        
-        return (
-          <div 
-            key={index} 
-            className="flex flex-col sm:flex-row sm:items-center justify-between py-2 md:py-3 px-3 md:px-4 rounded-xl bg-secondary/5 hover:bg-secondary/15 transition-all duration-200 border border-border/30 hover:border-primary/20 gap-2"
-          >
-            <div className="flex items-center gap-3 md:gap-4 min-w-0 flex-1">
-              {/* Device icon */}
-              <span className="text-lg md:text-xl flex-shrink-0">{deviceIcon}</span>
-              
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-1.5 md:gap-2">
-                  {/* Browser */}
-                  <span className="text-xs md:text-sm font-medium text-foreground">
-                    {click.browser || 'Unknown Browser'}
-                  </span>
+          {recentClicks.length > 0 && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-4 md:p-6">
+              <h3 className="font-heading font-semibold text-foreground mb-3 md:mb-4 text-base md:text-lg flex items-center gap-2">
+                <Clock className="w-4 h-4 md:w-5 md:h-5 text-primary" />
+                Recent Activity
+              </h3>
+              <div className="space-y-2 md:space-y-3">
+                {recentClicks.slice(0, 8).map((click, index) => {
+                  const deviceIcon = click.device_type?.includes('Mobile') ? '📱' : 
+                                    click.device_type?.includes('Tablet') ? '📱' : '💻';
                   
-                  <span className="text-muted-foreground text-xs md:text-sm">·</span>
+                  const countryFlag = click.country ? getFlagEmoji(click.country) : '🌍';
                   
-                  {/* OS */}
-                  <span className="text-xs md:text-sm text-muted-foreground">
-                    {click.os || 'Unknown OS'}
-                  </span>
-                  
-                  <span className="text-muted-foreground text-xs md:text-sm hidden sm:inline">·</span>
-                  
-                  {/* Country with flag */}
-                  <span className="flex items-center gap-1 text-xs md:text-sm text-muted-foreground">
-                    <span className="text-base md:text-lg">{countryFlag}</span>
-                    <span className="hidden xs:inline">
-                      {click.city ? `${click.city}, ` : ''}{click.country || 'Unknown'}
-                    </span>
-                    <span className="xs:hidden">
-                      {click.country || 'Unknown'}
-                    </span>
-                  </span>
-                </div>
-                
-                {/* Device type badge */}
-                <div className="flex items-center gap-1 mt-0.5">
-                  <span className="text-[10px] md:text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
-                    {click.device_type || 'Desktop'}
-                  </span>
-                </div>
+                  return (
+                    <div 
+                      key={index} 
+                      className="flex flex-col sm:flex-row sm:items-center justify-between py-2 md:py-3 px-3 md:px-4 rounded-xl bg-secondary/5 hover:bg-secondary/15 transition-all duration-200 border border-border/30 hover:border-primary/20 gap-2"
+                    >
+                      <div className="flex items-center gap-3 md:gap-4 min-w-0 flex-1">
+                        <span className="text-lg md:text-xl flex-shrink-0">{deviceIcon}</span>
+                        
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-1.5 md:gap-2">
+                            <span className="text-xs md:text-sm font-medium text-foreground">
+                              {click.browser || 'Unknown Browser'}
+                            </span>
+                            
+                            <span className="text-muted-foreground text-xs md:text-sm">·</span>
+                            
+                            <span className="text-xs md:text-sm text-muted-foreground">
+                              {click.os || 'Unknown OS'}
+                            </span>
+                            
+                            <span className="text-muted-foreground text-xs md:text-sm hidden sm:inline">·</span>
+                            
+                            <span className="flex items-center gap-1 text-xs md:text-sm text-muted-foreground">
+                              <span className="text-base md:text-lg">{countryFlag}</span>
+                              <span className="hidden xs:inline">
+                                {click.city ? `${click.city}, ` : ''}{click.country || 'Unknown'}
+                              </span>
+                              <span className="xs:hidden">
+                                {click.country || 'Unknown'}
+                              </span>
+                            </span>
+                          </div>
+                          
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <span className="text-[10px] md:text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+                              {click.device_type || 'Desktop'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <span className="text-[10px] md:text-xs text-muted-foreground shrink-0 whitespace-nowrap">
+                        {click.clicked_at ? formatDistance(new Date(click.clicked_at), new Date(), { addSuffix: true }) : 'Just now'}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
-            </div>
-            
-            {/* Time */}
-            <span className="text-[10px] md:text-xs text-muted-foreground shrink-0 whitespace-nowrap">
-              {click.clicked_at ? formatDistance(new Date(click.clicked_at), new Date(), { addSuffix: true }) : 'Just now'}
-            </span>
-          </div>
-        );
-      })}
-    </div>
-  </motion.div>
-)}
+            </motion.div>
+          )}
         </>
       )}
     </div>

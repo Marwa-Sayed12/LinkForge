@@ -317,13 +317,13 @@ export default function MyLinks() {
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder="https://example.com/very-long-url"
                 required
-                className="w-full rounded-lg border border-border bg-secondary/50 px-3 py-2.5 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                className="w-full max-w-full sm:max-w-[500px] rounded-lg border border-border bg-secondary/50 px-3 py-2.5 text-sm font-mono text-foreground outline-none focus:border-primary/50"
               />
             </div>
             <div>
               <label className="text-sm font-medium text-foreground mb-1.5 block">Custom Alias (optional)</label>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground font-mono">s.linkforge.website/</span>
+              <div className="flex flex-col xs:flex-row items-start xs:items-center gap-2">
+                <span className="text-sm text-muted-foreground font-mono whitespace-nowrap">s.linkforge.website/</span>
                 <input
                   type="text"
                   value={customAlias}
@@ -332,7 +332,7 @@ export default function MyLinks() {
                     setSuggestedAlias("");
                   }}
                   placeholder="my-custom-link"
-                  className="flex-1 rounded-lg border border-border bg-secondary/50 px-3 py-2.5 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                  className="w-full xs:flex-1 max-w-full xs:max-w-[250px] rounded-lg border border-border bg-secondary/50 px-3 py-2.5 text-sm font-mono text-foreground outline-none focus:border-primary/50"
                 />
               </div>
               {suggestedAlias && (
