@@ -687,26 +687,52 @@ export default function Analytics() {
     // Process recent clicks
     const allRecentClicks: any[] = [];
     allStats.forEach((stats) => {
-      if (stats.recentClicks) {
+      if (stats.recentClicks && Array.isArray(stats.recentClicks)) {
         stats.recentClicks.forEach((click: any) => {
-          let deviceType = click.device || click.device_type || "Desktop";
-          const deviceLower = deviceType.toLowerCase();
-          if (deviceLower.includes('mobile') || deviceLower.includes('phone') || deviceLower.includes('android') || deviceLower.includes('ios')) {
-            deviceType = "📱 Mobile";
-          } else if (deviceLower.includes('tablet') || deviceLower.includes('ipad')) {
-            deviceType = "📱 Tablet";
-          } else {
-            deviceType = "💻 Desktop";
+          // Better device detection
+          let deviceType = 'Desktop';
+          let deviceIcon = '💻';
+          
+          const userAgent = click.userAgent || click.user_agent || '';
+          const device = click.device || click.device_type || '';
+          
+          if (userAgent.toLowerCase().includes('mobile') || 
+              device.toLowerCase().includes('mobile') ||
+              device.toLowerCase().includes('phone')) {
+            deviceType = '📱 Mobile';
+            deviceIcon = '📱';
+          } else if (userAgent.toLowerCase().includes('tablet') || 
+                    device.toLowerCase().includes('tablet') ||
+                    device.toLowerCase().includes('ipad')) {
+            deviceType = '📱 Tablet';
+            deviceIcon = '📱';
           }
+          
+          // Better OS detection
+          let os = click.os || click.operating_system || 'Unknown';
+          if (userAgent.toLowerCase().includes('windows')) os = 'Windows';
+          else if (userAgent.toLowerCase().includes('mac')) os = 'macOS';
+          else if (userAgent.toLowerCase().includes('linux')) os = 'Linux';
+          else if (userAgent.toLowerCase().includes('android')) os = 'Android';
+          else if (userAgent.toLowerCase().includes('ios') || userAgent.toLowerCase().includes('iphone')) os = 'iOS';
+          
+          // Better browser detection
+          let browser = click.browser || 'Unknown';
+          if (userAgent.toLowerCase().includes('chrome') && !userAgent.toLowerCase().includes('edg')) browser = 'Chrome';
+          else if (userAgent.toLowerCase().includes('firefox')) browser = 'Firefox';
+          else if (userAgent.toLowerCase().includes('safari') && !userAgent.toLowerCase().includes('chrome')) browser = 'Safari';
+          else if (userAgent.toLowerCase().includes('edg')) browser = 'Edge';
           
           allRecentClicks.push({
             ...click,
             clicked_at: click.timestamp || click.clicked_at || new Date().toISOString(),
-            browser: click.browser || "Unknown",
+            browser: browser,
             device_type: deviceType,
-            os: click.os || click.operating_system || "Unknown",
+            device_icon: deviceIcon,
+            os: os,
             country: click.country || click.country_code || null,
             city: click.city || null,
+            userAgent: userAgent,
           });
         });
       }
@@ -723,7 +749,7 @@ export default function Analytics() {
       });
     }
     
-    setRecentClicks(
+      setRecentClicks(
       allRecentClicks
         .sort((a, b) => new Date(b.clicked_at).getTime() - new Date(a.clicked_at).getTime())
         .slice(0, 10)
@@ -900,7 +926,7 @@ export default function Analytics() {
   };
 
   return (
-    <div className="space-y-4 md:space-y-6 px-2 md:px-0">
+    <div className="space-y-4 md:space-y-6 px-3 md:px-4 lg:px-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 md:gap-4">
         <div>
@@ -966,14 +992,13 @@ export default function Analytics() {
       ) : (
         <>
           {/* Clicks Chart */}
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-4 md:p-6">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-3 md:p-5 lg:p-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3 md:mb-4 gap-2">
               <h3 className="font-heading font-semibold text-foreground text-base md:text-lg flex items-center gap-2">
                 <Activity className="w-4 h-4 md:w-5 md:h-5 text-primary" />
                 Clicks Over Time
               </h3>
               <div className="flex items-center gap-2">
-                <span className="text-[10px] md:text-xs text-muted-foreground">Last 30 days</span>
                 <ChevronDown className="w-3 h-3 md:w-4 md:h-4 text-muted-foreground" />
               </div>
             </div>
@@ -988,10 +1013,16 @@ export default function Analytics() {
                 <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />
                 <XAxis 
                   dataKey="date" 
-                  stroke={colors.text} 
-                  fontSize={10} 
-                  tick={{ fontSize: 10 }}
-                  interval={2}
+                 fontSize={isMobile ? 8 : 10} 
+                  tick={{ fontSize: isMobile ? 8 : 10 }}
+                  interval={isMobile ? 4 : 2}
+                  tickMargin={isMobile ? 4 : 8}
+                  angle={isMobile ? -45 : 0}
+                  textAnchor={isMobile ? "end" : "middle"}
+                  height={isMobile ? 40 : 30
+
+                  }
+
                 />
                 <YAxis 
                   stroke={colors.text} 
@@ -1083,15 +1114,15 @@ export default function Analytics() {
                   Device Distribution
                 </h3>
                 
-                <div className="h-[160px] sm:h-[200px] md:h-[240px]">
+                <div className="h-[220px] sm:h-[200px] md:h-[240px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie 
                         data={deviceData} 
                         cx="50%" 
                         cy="50%" 
-                        innerRadius={isMobile ? 25 : 40}
-                        outerRadius={isMobile ? 50 : 70}
+                        innerRadius={isMobile ? 30 : 50}
+                        outerRadius={isMobile ? 60 : 90}
                         dataKey="value" 
                         paddingAngle={3}
                         label={({ name, percent }) => {
@@ -1113,7 +1144,7 @@ export default function Analytics() {
                   {deviceData.map((entry, index) => (
                     <div 
                       key={entry.name} 
-                      className="flex items-center gap-0.5 sm:gap-1 text-[8px] xs:text-[10px] sm:text-xs whitespace-nowrap px-1.5 py-0.5 sm:px-2 sm:py-0.5 rounded-full bg-secondary/20"
+                      className="flex items-center gap-0.5 sm:gap-1 text-[12px] xs:text-[14px] sm:text-xs whitespace-nowrap px-1.5 py-0.5 sm:px-2 sm:py-0.5 rounded-full bg-secondary/20"
                     >
                       <span 
                         className="w-1.5 h-1.5 sm:w-2 sm:h-2 md:w-3 md:h-3 rounded-full flex-shrink-0" 
@@ -1259,37 +1290,78 @@ export default function Analytics() {
           )}
 
           {/* Recent Activity */}
-          {recentClicks.length > 0 && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-4 md:p-6">
-              <h3 className="font-heading font-semibold text-foreground mb-3 md:mb-4 text-base md:text-lg flex items-center gap-2">
-                <Clock className="w-4 h-4 md:w-5 md:h-5 text-primary" />
-                Recent Activity
-              </h3>
-              <div className="space-y-1.5 md:space-y-2">
-                {recentClicks.slice(0, 8).map((click, index) => (
-                  <div key={index} className="flex flex-col sm:flex-row sm:items-center justify-between py-1.5 md:py-2 px-2 md:px-3 rounded-lg hover:bg-secondary/10 transition-colors border-b border-border last:border-0 gap-1 md:gap-2">
-                    <div className="flex items-center gap-2 md:gap-3 min-w-0">
-                      <MousePointerClick className="w-3 h-3 md:w-4 md:h-4 text-primary shrink-0" />
-                      <div className="min-w-0">
-                        <span className="text-[10px] md:text-sm text-foreground">
-                          {click.browser || "Chrome"} · {click.device_type || "💻 Desktop"} · {click.os || "Windows"}
-                        </span>
-                        {click.country && (
-                          <span className="text-muted-foreground ml-1 text-[10px] md:text-sm">
-                            <span className="text-xs md:text-base">{getFlagEmoji(click.country)}</span>
-                            {click.city ? ` ${click.city}, ` : " "}{click.country}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <span className="text-[10px] md:text-xs text-muted-foreground shrink-0">
-                      {click.clicked_at ? formatDistance(new Date(click.clicked_at), new Date(), { addSuffix: true }) : "Just now"}
+          {/* Recent Activity - FIXED */}
+{recentClicks.length > 0 && (
+  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-4 md:p-6">
+    <h3 className="font-heading font-semibold text-foreground mb-3 md:mb-4 text-base md:text-lg flex items-center gap-2">
+      <Clock className="w-4 h-4 md:w-5 md:h-5 text-primary" />
+      Recent Activity
+    </h3>
+    <div className="space-y-2 md:space-y-3">
+      {recentClicks.slice(0, 8).map((click, index) => {
+        // Get device icon
+        const deviceIcon = click.device_type?.includes('Mobile') ? '📱' : 
+                          click.device_type?.includes('Tablet') ? '📱' : '💻';
+        
+        // Get country flag
+        const countryFlag = click.country ? getFlagEmoji(click.country) : '🌍';
+        
+        return (
+          <div 
+            key={index} 
+            className="flex flex-col sm:flex-row sm:items-center justify-between py-2 md:py-3 px-3 md:px-4 rounded-xl bg-secondary/5 hover:bg-secondary/15 transition-all duration-200 border border-border/30 hover:border-primary/20 gap-2"
+          >
+            <div className="flex items-center gap-3 md:gap-4 min-w-0 flex-1">
+              {/* Device icon */}
+              <span className="text-lg md:text-xl flex-shrink-0">{deviceIcon}</span>
+              
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-1.5 md:gap-2">
+                  {/* Browser */}
+                  <span className="text-xs md:text-sm font-medium text-foreground">
+                    {click.browser || 'Unknown Browser'}
+                  </span>
+                  
+                  <span className="text-muted-foreground text-xs md:text-sm">·</span>
+                  
+                  {/* OS */}
+                  <span className="text-xs md:text-sm text-muted-foreground">
+                    {click.os || 'Unknown OS'}
+                  </span>
+                  
+                  <span className="text-muted-foreground text-xs md:text-sm hidden sm:inline">·</span>
+                  
+                  {/* Country with flag */}
+                  <span className="flex items-center gap-1 text-xs md:text-sm text-muted-foreground">
+                    <span className="text-base md:text-lg">{countryFlag}</span>
+                    <span className="hidden xs:inline">
+                      {click.city ? `${click.city}, ` : ''}{click.country || 'Unknown'}
                     </span>
-                  </div>
-                ))}
+                    <span className="xs:hidden">
+                      {click.country || 'Unknown'}
+                    </span>
+                  </span>
+                </div>
+                
+                {/* Device type badge */}
+                <div className="flex items-center gap-1 mt-0.5">
+                  <span className="text-[10px] md:text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+                    {click.device_type || 'Desktop'}
+                  </span>
+                </div>
               </div>
-            </motion.div>
-          )}
+            </div>
+            
+            {/* Time */}
+            <span className="text-[10px] md:text-xs text-muted-foreground shrink-0 whitespace-nowrap">
+              {click.clicked_at ? formatDistance(new Date(click.clicked_at), new Date(), { addSuffix: true }) : 'Just now'}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  </motion.div>
+)}
         </>
       )}
     </div>
