@@ -388,7 +388,18 @@ export default function Analytics() {
   const [totalHumanClicks, setTotalHumanClicks] = useState(0);
   const [referrerData, setReferrerData] = useState<any[]>([]);
   const [progress, setProgress] = useState(0);
+  const [isMobile, setIsMobile] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // ✅ FIX: Move this useEffect inside the component
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const processStatsData = useCallback((allStats: any[], total: number, humanTotal: number) => {
     // Process daily clicks
@@ -397,7 +408,7 @@ export default function Analytics() {
     let todayCount = 0;
 
     allStats.forEach((stats) => {
-      // ✅ FIX: Parse clickStatistics properly - THIS IS THE KEY FIX
+      // ✅ FIX: Parse clickStatistics properly
       if (stats.clickStatistics && stats.clickStatistics.datasets) {
         const dataset = stats.clickStatistics.datasets[0];
         if (dataset && dataset.data) {
@@ -410,7 +421,6 @@ export default function Analytics() {
                 // Parse the date from the x value
                 if (typeof item.x === 'string') {
                   const dateStr = item.x;
-                  // Extract just the date part (YYYY-MM-DD)
                   const dateMatch = dateStr.match(/(\d{4})-(\d{2})-(\d{2})/);
                   if (dateMatch) {
                     parsedDate = new Date(
@@ -429,7 +439,6 @@ export default function Analytics() {
                   const formattedDate = format(parsedDate, 'yyyy-MM-dd');
                   dailyMap[formattedDate] = (dailyMap[formattedDate] || 0) + countNum;
                   
-                  // Check if this date is today
                   const today = new Date();
                   if (parsedDate.getFullYear() === today.getFullYear() &&
                       parsedDate.getMonth() === today.getMonth() &&
@@ -465,7 +474,7 @@ export default function Analytics() {
 
     setClicksToday(todayCount);
 
-    // Build the last 30 days array with proper date formatting
+    // Build the last 30 days array
     const days: { date: string; clicks: number; fullDate: string; isToday: boolean }[] = [];
     for (let i = 29; i >= 0; i--) {
       const date = startOfDay(subDays(now, i));
@@ -1068,23 +1077,25 @@ export default function Analytics() {
 
             {/* Device Distribution */}
             {deviceData.length > 0 && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-4 md:p-6">
-                <h3 className="font-heading font-semibold text-foreground mb-3 md:mb-4 text-base md:text-lg flex items-center gap-2">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-3 md:p-6">
+                <h3 className="font-heading font-semibold text-foreground mb-2 md:mb-4 text-sm md:text-lg flex items-center gap-2">
                   <PieChartIcon className="w-4 h-4 md:w-5 md:h-5 text-info" />
                   Device Distribution
                 </h3>
-                <div className="h-[200px] md:h-[240px]">
+                
+                <div className="h-[160px] sm:h-[200px] md:h-[240px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie 
                         data={deviceData} 
                         cx="50%" 
                         cy="50%" 
-                        innerRadius={40}
-                        outerRadius={70}
+                        innerRadius={isMobile ? 25 : 40}
+                        outerRadius={isMobile ? 50 : 70}
                         dataKey="value" 
                         paddingAngle={3}
                         label={({ name, percent }) => {
+                          if (window.innerWidth < 480) return '';
                           return (percent * 100) > 5 ? `${name} ${(percent * 100).toFixed(0)}%` : '';
                         }}
                         labelLine={false}
@@ -1097,12 +1108,19 @@ export default function Analytics() {
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
-                <div className="flex flex-wrap justify-center gap-2 mt-2">
+                
+                <div className="flex flex-wrap justify-center gap-1 sm:gap-2 mt-2 sm:mt-3">
                   {deviceData.map((entry, index) => (
-                    <div key={entry.name} className="flex items-center gap-1 text-[10px] md:text-xs">
-                      <span className="w-2 h-2 md:w-3 md:h-3 rounded-full" style={{ backgroundColor: colors.chartColors[index % colors.chartColors.length] }} />
-                      <span>{entry.name}</span>
-                      <span className="font-semibold">{entry.value}</span>
+                    <div 
+                      key={entry.name} 
+                      className="flex items-center gap-0.5 sm:gap-1 text-[8px] xs:text-[10px] sm:text-xs whitespace-nowrap px-1.5 py-0.5 sm:px-2 sm:py-0.5 rounded-full bg-secondary/20"
+                    >
+                      <span 
+                        className="w-1.5 h-1.5 sm:w-2 sm:h-2 md:w-3 md:h-3 rounded-full flex-shrink-0" 
+                        style={{ backgroundColor: colors.chartColors[index % colors.chartColors.length] }} 
+                      />
+                      <span className="truncate max-w-[40px] sm:max-w-[60px] md:max-w-none">{entry.name}</span>
+                      <span className="font-semibold text-[8px] xs:text-[10px] sm:text-xs">{entry.value}</span>
                     </div>
                   ))}
                 </div>
