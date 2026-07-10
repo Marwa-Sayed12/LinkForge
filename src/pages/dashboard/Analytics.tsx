@@ -1196,55 +1196,56 @@ export default function Analytics() {
 
             {/* Device Distribution */}
             {deviceData.length > 0 && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-3 md:p-6">
-                <h3 className="font-heading font-semibold text-foreground mb-2 md:mb-4 text-sm md:text-lg flex items-center gap-2">
-                  <PieChartIcon className="w-4 h-4 md:w-5 md:h-5 text-info" />
-                  Device Distribution
-                </h3>
-                
-                <div className="h-[260px] sm:h-[240px] md:h-[280px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie 
-                        data={deviceData} 
-                        cx="50%" 
-                        cy="50%" 
-                        innerRadius={isMobile ? 40 : 55}
-                        outerRadius={isMobile ? 75 : 100}
-                        dataKey="value" 
-                        paddingAngle={3}
-                        label={({ name, percent }) => {
-                          if (window.innerWidth < 480) return '';
-                          return (percent * 100) > 5 ? `${name} ${(percent * 100).toFixed(0)}%` : '';
-                        }}
-                        labelLine={false}
-                      >
-                        {deviceData.map((entry, index) => (
-                          <Cell key={entry.name} fill={colors.chartColors[index % colors.chartColors.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip content={CustomTooltip} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-                
-                <div className="flex flex-wrap justify-center gap-1 sm:gap-2 mt-2 sm:mt-3">
-                  {deviceData.map((entry, index) => (
-                    <div 
-                      key={entry.name} 
-                      className="flex items-center gap-0.5 sm:gap-1 text-[12px] xs:text-[14px] sm:text-xs whitespace-nowrap px-1.5 py-0.5 sm:px-2 sm:py-0.5 rounded-full bg-secondary/20"
-                    >
-                      <span 
-                        className="w-1.5 h-1.5 sm:w-2 sm:h-2 md:w-3 md:h-3 rounded-full flex-shrink-0" 
-                        style={{ backgroundColor: colors.chartColors[index % colors.chartColors.length] }} 
-                      />
-                      <span className="truncate max-w-[40px] sm:max-w-[60px] md:max-w-none">{entry.name}</span>
-                      <span className="font-semibold text-[8px] xs:text-[10px] sm:text-xs">{entry.value}</span>
-                    </div>
-                  ))}
-                </div>
-              </motion.div>
-            )}
+  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-3 md:p-6">
+    <h3 className="font-heading font-semibold text-foreground mb-2 md:mb-4 text-sm md:text-lg flex items-center gap-2">
+      <PieChartIcon className="w-4 h-4 md:w-5 md:h-5 text-info" />
+      Device Distribution
+    </h3>
+    
+    <div className="h-[260px] sm:h-[240px] md:h-[280px]">
+      <ResponsiveContainer width="100%" height="100%">
+        <PieChart>
+          <Pie 
+            data={deviceData} 
+            cx="50%" 
+            cy="50%" 
+            innerRadius={isMobile ? 40 : 55}
+            outerRadius={isMobile ? 75 : 100}
+            dataKey="value" 
+            paddingAngle={3}
+            label={({ name, percent }) => {
+              if (window.innerWidth < 480) return '';
+              return (percent * 100) > 5 ? `${name} ${(percent * 100).toFixed(0)}%` : '';
+            }}
+            labelLine={false}
+          >
+            {deviceData.map((entry, index) => (
+              <Cell key={entry.name} fill={colors.chartColors[index % colors.chartColors.length]} />
+            ))}
+          </Pie>
+          <Tooltip content={CustomTooltip} />
+        </PieChart>
+      </ResponsiveContainer>
+    </div>
+    
+    {/* ✅ BIGGER TEXT on mobile */}
+    <div className="flex flex-wrap justify-center gap-2 sm:gap-3 mt-3 sm:mt-4">
+      {deviceData.map((entry, index) => (
+        <div 
+          key={entry.name} 
+          className="flex items-center gap-1 sm:gap-1.5 text-sm xs:text-base sm:text-sm md:text-base whitespace-nowrap px-2 py-1 sm:px-3 sm:py-1.5 rounded-full bg-secondary/20 border border-border/30"
+        >
+          <span 
+            className="w-2 h-2 sm:w-2.5 sm:h-2.5 md:w-3 md:h-3 rounded-full flex-shrink-0" 
+            style={{ backgroundColor: colors.chartColors[index % colors.chartColors.length] }} 
+          />
+          <span className="font-medium truncate max-w-[50px] sm:max-w-[70px] md:max-w-none">{entry.name}</span>
+          <span className="font-bold text-sm xs:text-base sm:text-sm md:text-base">{entry.value}</span>
+        </div>
+      ))}
+    </div>
+  </motion.div>
+)}
           </div>
 
           {/* Countries with Map */}
@@ -1377,79 +1378,7 @@ export default function Analytics() {
             </motion.div>
           )}
 
-          {/* Recent Activity - FIXED with correct country data */}
-          {recentClicks.length > 0 && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-4 md:p-6">
-              <h3 className="font-heading font-semibold text-foreground mb-3 md:mb-4 text-base md:text-lg flex items-center gap-2">
-                <Clock className="w-4 h-4 md:w-5 md:h-5 text-primary" />
-                Recent Activity
-              </h3>
-              <div className="space-y-2 md:space-y-3">
-                {recentClicks.slice(0, 8).map((click, index) => {
-                  // Get device icon
-                  const deviceIcon = click.device_type?.includes('Mobile') ? '📱' : 
-                                    click.device_type?.includes('Tablet') ? '📱' : '💻';
-                  
-                  // Get country flag
-                  const countryFlag = click.country ? getFlagEmoji(click.country) : '🌍';
-                  const countryName = click.country || 'Unknown';
-                  
-                  return (
-                    <div 
-                      key={index} 
-                      className="flex flex-col sm:flex-row sm:items-center justify-between py-2 md:py-3 px-3 md:px-4 rounded-xl bg-secondary/5 hover:bg-secondary/15 transition-all duration-200 border border-border/30 hover:border-primary/20 gap-2"
-                    >
-                      <div className="flex items-center gap-3 md:gap-4 min-w-0 flex-1">
-                        {/* Device icon */}
-                        <span className="text-lg md:text-xl flex-shrink-0">{deviceIcon}</span>
-                        
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-1.5 md:gap-2">
-                            {/* Browser */}
-                            <span className="text-xs md:text-sm font-medium text-foreground">
-                              {click.browser || 'Unknown Browser'}
-                            </span>
-                            
-                            <span className="text-muted-foreground text-xs md:text-sm">·</span>
-                            
-                            {/* OS */}
-                            <span className="text-xs md:text-sm text-muted-foreground">
-                              {click.os || 'Unknown OS'}
-                            </span>
-                            
-                            <span className="text-muted-foreground text-xs md:text-sm hidden sm:inline">·</span>
-                            
-                            {/* Country with flag - FIXED to show correct country */}
-                            <span className="flex items-center gap-1 text-xs md:text-sm text-muted-foreground">
-                              <span className="text-base md:text-lg">{countryFlag}</span>
-                              <span className="hidden xs:inline">
-                                {click.city ? `${click.city}, ` : ''}{countryName}
-                              </span>
-                              <span className="xs:hidden">
-                                {countryName}
-                              </span>
-                            </span>
-                          </div>
-                          
-                          {/* Device type badge */}
-                          <div className="flex items-center gap-1 mt-0.5">
-                            <span className="text-[10px] md:text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
-                              {click.device_type || 'Desktop'}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      {/* Time */}
-                      <span className="text-[10px] md:text-xs text-muted-foreground shrink-0 whitespace-nowrap">
-                        {click.clicked_at ? formatDistance(new Date(click.clicked_at), new Date(), { addSuffix: true }) : 'Just now'}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </motion.div>
-          )}
+          
         </>
       )}
     </div>
