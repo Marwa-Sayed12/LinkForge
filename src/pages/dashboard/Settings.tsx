@@ -1,3 +1,5 @@
+// src/pages/dashboard/Settings.tsx
+
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { User, Mail, Save, Plus, Camera } from "lucide-react";
@@ -12,18 +14,57 @@ export default function DashboardSettings() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+    
+    // ✅ FIX: Use .maybeSingle() instead of .single() to avoid 406 errors
     supabase
       .from("profiles")
       .select("display_name, avatar_url")
       .eq("user_id", user.id)
-      .single()
-      .then(({ data }) => {
-        if (data?.display_name) setDisplayName(data.display_name);
-        if (data?.avatar_url) setAvatarUrl(data.avatar_url);
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (error) {
+          console.error("Error fetching profile:", error);
+          // If profile doesn't exist, create one
+          if (error.code === 'PGRST116') {
+            // Profile not found, create it
+            supabase
+              .from("profiles")
+              .insert({
+                user_id: user.id,
+                display_name: user.fullName || user.email?.split('@')[0] || '',
+                email: user.email,
+              })
+              .then(({ error: insertError }) => {
+                if (insertError) {
+                  console.error("Error creating profile:", insertError);
+                } else {
+                  // Fetch again after creation
+                  supabase
+                    .from("profiles")
+                    .select("display_name, avatar_url")
+                    .eq("user_id", user.id)
+                    .maybeSingle()
+                    .then(({ data: newData }) => {
+                      if (newData?.display_name) setDisplayName(newData.display_name);
+                      if (newData?.avatar_url) setAvatarUrl(newData.avatar_url);
+                      setLoading(false);
+                    });
+                }
+              });
+          }
+        } else if (data) {
+          if (data?.display_name) setDisplayName(data.display_name);
+          if (data?.avatar_url) setAvatarUrl(data.avatar_url);
+        }
+        setLoading(false);
       });
   }, [user]);
 
@@ -84,6 +125,24 @@ export default function DashboardSettings() {
     }
     setSaving(false);
   };
+
+  if (loading) {
+    return (
+      <div className="space-y-6 max-w-lg">
+        <div>
+          <h1 className="font-heading text-2xl font-bold text-foreground">Settings</h1>
+          <p className="text-sm text-muted-foreground">Loading your profile...</p>
+        </div>
+        <div className="glass-card rounded-xl p-6 space-y-6">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-24 h-24 rounded-full bg-secondary/50 animate-pulse" />
+          </div>
+          <div className="h-10 bg-secondary/50 animate-pulse rounded" />
+          <div className="h-10 bg-secondary/50 animate-pulse rounded" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 max-w-lg">
