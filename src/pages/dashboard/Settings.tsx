@@ -23,50 +23,58 @@ export default function DashboardSettings() {
       return;
     }
     
-    // ✅ FIX: Use .maybeSingle() instead of .single() to avoid 406 errors
-    supabase
+    fetchProfile();
+  }, [user]);
+
+  const fetchProfile = async () => {
+    if (!user) return;
+    
+    const { data, error } = await supabase
       .from("profiles")
       .select("display_name, avatar_url")
       .eq("user_id", user.id)
-      .maybeSingle()
-      .then(({ data, error }) => {
-        if (error) {
-          console.error("Error fetching profile:", error);
-          // If profile doesn't exist, create one
-          if (error.code === 'PGRST116') {
-            // Profile not found, create it
-            supabase
-              .from("profiles")
-              .insert({
-                user_id: user.id,
-                display_name: user.fullName || user.email?.split('@')[0] || '',
-                email: user.email,
-              })
-              .then(({ error: insertError }) => {
-                if (insertError) {
-                  console.error("Error creating profile:", insertError);
-                } else {
-                  // Fetch again after creation
-                  supabase
-                    .from("profiles")
-                    .select("display_name, avatar_url")
-                    .eq("user_id", user.id)
-                    .maybeSingle()
-                    .then(({ data: newData }) => {
-                      if (newData?.display_name) setDisplayName(newData.display_name);
-                      if (newData?.avatar_url) setAvatarUrl(newData.avatar_url);
-                      setLoading(false);
-                    });
-                }
-              });
+      .maybeSingle();
+
+    if (error) {
+      console.error("Error fetching profile:", error);
+      setLoading(false);
+      return;
+    }
+
+    if (data) {
+      if (data.display_name) setDisplayName(data.display_name);
+      if (data.avatar_url) setAvatarUrl(data.avatar_url);
+    } else {
+      // ✅ Create profile if it doesn't exist - FIXED: Don't include 'id'
+      const { error: insertError } = await supabase
+        .from("profiles")
+        .insert({
+          user_id: user.id,
+          display_name: user.fullName || user.email?.split('@')[0] || '',
+          email: user.email || '',
+        });
+
+      if (insertError) {
+        console.error("Error creating profile:", insertError);
+        // If error is duplicate key, try fetching again
+        if (insertError.code === '23505') {
+          const { data: retryData } = await supabase
+            .from("profiles")
+            .select("display_name, avatar_url")
+            .eq("user_id", user.id)
+            .maybeSingle();
+          if (retryData) {
+            if (retryData.display_name) setDisplayName(retryData.display_name);
+            if (retryData.avatar_url) setAvatarUrl(retryData.avatar_url);
           }
-        } else if (data) {
-          if (data?.display_name) setDisplayName(data.display_name);
-          if (data?.avatar_url) setAvatarUrl(data.avatar_url);
         }
-        setLoading(false);
-      });
-  }, [user]);
+      } else {
+        // Profile created, set default values
+        setDisplayName(user.fullName || user.email?.split('@')[0] || '');
+      }
+    }
+    setLoading(false);
+  };
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
