@@ -20,7 +20,6 @@ export function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any | null>(null);
 
-  // Sync Clerk user with Supabase profile
   useEffect(() => {
     if (isLoaded && clerkUser) {
       const email = clerkUser.emailAddresses?.[0]?.emailAddress || 
@@ -74,7 +73,6 @@ export function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [isLoaded, clerkUser]);
 
-  // Google Sign-In - Use openSignIn with afterSignInUrl
   const signInWithGoogle = async () => {
     try {
       await openSignIn({
@@ -84,7 +82,6 @@ export function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
       });
     } catch (error) {
       console.error("Google sign in failed:", error);
-      // Fallback: direct to Clerk sign-in page with redirect
       window.location.href = `https://accounts.www.linkforge.website/sign-in?redirect_url=${encodeURIComponent(window.location.origin + "/dashboard")}`;
     }
   };

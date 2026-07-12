@@ -33,7 +33,7 @@ export default function Dashboard() {
       .from("profiles")
       .select("avatar_url")
       .eq("user_id", user.id)
-      .maybeSingle()  // Changed from .single() to .maybeSingle()
+      .maybeSingle()  
       .then(({ data }) => {
         if (data?.avatar_url) setAvatarUrl(data.avatar_url);
       });
@@ -109,12 +109,10 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-background flex">
-      {/* Desktop Sidebar */}
       <aside className="hidden md:flex w-64 flex-col border-r border-border bg-card/50 shrink-0 sticky top-0 h-screen">
         <SidebarContent />
       </aside>
 
-      {/* Mobile Sidebar Overlay */}
       <AnimatePresence>
         {sidebarOpen && (
           <>
@@ -138,9 +136,7 @@ export default function Dashboard() {
         )}
       </AnimatePresence>
 
-      {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Top bar */}
         <header className="sticky top-0 z-30 h-14 border-b border-border bg-background/80 backdrop-blur-lg flex items-center justify-between px-4">
           <button
             onClick={() => setSidebarOpen(true)}

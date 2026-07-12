@@ -1,4 +1,3 @@
-// api/shortcode.js
 
 import { format } from "date-fns";
 
@@ -37,11 +36,10 @@ export default async function handler(req, res) {
     const domain = process.env.VITE_SHORTIO_DOMAIN || 's.linkforge.website';
 
     if (!apiKey) {
-      console.error('❌ API key missing');
+      console.error(' API key missing');
       return res.status(500).json({ error: 'API key not configured' });
     }
 
-    // Step 1: Get link info from Short.io
     const linkInfoResponse = await fetch(
       `https://api.short.io/links/expand?domain=${domain}&path=${shortCode}`,
       {
@@ -68,9 +66,8 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: 'Link ID not found' });
     }
 
-    console.log(`✅ Found link ID: ${linkId} for shortCode: ${shortCode}`);
+    console.log(` Found link ID: ${linkId} for shortCode: ${shortCode}`);
 
-    // Step 2: Get statistics from Short.io
     const statsResponse = await fetch(
       `https://api-v2.short.io/statistics/link/${linkId}?period=total&tzOffset=0`,
       {
@@ -91,55 +88,45 @@ export default async function handler(req, res) {
     }
 
     const statsData = await statsResponse.json();
-    console.log('✅ Stats data received');
+    console.log(' Stats data received');
 
-    // ============================================
-    // FIX: Calculate total clicks from detailed data
-    // ============================================
-    
-    // Method 1: From browser data
+ 
     let calculatedTotal = 0;
     if (statsData.browser && Array.isArray(statsData.browser)) {
       const browserTotal = statsData.browser.reduce((sum, item) => sum + (item.score || 0), 0);
       calculatedTotal = Math.max(calculatedTotal, browserTotal);
-      console.log(`📊 Browser total: ${browserTotal}`);
+      console.log(` Browser total: ${browserTotal}`);
     }
     
-    // Method 2: From country data
     if (statsData.country && Array.isArray(statsData.country)) {
       const countryTotal = statsData.country.reduce((sum, item) => sum + (item.score || 0), 0);
       calculatedTotal = Math.max(calculatedTotal, countryTotal);
       console.log(`📊 Country total: ${countryTotal}`);
     }
     
-    // Method 3: From OS data
     if (statsData.os && Array.isArray(statsData.os)) {
       const osTotal = statsData.os.reduce((sum, item) => sum + (item.score || 0), 0);
       calculatedTotal = Math.max(calculatedTotal, osTotal);
       console.log(`📊 OS total: ${osTotal}`);
     }
     
-    // Method 4: From referrer data
     if (statsData.referer && Array.isArray(statsData.referer)) {
       const refererTotal = statsData.referer.reduce((sum, item) => sum + (item.score || 0), 0);
       calculatedTotal = Math.max(calculatedTotal, refererTotal);
-      console.log(`📊 Referer total: ${refererTotal}`);
+      console.log(` Referer total: ${refererTotal}`);
     }
 
-    // Method 5: From clicksByDate
     if (statsData.clicksByDate) {
       const dateTotal = Object.values(statsData.clicksByDate).reduce((sum, val) => sum + (typeof val === 'number' ? val : 0), 0);
       calculatedTotal = Math.max(calculatedTotal, dateTotal);
-      console.log(`📊 Date total: ${dateTotal}`);
+      console.log(` Date total: ${dateTotal}`);
     }
 
-    // Use the calculated total if it's higher than the reported totalClicks
     const reportedTotal = statsData.totalClicks || 0;
     const finalTotal = Math.max(reportedTotal, calculatedTotal);
     
-    console.log(`📊 Reported: ${reportedTotal}, Calculated: ${calculatedTotal}, Final: ${finalTotal}`);
+    console.log(` Reported: ${reportedTotal}, Calculated: ${calculatedTotal}, Final: ${finalTotal}`);
 
-    // Country name mapping
     const countryNames = {
       'AF': 'Afghanistan',
       'US': 'United States',
@@ -162,7 +149,6 @@ export default async function handler(req, res) {
       'CN': 'China',
     };
 
-    // OS Icon mapping
     const osIcons = {
       'Windows': '🪟',
       'Mac OS X': '🍎',
@@ -175,7 +161,6 @@ export default async function handler(req, res) {
       'Unknown': '💻'
     };
 
-    // Browser Icon mapping
     const browserIcons = {
       'Chrome': '🌐',
       'Firefox': '🦊',
@@ -188,7 +173,6 @@ export default async function handler(req, res) {
       'Unknown': '🌐'
     };
 
-    // Transform clicksByDate
     const clicksByDate = statsData.clicksByDate || {};
     const formattedClicksByDate = {};
     Object.entries(clicksByDate).forEach(([date, count]) => {
@@ -203,11 +187,7 @@ export default async function handler(req, res) {
       }
     });
 
-    // ============================================
-    // TRANSFORM DATA WITH FIXED TOTAL CLICKS
-    // ============================================
     const transformedData = {
-      // ✅ Use the calculated total
       totalClicks: finalTotal,
       humanClicks: statsData.humanClicks || finalTotal,
       clicks: finalTotal,
@@ -217,14 +197,12 @@ export default async function handler(req, res) {
       clicksByDate: formattedClicksByDate,
       interval: statsData.interval || { startDate: null, endDate: null, prevStartDate: null, prevEndDate: null },
       
-      // Raw data from Short.io
       browser: statsData.browser || [],
       country: statsData.country || [],
       city: statsData.city || [],
       os: statsData.os || [],
       referer: statsData.referer || [],
       
-      // Convert to Record format with full country names and icons
       browsers: statsData.browser?.reduce((acc, item) => {
         acc[item.browser] = {
           count: item.score,
@@ -259,11 +237,11 @@ export default async function handler(req, res) {
       recentClicks: statsData.recentClicks || [],
     };
 
-    console.log(`✅ Returning data with ${finalTotal} total clicks`);
+    console.log(` Returning data with ${finalTotal} total clicks`);
     return res.status(200).json(transformedData);
 
   } catch (error) {
-    console.error('❌ Error:', error);
+    console.error(' Error:', error);
     return res.status(500).json({ 
       error: 'Internal server error',
       details: error.message

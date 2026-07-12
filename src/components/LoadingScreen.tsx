@@ -3,7 +3,6 @@ import { useMemo } from "react";
 
 const GRID_SIZE = 9;
 
-// Deterministic QR-like pattern (1 = filled)
 const QR_PATTERN = [
   [1, 1, 1, 1, 1, 1, 1, 0, 1],
   [1, 0, 0, 0, 0, 0, 1, 1, 0],
@@ -34,7 +33,6 @@ export function LoadingScreen() {
 
   return (
     <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center overflow-hidden bg-background">
-      {/* Background glow orbs */}
       <motion.div
         className="absolute top-1/4 left-1/4 w-72 h-72 rounded-full blur-[120px] opacity-30"
         style={{ background: "hsl(20 100% 60%)" }}
@@ -48,7 +46,6 @@ export function LoadingScreen() {
         transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: 1 }}
       />
 
-      {/* Grid backdrop lines */}
       <div
         className="absolute inset-0 opacity-[0.04]"
         style={{
@@ -59,9 +56,7 @@ export function LoadingScreen() {
       />
 
       <div className="relative flex flex-col items-center gap-10 px-6">
-        {/* QR Code Assembly */}
         <div className="relative">
-          {/* Outer glow ring */}
           <motion.div
             className="absolute -inset-6 rounded-3xl"
             style={{
@@ -73,7 +68,6 @@ export function LoadingScreen() {
             transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
           />
 
-          {/* Glassmorphism container */}
           <div
             className="relative p-5 rounded-2xl backdrop-blur-xl border"
             style={{
@@ -83,7 +77,6 @@ export function LoadingScreen() {
                 "0 0 40px hsl(20 100% 60% / 0.2), inset 0 0 20px hsl(20 100% 60% / 0.05)",
             }}
           >
-            {/* QR grid */}
             <div
               className="relative grid gap-[3px]"
               style={{
@@ -120,7 +113,6 @@ export function LoadingScreen() {
                 />
               ))}
 
-              {/* Scanner line */}
               <motion.div
                 className="absolute left-0 right-0 h-[2px] pointer-events-none"
                 style={{
@@ -137,7 +129,6 @@ export function LoadingScreen() {
                 }}
               />
 
-              {/* Corner brackets */}
               {[
                 { top: -4, left: -4, rotate: 0 },
                 { top: -4, right: -4, rotate: 90 },
@@ -164,7 +155,6 @@ export function LoadingScreen() {
             </div>
           </div>
 
-          {/* Pulse rings */}
           {[0, 1].map((i) => (
             <motion.div
               key={i}
@@ -184,10 +174,8 @@ export function LoadingScreen() {
           ))}
         </div>
 
-        {/* Link transformation */}
         <div className="flex flex-col items-center gap-3 w-full max-w-sm">
           <div className="relative w-full h-7 overflow-hidden font-mono text-xs">
-            {/* Long URL shrinking */}
             <motion.div
               className="absolute inset-0 flex items-center justify-center whitespace-nowrap text-muted-foreground"
               animate={{
@@ -205,7 +193,6 @@ export function LoadingScreen() {
               https://example.com/very/long/url/path?id=12345&ref=loading
             </motion.div>
 
-            {/* Short URL appearing */}
             <motion.div
               className="absolute inset-0 flex items-center justify-center whitespace-nowrap font-semibold"
               style={{
@@ -230,7 +217,6 @@ export function LoadingScreen() {
             </motion.div>
           </div>
 
-          {/* Data flow line */}
           <div className="relative w-full h-[2px] rounded-full overflow-hidden bg-muted/30">
             <motion.div
               className="absolute top-0 bottom-0 w-1/3 rounded-full"
@@ -249,7 +235,6 @@ export function LoadingScreen() {
           </div>
         </div>
 
-        {/* Brand + status */}
         <div className="flex flex-col items-center gap-3">
           <span className="font-heading text-2xl font-bold text-foreground tracking-tight">
             Link<span className="gradient-accent-text">Forge</span>

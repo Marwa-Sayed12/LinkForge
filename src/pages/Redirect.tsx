@@ -1,4 +1,3 @@
-// src/pages/Redirect.tsx
 
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
@@ -11,7 +10,6 @@ export default function Redirect() {
   useEffect(() => {
     if (!shortCode) return;
     
-    // ✅ Use Supabase Edge Function
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
     const redirectUrl = `${supabaseUrl}/functions/v1/redirect/${shortCode}`;
     

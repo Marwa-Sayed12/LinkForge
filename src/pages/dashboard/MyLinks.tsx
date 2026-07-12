@@ -1,4 +1,3 @@
-// src/pages/dashboard/MyLinks.tsx
 
 import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
@@ -55,9 +54,7 @@ export default function MyLinks() {
   const [clickCounts, setClickCounts] = useState<Record<string, number>>({});
   const [loadingClicks, setLoadingClicks] = useState<Record<string, boolean>>({});
 
-  // ============================================
-  // FETCH LINKS FROM SUPABASE + CLICKS FROM SHORT.IO
-  // ============================================
+
   const fetchLinks = useCallback(async () => {
     if (!user) {
       setLoading(false);
@@ -75,7 +72,6 @@ export default function MyLinks() {
       
       setLinks(data || []);
       
-      // ✅ Fetch click counts from Short.io for all links
       if (data && data.length > 0) {
         const shortCodes = data.map(link => link.short_code);
         const counts = await getMultipleLinkClicks(shortCodes);
@@ -94,9 +90,7 @@ export default function MyLinks() {
     }
   }, [user]);
 
-  // ============================================
-  // REFRESH CLICKS FROM SHORT.IO
-  // ============================================
+
   const refreshClicks = useCallback(async () => {
     if (!links.length) {
       toast.info("No links to refresh");
@@ -118,7 +112,7 @@ export default function MyLinks() {
         result[link.id] = counts[link.short_code] || 0;
       });
       setClickCounts(result);
-      toast.success(`✅ Click counts updated from Short.io!`);
+      toast.success(` Click counts updated from Short.io!`);
     } catch (e) {
       console.error("Refresh error:", e);
       toast.error("Failed to refresh clicks");
@@ -134,9 +128,7 @@ export default function MyLinks() {
     fetchLinks();
   }, [fetchLinks]);
 
-  // ============================================
-  // CREATE NEW LINK
-  // ============================================
+
   const checkAliasExists = async (alias: string): Promise<boolean> => {
     const { data } = await supabase
       .from("links")
@@ -177,10 +169,8 @@ export default function MyLinks() {
         }
       }
       
-      // ✅ Create in Short.io
       const result = await createShortLink(url, shortCode);
       
-      // ✅ Save to Supabase
       const { error } = await supabase.from("links").insert({
         user_id: user.id,
         original_url: url,
@@ -194,7 +184,7 @@ export default function MyLinks() {
       if (error) {
         toast.error(error.message);
       } else {
-        toast.success(`✅ Link created: ${result.shortUrl}`);
+        toast.success(` Link created: ${result.shortUrl}`);
         setUrl("");
         setCustomAlias("");
         setSuggestedAlias("");
@@ -219,9 +209,7 @@ export default function MyLinks() {
     }
   };
 
-  // ============================================
-  // UTILITY FUNCTIONS
-  // ============================================
+
   const downloadQR = async (link: LinkData) => {
     try {
       const dataUrl = await QRCode.toDataURL(link.original_url, { width: 512, margin: 2 });
@@ -260,9 +248,7 @@ export default function MyLinks() {
     }
   };
 
-  // ============================================
-  // RENDER
-  // ============================================
+
   if (!user) {
     return (
       <div className="glass-card rounded-xl p-12 text-center">
@@ -278,7 +264,6 @@ export default function MyLinks() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h1 className="font-heading text-2xl font-bold text-foreground flex items-center gap-2">
@@ -305,7 +290,6 @@ export default function MyLinks() {
         </div>
       </div>
 
-      {/* Create Link Form */}
       {showCreate && (
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="glass-card rounded-xl p-5">
           <form onSubmit={createLink} className="space-y-4">
@@ -358,7 +342,6 @@ export default function MyLinks() {
         </motion.div>
       )}
 
-      {/* Loading State */}
       {loading ? (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
@@ -369,7 +352,6 @@ export default function MyLinks() {
           ))}
         </div>
       ) : links.length === 0 ? (
-        /* Empty State */
         <div className="glass-card rounded-xl p-12 text-center">
           <Link2 className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
           <h3 className="font-heading text-lg font-semibold text-foreground mb-2">No links yet</h3>
@@ -379,7 +361,6 @@ export default function MyLinks() {
           </Button>
         </div>
       ) : (
-        /* Links List */
         <div className="space-y-3">
           {links.map((link) => (
             <motion.div

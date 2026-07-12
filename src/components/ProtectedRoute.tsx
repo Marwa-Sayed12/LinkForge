@@ -13,7 +13,6 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (!user) {
-    // Redirect to Clerk sign-in with return URL
     return <Navigate to="https://accounts.www.linkforge.website/sign-in?redirect_url=https://www.linkforge.website/dashboard" replace />;
   }
 

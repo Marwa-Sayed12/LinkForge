@@ -1,4 +1,3 @@
-// src/pages/dashboard/Analytics.tsx
 
 import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
@@ -27,7 +26,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 const geoUrl = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 
-// Flag function
 const getFlagEmoji = (countryCode: string) => {
   if (!countryCode) return '🌍';
   try {
@@ -41,7 +39,6 @@ const getFlagEmoji = (countryCode: string) => {
   }
 };
 
-// OS Icon mapping
 const OS_ICONS: Record<string, string> = {
   'Windows': '🪟',
   'Mac OS X': '🍎',
@@ -54,7 +51,6 @@ const OS_ICONS: Record<string, string> = {
   'Unknown': '💻'
 };
 
-// Browser Icon mapping
 const BROWSER_ICONS: Record<string, string> = {
   'Chrome': '🌐',
   'Firefox': '🦊',
@@ -98,7 +94,6 @@ interface LinkWithStats {
   stats?: any;
 }
 
-// Custom Tooltip for the chart
 const CustomChartTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
@@ -117,7 +112,6 @@ const CustomChartTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-// World Map Component
 const WorldMap = ({ data }: { data: any[] }) => {
   const [isMobile, setIsMobile] = useState(false);
   const [zoom, setZoom] = useState(1.2);
@@ -170,7 +164,6 @@ const WorldMap = ({ data }: { data: any[] }) => {
     return country ? country.value : 0;
   };
 
-  // Country coordinates for markers
   const coords: Record<string, [number, number]> = {
     'US': [-100, 40],
     'AF': [67, 33],
@@ -298,7 +291,6 @@ const WorldMap = ({ data }: { data: any[] }) => {
         </ZoomableGroup>
       </ComposableMap>
 
-      {/* Zoom Controls */}
       <div className="map-zoom-controls">
         <button 
           className="map-zoom-btn" 
@@ -337,7 +329,6 @@ const WorldMap = ({ data }: { data: any[] }) => {
         </button>
       </div>
       
-      {/* Legend */}
       {data.length > 0 && (
         <div className="map-legend">
           <div className="flex items-center gap-2">
@@ -352,14 +343,12 @@ const WorldMap = ({ data }: { data: any[] }) => {
         </div>
       )}
       
-      {/* Country count badge */}
       {data.length > 0 && (
         <div className="map-badge">
           <span className="map-badge-text">🌍 {data.length} {data.length === 1 ? 'Country' : 'Countries'}</span>
         </div>
       )}
 
-      {/* Watermark */}
       {data.length > 0 && (
         <div className="map-watermark">
           <span className="map-watermark-text">LinkForge Analytics</span>
@@ -401,7 +390,6 @@ export default function Analytics() {
   }, []);
 
   const processStatsData = useCallback((allStats: any[], total: number, humanTotal: number) => {
-    // Process daily clicks
     const dailyMap: Record<string, number> = {};
     const now = new Date();
     let todayCount = 0;
@@ -483,7 +471,6 @@ export default function Analytics() {
     }
     setDailyClicksData(days);
 
-    // Process device data
     const deviceMap: Record<string, number> = {};
     allStats.forEach((stats) => {
       if (stats.devices) {
@@ -557,7 +544,6 @@ export default function Analytics() {
         .slice(0, 8)
     );
 
-    // Process country data with flags
     const countryMap: Record<string, { count: number; code: string }> = {};
     allStats.forEach((stats) => {
       if (stats.countries) {
@@ -590,7 +576,6 @@ export default function Analytics() {
         .slice(0, 8)
     );
 
-    // Process browser data
     const browserMap: Record<string, { count: number; icon: string }> = {};
     allStats.forEach((stats) => {
       if (stats.browsers) {
@@ -622,7 +607,6 @@ export default function Analytics() {
         .slice(0, 8)
     );
 
-    // Process OS data
     const osMap: Record<string, { count: number; icon: string }> = {};
     allStats.forEach((stats) => {
       if (stats.oss) {
@@ -654,7 +638,6 @@ export default function Analytics() {
         .slice(0, 8)
     );
 
-    // Process referrer data
     const referrerMap: Record<string, number> = {};
     allStats.forEach((stats) => {
       if (stats.referrers) {
@@ -678,13 +661,10 @@ export default function Analytics() {
         .slice(0, 8)
     );
 
-    // ============================================
-    // FIXED: Process recent clicks with correct country data
-    // ============================================
+  
     const allRecentClicks: any[] = [];
 
     allStats.forEach((stats) => {
-      // Try to get recent clicks from Short.io
       if (stats.recentClicks && Array.isArray(stats.recentClicks) && stats.recentClicks.length > 0) {
         stats.recentClicks.forEach((click: any) => {
           let deviceType = 'Desktop';
@@ -730,7 +710,6 @@ export default function Analytics() {
           else if (userAgent.includes('safari') && !userAgent.includes('chrome')) browser = 'Safari';
           else if (userAgent.includes('edg')) browser = 'Edge';
           
-          // Get country from click data
           const country = click.country || click.country_code || null;
           const city = click.city || null;
           
@@ -749,9 +728,7 @@ export default function Analytics() {
       }
     });
 
-    // If no recent clicks from Short.io, create from available data
     if (allRecentClicks.length === 0 && total > 0) {
-      // Get countries from stats
       const countries: string[] = [];
       const countryCodes: Record<string, string> = {};
       
@@ -766,7 +743,6 @@ export default function Analytics() {
         }
       });
       
-      // Get browsers
       const browsers: string[] = [];
       allStats.forEach((stats) => {
         if (stats.browsers) {
@@ -778,7 +754,6 @@ export default function Analytics() {
         }
       });
       
-      // Get OS
       const oss: string[] = [];
       allStats.forEach((stats) => {
         if (stats.oss) {
@@ -790,7 +765,6 @@ export default function Analytics() {
         }
       });
       
-      // Create recent clicks from available data
       const maxItems = Math.min(10, Math.max(countries.length || 1, browsers.length || 1, oss.length || 1));
       for (let i = 0; i < maxItems; i++) {
         const country = countries[i % countries.length] || 'Unknown';
@@ -803,7 +777,6 @@ export default function Analytics() {
           deviceType = '📱 Mobile';
         }
         
-        // Determine if mobile browser
         const browserLower = browser.toLowerCase();
         if (browserLower.includes('mobile')) {
           deviceType = '📱 Mobile';
@@ -822,7 +795,6 @@ export default function Analytics() {
       }
     }
 
-    // Final fallback
     if (allRecentClicks.length === 0 && total > 0) {
       allRecentClicks.push({
         clicked_at: new Date().toISOString(),
@@ -843,7 +815,6 @@ export default function Analytics() {
     );
   }, []);
 
-  // Main fetch function
   const fetchAnalytics = useCallback(async (refresh = false) => {
     if (!user) return;
 
@@ -1014,7 +985,6 @@ export default function Analytics() {
 
   return (
     <div className="space-y-4 md:space-y-6 px-3 md:px-4 lg:px-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 md:gap-4">
         <div>
           <h1 className="font-heading text-xl md:text-2xl lg:text-3xl font-bold text-foreground">Analytics</h1>
@@ -1042,14 +1012,12 @@ export default function Analytics() {
         </div>
       </div>
 
-      {/* Progress Bar */}
       {isRefreshing && progress > 0 && progress < 100 && (
         <div className="w-full h-1 bg-secondary rounded-full overflow-hidden">
           <div className="h-full bg-primary transition-all duration-300" style={{ width: `${progress}%` }} />
         </div>
       )}
 
-      {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 md:gap-4">
         {stats.map((stat, i) => (
           <motion.div
@@ -1078,7 +1046,6 @@ export default function Analytics() {
         </div>
       ) : (
         <>
-          {/* Clicks Chart */}
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-3 md:p-5 lg:p-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3 md:mb-4 gap-2">
               <h3 className="font-heading font-semibold text-foreground text-base md:text-lg flex items-center gap-2">
@@ -1155,9 +1122,7 @@ export default function Analytics() {
             </div>
           </motion.div>
 
-          {/* Two Cards in One Line - Top Links & Device Distribution */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-            {/* Top Links */}
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-4 md:p-6">
               <h3 className="font-heading font-semibold text-foreground mb-3 md:mb-4 text-base md:text-lg flex items-center gap-2">
                 <TrendingUp className="w-4 h-4 md:w-5 md:h-5 text-success" />
@@ -1194,7 +1159,6 @@ export default function Analytics() {
               </div>
             </motion.div>
 
-            {/* Device Distribution */}
             {deviceData.length > 0 && (
   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-3 md:p-6">
     <h3 className="font-heading font-semibold text-foreground mb-2 md:mb-4 text-sm md:text-lg flex items-center gap-2">
@@ -1228,7 +1192,6 @@ export default function Analytics() {
       </ResponsiveContainer>
     </div>
     
-    {/* ✅ BIGGER TEXT on mobile */}
     <div className="flex flex-wrap justify-center gap-2 sm:gap-3 mt-3 sm:mt-4">
       {deviceData.map((entry, index) => (
         <div 
@@ -1248,7 +1211,6 @@ export default function Analytics() {
 )}
           </div>
 
-          {/* Countries with Map */}
           {countryData.length > 0 && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-4 md:p-6">
               <div className="section-header">
@@ -1282,7 +1244,6 @@ export default function Analytics() {
             </motion.div>
           )}
 
-          {/* Browsers */}
           {browserData.length > 0 && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-4 md:p-6">
               <h3 className="font-heading font-semibold text-foreground mb-3 md:mb-4 text-base md:text-lg flex items-center gap-2">
@@ -1315,7 +1276,6 @@ export default function Analytics() {
             </motion.div>
           )}
 
-          {/* OS */}
           {osData.length > 0 && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-4 md:p-6">
               <h3 className="font-heading font-semibold text-foreground mb-3 md:mb-4 text-base md:text-lg flex items-center gap-2">
@@ -1348,7 +1308,6 @@ export default function Analytics() {
             </motion.div>
           )}
 
-          {/* Referrers */}
           {referrerData.length > 0 && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-4 md:p-6">
               <h3 className="font-heading font-semibold text-foreground mb-3 md:mb-4 text-base md:text-lg flex items-center gap-2">

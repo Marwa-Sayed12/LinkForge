@@ -72,7 +72,6 @@ export function AnalyticsDashboard() {
           <p className="text-muted-foreground text-lg">Every click tells a story. See yours in real time.</p>
         </motion.div>
 
-        {/* Stats Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {stats.map((stat, i) => (
             <motion.div
@@ -97,7 +96,6 @@ export function AnalyticsDashboard() {
         </div>
 
         <div className="grid lg:grid-cols-3 gap-4">
-          {/* Area Chart */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -122,7 +120,6 @@ export function AnalyticsDashboard() {
             </ResponsiveContainer>
           </motion.div>
 
-          {/* Device Pie */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -150,7 +147,6 @@ export function AnalyticsDashboard() {
             </div>
           </motion.div>
 
-          {/* Browser Bar Chart */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}

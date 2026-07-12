@@ -1,4 +1,3 @@
-// src/lib/shortio-direct.ts
 
 const SHORTIO_API_KEY = import.meta.env.VITE_SHORTIO_API_KEY;
 const SHORTIO_DOMAIN = import.meta.env.VITE_SHORTIO_DOMAIN || 's.linkforge.website';
@@ -10,7 +9,6 @@ export async function getShortIoStatsDirect(shortCode: string) {
   }
 
   try {
-    // Step 1: Get link info by path
     const linkInfoResponse = await fetch(
       `https://api.short.io/links/expand?domain=${SHORTIO_DOMAIN}&path=${shortCode}`,
       {
@@ -34,7 +32,6 @@ export async function getShortIoStatsDirect(shortCode: string) {
       return null;
     }
 
-    // Step 2: Get statistics
     const statsResponse = await fetch(
       `https://api-v2.short.io/statistics/link/${linkId}?period=total&tzOffset=0`,
       {
@@ -52,7 +49,6 @@ export async function getShortIoStatsDirect(shortCode: string) {
 
     const statsData = await statsResponse.json();
 
-    // Transform data
     return {
       totalClicks: statsData.totalClicks || 0,
       humanClicks: statsData.humanClicks || 0,
@@ -85,7 +81,6 @@ export async function getShortIoStatsDirect(shortCode: string) {
       devices: {},
       recentClicks: [],
       
-      // Raw data
       browser: statsData.browser || [],
       country: statsData.country || [],
       city: statsData.city || [],

@@ -1,4 +1,3 @@
-// src/lib/shortio.ts
 
 import { createClient } from '@short.io/client-browser';
 import { supabase } from '@/integrations/supabase/client';
@@ -9,16 +8,13 @@ const client = createClient({
 
 const DOMAIN = 's.linkforge.website';
 
-// Cache for Short.io API
 const statsCache = new Map<string, { data: any; timestamp: number }>();
-const CACHE_DURATION = 60000; // 1 minute
+const CACHE_DURATION = 60000; 
 
-// ============================================
-// CREATE SHORT LINK
-// ============================================
+
 export async function createShortLink(originalUrl: string, customSlug?: string) {
   try {
-    console.log('🔴 Creating Short.io link:', originalUrl);
+    console.log(' Creating Short.io link:', originalUrl);
     
     const result = await client.createLink({
       domain: DOMAIN,
@@ -26,7 +22,7 @@ export async function createShortLink(originalUrl: string, customSlug?: string) 
       path: customSlug || undefined
     });
     
-    console.log('✅ Short.io created:', result);
+    console.log(' Short.io created:', result);
     
     return {
       shortUrl: result.shortURL,
@@ -34,14 +30,12 @@ export async function createShortLink(originalUrl: string, customSlug?: string) 
       id: result.id,
     };
   } catch (error) {
-    console.error('❌ Short.io error:', error);
+    console.error(' Short.io error:', error);
     throw new Error('Failed to create short link');
   }
 }
 
-// ============================================
-// GET SINGLE LINK CLICKS FROM SHORT.IO
-// ============================================
+
 export async function getLinkClicks(shortCode: string): Promise<number> {
   try {
     const response = await fetch(`/api/shortcode?shortCode=${shortCode}`);
@@ -59,9 +53,7 @@ export async function getLinkClicks(shortCode: string): Promise<number> {
   }
 }
 
-// ============================================
-// GET MULTIPLE LINK CLICKS FROM SHORT.IO
-// ============================================
+
 export async function getMultipleLinkClicks(shortCodes: string[]): Promise<Record<string, number>> {
   try {
     if (!shortCodes || shortCodes.length === 0) {
@@ -94,9 +86,7 @@ export async function getMultipleLinkClicks(shortCodes: string[]): Promise<Recor
   }
 }
 
-// ============================================
-// GET USER TOTAL CLICKS FROM SHORT.IO
-// ============================================
+
 export async function getUserTotalClicks(userId: string): Promise<number> {
   try {
     const { data: links, error } = await supabase
@@ -123,9 +113,6 @@ export async function getUserTotalClicks(userId: string): Promise<number> {
   }
 }
 
-// ============================================
-// GET FULL STATS FROM SHORT.IO (Analytics)
-// ============================================
 export async function getShortIoStats(shortCode: string) {
   try {
     const cached = statsCache.get(shortCode);

@@ -4,13 +4,10 @@ import { ClerkProvider } from "@clerk/clerk-react";
 import App from "./App";
 import "./index.css";
 
-// Get the publishable key from environment variables
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
-// Check if the key exists - if not, show a clear error
 if (!PUBLISHABLE_KEY) {
   console.error("Missing VITE_CLERK_PUBLISHABLE_KEY environment variable");
-  // Show error on screen for debugging
   const root = document.getElementById("root");
   if (root) {
     root.innerHTML = `

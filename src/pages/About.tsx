@@ -33,7 +33,6 @@ export default function About() {
       <Navbar />
 
       <main className="pt-28 pb-20">
-        {/* Hero */}
         <section className="container mx-auto px-6 sm:px-8 lg:px-12 text-center mb-20">
           <div className="flex items-center justify-center gap-2 mb-6">
             <Link2 className="w-8 h-8 text-accent" />
@@ -50,7 +49,6 @@ export default function About() {
           </p>
         </section>
 
-        {/* Story */}
         <section className="container mx-auto px-6 sm:px-8 lg:px-12 mb-20">
           <div className="max-w-2xl mx-auto">
             <h2 className="font-heading text-2xl sm:text-3xl font-bold mb-6">Our Story</h2>
@@ -68,7 +66,6 @@ export default function About() {
           </div>
         </section>
 
-        {/* Values */}
         <section className="container mx-auto px-6 sm:px-8 lg:px-12 mb-20">
           <h2 className="font-heading text-2xl sm:text-3xl font-bold mb-10 text-center">What We Believe In</h2>
           <div className="grid sm:grid-cols-2 gap-6 max-w-3xl mx-auto">
@@ -87,7 +84,6 @@ export default function About() {
           </div>
         </section>
 
-        {/* CTA */}
         <section className="container mx-auto px-6 sm:px-8 lg:px-12 text-center">
           <div className="rounded-2xl border border-border bg-card p-10 max-w-xl mx-auto">
             <h2 className="font-heading text-2xl font-bold mb-3">Ready to get started?</h2>

@@ -1,4 +1,3 @@
-// api/test-db.js
 
 import { createClient } from '@supabase/supabase-js';
 
@@ -8,7 +7,6 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default async function handler(req, res) {
   try {
-    // Test connection
     const { data, error } = await supabase
       .from('links')
       .select('id, short_code, clicks')

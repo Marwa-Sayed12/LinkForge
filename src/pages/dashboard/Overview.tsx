@@ -1,4 +1,3 @@
-// src/pages/dashboard/Overview.tsx
 
 import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
@@ -43,9 +42,7 @@ export default function Overview() {
   const [loading, setLoading] = useState(true);
   const [clickCounts, setClickCounts] = useState<Record<string, number>>({});
 
-  // ============================================
-  // FETCH DATA FROM SUPABASE + CLICKS FROM SHORT.IO
-  // ============================================
+
   const fetchData = useCallback(async () => {
     if (!user) {
       setLoading(false);
@@ -65,12 +62,10 @@ export default function Overview() {
       setStats((prev) => ({ ...prev, links: linkCount || 0 }));
       setRecentLinks(links.slice(0, 5));
 
-      // ✅ Get total clicks from Short.io
       if (links.length > 0) {
         const totalClicks = await getUserTotalClicks(user.id);
         setStats((prev) => ({ ...prev, clicks: totalClicks }));
         
-        // Get individual click counts for recent links
         const shortCodes = links.slice(0, 5).map(link => link.short_code);
         const counts = await getMultipleLinkClicks(shortCodes);
         
@@ -95,9 +90,7 @@ export default function Overview() {
     fetchData();
   }, [fetchData]);
 
-  // ============================================
-  // CREATE QUICK LINK
-  // ============================================
+
   const handleQuickCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!quickUrl.trim() || !user) {
@@ -116,10 +109,8 @@ export default function Overview() {
     try {
       const shortCode = Math.random().toString(36).substring(2, 8);
       
-      // ✅ Create in Short.io
       const { shortUrl } = await createShortLink(quickUrl.trim(), shortCode);
       
-      // ✅ Save to Supabase
       const { error } = await supabase.from("links").insert({
         user_id: user.id,
         original_url: quickUrl.trim(),
@@ -136,7 +127,7 @@ export default function Overview() {
       
       setLastCreated(shortUrl);
       setQuickUrl("");
-      toast.success("✅ Short link created!");
+      toast.success(" Short link created!");
       fetchData();
     } catch (e: any) {
       toast.error(e.message || "Failed to shorten URL");
@@ -152,9 +143,7 @@ export default function Overview() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // ============================================
-  // RENDER
-  // ============================================
+
   const statCards = [
     { 
       label: "Total Links", 
@@ -216,7 +205,6 @@ export default function Overview() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="min-w-0 shrink">
           <h1 className="font-heading text-2xl font-bold text-foreground flex items-center gap-2">
@@ -236,7 +224,6 @@ export default function Overview() {
         </Link>
       </div>
 
-      {/* Quick Create */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -282,7 +269,6 @@ export default function Overview() {
         )}
       </motion.div>
 
-      {/* Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {statCards.map((stat, i) => (
           <motion.div
@@ -301,7 +287,6 @@ export default function Overview() {
         ))}
       </div>
 
-      {/* Recent Links */}
       <div className="glass-card rounded-xl p-5">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-heading font-semibold text-foreground flex items-center gap-2">

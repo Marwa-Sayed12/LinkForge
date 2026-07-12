@@ -1,4 +1,3 @@
-// supabase/functions/get-shortio-stats/index.ts
 // @ts-expect-error - Deno import for Supabase Edge Functions
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
@@ -7,7 +6,6 @@ const SHORTIO_API_KEY = Deno.env.get('SHORTIO_API_KEY') || '';
 const SHORTIO_DOMAIN = Deno.env.get('VITE_SHORTIO_DOMAIN') || 's.linkforge.website';
 
 serve(async (req) => {
-  // Handle CORS
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, OPTIONS',
@@ -29,7 +27,6 @@ serve(async (req) => {
       );
     }
 
-    // Step 1: Get link info by path
     const linkInfoResponse = await fetch(
       `https://api.short.io/links/expand?domain=${SHORTIO_DOMAIN}&path=${shortCode}`,
       {
@@ -57,7 +54,6 @@ serve(async (req) => {
       );
     }
 
-    // Step 2: Get statistics
     const statsResponse = await fetch(
       `https://api-v2.short.io/statistics/link/${linkId}?period=total&tzOffset=0`,
       {
@@ -77,7 +73,6 @@ serve(async (req) => {
 
     const statsData = await statsResponse.json();
 
-    // Transform data
     const transformedData = {
       totalClicks: statsData.totalClicks || 0,
       humanClicks: statsData.humanClicks || 0,

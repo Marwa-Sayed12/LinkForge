@@ -77,14 +77,12 @@ export function QRGenerator({ hideHeader = false }: { hideHeader?: boolean } = {
         )}
 
         <div className="max-w-4xl mx-auto grid md:grid-cols-2 gap-8">
-          {/* Controls */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
             className="glass-card rounded-2xl p-6 space-y-6"
           >
-            {/* URL Input */}
             <div>
               <label className="text-sm font-medium text-foreground mb-1.5 block">Content / URL</label>
               <input
@@ -95,7 +93,6 @@ export function QRGenerator({ hideHeader = false }: { hideHeader?: boolean } = {
               />
             </div>
 
-            {/* Color Presets */}
             <div>
               <label className="text-sm font-medium text-foreground mb-2 block flex items-center gap-1.5">
                 <Palette className="w-3.5 h-3.5" /> Color Preset
@@ -121,7 +118,6 @@ export function QRGenerator({ hideHeader = false }: { hideHeader?: boolean } = {
               </div>
             </div>
 
-            {/* Error Correction */}
             <div>
               <label className="text-sm font-medium text-foreground mb-2 block">Error Correction</label>
               <div className="flex gap-2">
@@ -141,7 +137,6 @@ export function QRGenerator({ hideHeader = false }: { hideHeader?: boolean } = {
               </div>
             </div>
 
-            {/* Size slider */}
             <div>
               <label className="text-sm font-medium text-foreground mb-2 flex justify-between">
                 Size <span className="text-muted-foreground font-mono">{size}px</span>
@@ -157,7 +152,6 @@ export function QRGenerator({ hideHeader = false }: { hideHeader?: boolean } = {
             </div>
           </motion.div>
 
-          {/* Preview */}
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             whileInView={{ opacity: 1, x: 0 }}

@@ -26,7 +26,6 @@ export function ThemeToggle() {
       className="relative w-14 h-8 md:w-14 md:h-8 rounded-full border border-border bg-secondary/60 backdrop-blur-sm cursor-pointer transition-all duration-300 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background overflow-hidden touch-manipulation"
       style={{ minHeight: 32, minWidth: 56 }}
     >
-      {/* Ripple effect */}
       <AnimatePresence>
         {ripple && (
           <motion.span
@@ -39,7 +38,6 @@ export function ThemeToggle() {
         )}
       </AnimatePresence>
 
-      {/* Icons inside the pill */}
       <span className="absolute left-1.5 top-1/2 -translate-y-1/2">
         <Sun className={`w-3.5 h-3.5 transition-all duration-300 ${!isDark ? "text-amber-500 opacity-100" : "text-muted-foreground opacity-40"}`} />
       </span>
@@ -47,7 +45,6 @@ export function ThemeToggle() {
         <Moon className={`w-3.5 h-3.5 transition-all duration-300 ${isDark ? "text-blue-400 opacity-100" : "text-muted-foreground opacity-40"}`} />
       </span>
 
-      {/* Sliding indicator */}
       <motion.div
         layout
         transition={{ type: "spring", stiffness: 500, damping: 30, mass: 0.8 }}
@@ -83,7 +80,6 @@ export function ThemeToggle() {
         </AnimatePresence>
       </motion.div>
 
-      {/* Glow in dark mode */}
       {isDark && (
         <div className="absolute inset-0 rounded-full shadow-[0_0_12px_-2px_hsl(var(--primary)/0.3)] pointer-events-none" />
       )}

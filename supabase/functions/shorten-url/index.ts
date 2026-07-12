@@ -1,4 +1,3 @@
-// Replace the entire edge function with this
 const SHORTIO_API_KEY = "";
 const SHORTIO_DOMAIN = "";
 
@@ -22,7 +21,7 @@ Deno.serve(async (req) => {
   })
 });
 const data = await response.json();
-console.log(data.shortURL); // https://linkforge.website/abc123
+console.log(data.shortURL); 
 
     
     const data = await response.json();

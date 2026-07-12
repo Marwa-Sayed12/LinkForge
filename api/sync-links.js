@@ -1,4 +1,3 @@
-// api/sync-links.js
 
 import { createClient } from '@supabase/supabase-js';
 
@@ -11,7 +10,6 @@ const SHORTIO_DOMAIN = process.env.VITE_SHORTIO_DOMAIN || 's.linkforge.website';
 
 export default async function handler(req, res) {
   try {
-    // Get all links from Short.io
     const response = await fetch(
       `https://api.short.io/api/links?domain=${SHORTIO_DOMAIN}&limit=100`,
       {
@@ -31,7 +29,6 @@ export default async function handler(req, res) {
     let skipped = 0;
 
     for (const link of links) {
-      // Check if link already exists in Supabase
       const { data: existing } = await supabase
         .from('links')
         .select('id')
@@ -39,7 +36,6 @@ export default async function handler(req, res) {
         .single();
 
       if (!existing) {
-        // Add to Supabase
         const { error } = await supabase.from('links').insert({
           short_code: link.path,
           original_url: link.originalURL,

@@ -1,4 +1,3 @@
-// api/redirect/[shortCode].js
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -13,7 +12,6 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Get link from Supabase
     const { data: link, error } = await supabase
       .from('links')
       .select('id, original_url, is_active')
@@ -24,15 +22,13 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: 'Link not found' });
     }
 
-    // ✅ Use the increment function
     const { error: incrementError } = await supabase
       .rpc('increment_clicks', { row_id: link.id });
 
     if (incrementError) {
-      console.error('❌ Failed to increment clicks:', incrementError);
+      console.error(' Failed to increment clicks:', incrementError);
     }
 
-    // ✅ Also insert into clicks table for analytics
     await supabase
       .from('clicks')
       .insert({

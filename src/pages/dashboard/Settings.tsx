@@ -1,4 +1,3 @@
-// src/pages/dashboard/Settings.tsx
 
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
@@ -45,7 +44,6 @@ export default function DashboardSettings() {
       if (data.display_name) setDisplayName(data.display_name);
       if (data.avatar_url) setAvatarUrl(data.avatar_url);
     } else {
-      // ✅ Create profile if it doesn't exist - FIXED: Don't include 'id'
       const { error: insertError } = await supabase
         .from("profiles")
         .insert({
@@ -56,7 +54,6 @@ export default function DashboardSettings() {
 
       if (insertError) {
         console.error("Error creating profile:", insertError);
-        // If error is duplicate key, try fetching again
         if (insertError.code === '23505') {
           const { data: retryData } = await supabase
             .from("profiles")
@@ -69,7 +66,6 @@ export default function DashboardSettings() {
           }
         }
       } else {
-        // Profile created, set default values
         setDisplayName(user.fullName || user.email?.split('@')[0] || '');
       }
     }

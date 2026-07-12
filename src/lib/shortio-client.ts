@@ -1,9 +1,7 @@
-// src/lib/shortio-client.ts
 
 const SHORTIO_API_KEY = import.meta.env.VITE_SHORTIO_API_KEY;
 const SHORTIO_DOMAIN = import.meta.env.VITE_SHORTIO_DOMAIN || 's.linkforge.website';
 
-// Define types for API responses
 interface ShortIoLink {
   id: string;
   path: string;
@@ -57,7 +55,6 @@ interface ShortIoInterval {
   prevEndDate: string | null;
 }
 
-// Main export interface for our app
 export interface ShortIoStats {
   totalClicks?: number;
   humanClicks?: number;
@@ -71,11 +68,10 @@ export interface ShortIoStats {
   country?: ShortIoCountryStats[];
   city?: ShortIoCityStats[];
   os?: ShortIoOsStats[];
-  // Legacy fields for backward compatibility with Analytics.tsx
   devices?: Record<string, number>;
   countries?: Record<string, number>;
   browsers?: Record<string, number>;
-  oss?: Record<string, number>;  // Changed from 'os' to avoid duplicate
+  oss?: Record<string, number>;  
   referrers?: Record<string, number>;
   recentClicks?: Array<{
     timestamp?: string;
@@ -87,9 +83,6 @@ export interface ShortIoStats {
   }>;
 }
 
-/**
- * Get the link ID from a short code
- */
 export async function getLinkId(shortCode: string): Promise<string | null> {
   if (!SHORTIO_API_KEY) {
     console.error('Short.io API key is missing');
@@ -114,7 +107,6 @@ export async function getLinkId(shortCode: string): Promise<string | null> {
 
     const links: ShortIoLink[] = await response.json();
     
-    // Find the link with matching short code
     const link = links.find((l: ShortIoLink) => l.path === shortCode);
     
     if (!link) {
@@ -129,9 +121,7 @@ export async function getLinkId(shortCode: string): Promise<string | null> {
   }
 }
 
-/**
- * Fetch statistics for a specific short link using the correct API endpoint
- */
+
 export async function getShortIoStats(
   shortCode: string, 
   period: string = 'total',
@@ -148,14 +138,12 @@ export async function getShortIoStats(
   }
 
   try {
-    // First, get the link ID
     const linkId = await getLinkId(shortCode);
     if (!linkId) {
       console.error(`Could not find link ID for short code: ${shortCode}`);
       return null;
     }
 
-    // Use the correct endpoint from the documentation
     const url = `https://api-v2.short.io/statistics/link/${linkId}?period=${period}&tzOffset=${tzOffset}`;
     
     console.log('Fetching stats from:', url);
@@ -186,7 +174,6 @@ export async function getShortIoStats(
     const data = await response.json();
     console.log('Stats data received:', data);
 
-    // Transform the response to our expected format
     return {
       totalClicks: data.totalClicks || 0,
       humanClicks: data.humanClicks || 0,
@@ -196,14 +183,12 @@ export async function getShortIoStats(
       clickStatistics: data.clickStatistics || { datasets: [] },
       interval: data.interval || { startDate: null, endDate: null, prevStartDate: null, prevEndDate: null },
       
-      // Keep raw arrays for direct access
       referer: data.referer || [],
       browser: data.browser || [],
       country: data.country || [],
       city: data.city || [],
       os: data.os || [],
       
-      // Convert array format to Record format for backward compatibility
       referrers: data.referer?.reduce((acc: Record<string, number>, item: ShortIoRefererStats) => {
         acc[item.referer] = item.score;
         return acc;
@@ -224,8 +209,8 @@ export async function getShortIoStats(
         return acc;
       }, {}),
       
-      devices: {}, // Device data might need to be derived from other fields
-      recentClicks: [], // Recent clicks might need a separate endpoint
+      devices: {},  
+      recentClicks: [], 
     };
   } catch (error) {
     console.error('Error fetching Short.io stats:', error);
@@ -233,9 +218,7 @@ export async function getShortIoStats(
   }
 }
 
-/**
- * Get statistics for a custom period
- */
+
 export async function getShortIoStatsCustomPeriod(
   shortCode: string,
   startDate: Date,
@@ -317,9 +300,7 @@ export async function getShortIoStatsCustomPeriod(
   }
 }
 
-/**
- * Test the connection to Short.io API
- */
+
 export async function testShortIoConnection(): Promise<boolean> {
   if (!SHORTIO_API_KEY) {
     console.error('Short.io API key is missing');
@@ -338,21 +319,19 @@ export async function testShortIoConnection(): Promise<boolean> {
     });
     
     if (response.ok) {
-      console.log('✅ Short.io API connection successful!');
+      console.log(' Short.io API connection successful!');
       return true;
     } else {
-      console.error('❌ Short.io API connection failed:', await response.text());
+      console.error(' Short.io API connection failed:', await response.text());
       return false;
     }
   } catch (error) {
-    console.error('❌ Short.io connection test failed:', error);
+    console.error(' Short.io connection test failed:', error);
     return false;
   }
 }
 
-/**
- * Get total clicks for a short code
- */
+
 export async function getShortIoTotalClicks(shortCode: string): Promise<number> {
   const stats = await getShortIoStats(shortCode);
   return stats?.totalClicks || 0;

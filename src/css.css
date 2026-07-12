@@ -1,10 +1,4 @@
-/* src/pages/dashboard/Analytics.css */
 
-/* ============================================
-   MAP CONTAINER STYLES
-   ============================================ */
-
-/* Main map container - controls size and background */
 .map-container {
   position: relative;
   width: 100%;
@@ -15,9 +9,8 @@
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
 
-/* Map size variations for different screen sizes - FIXED */
 .map-container {
-  height: 300px; /* Mobile default - increased from 200px */
+  height: 300px; 
 }
 
 @media (min-width: 768px) {
@@ -32,11 +25,7 @@
   }
 }
 
-/* ============================================
-   LIGHT THEME - Darker gradient for visibility
-   ============================================ */
 
-/* Light theme background - DARKER GRADIENT */
 .map-container-light {
   background: linear-gradient(135deg, 
     #8f82da 0%, 
@@ -51,16 +40,11 @@
   border-color: rgba(233, 237, 243, 0.87);
 }
 
-/* Map overlay for light theme */
 .map-container-light .map-overlay {
   background: linear-gradient(to top, rgba(0, 0, 0, 0.15) 0%, transparent 40%, transparent 100%);
 }
 
-/* ============================================
-   DARK THEME - Light background with dark borders
-   ============================================ */
 
-/* Dark theme background - LIGHTER GRADIENT */
 .map-container-dark {
   background: linear-gradient(135deg, 
     #1d364e 0%, 
@@ -75,14 +59,10 @@
   border-color: rgba(255, 255, 255, 0.808);
 }
 
-/* Map overlay for dark theme */
 .map-container-dark .map-overlay {
   background: linear-gradient(to top, rgba(0, 0, 0, 0.2) 0%, transparent 40%, transparent 100%);
 }
 
-/* ============================================
-   GRADIENT OVERLAY FOR BETTER VISIBILITY
-   ============================================ */
 
 .map-overlay {
   position: absolute;
@@ -91,11 +71,7 @@
   border-radius: 14px;
 }
 
-/* ============================================
-   MAP LEGEND STYLES
-   ============================================ */
 
-/* Legend container - bottom left corner */
 .map-legend {
   position: absolute;
   bottom: 16px;
@@ -110,13 +86,11 @@
   z-index: 5;
 }
 
-/* Dark theme legend */
 .dark .map-legend {
   background: rgba(0, 0, 0, 0.7);
   border-color: rgba(255, 255, 255, 0.1);
 }
 
-/* Legend text */
 .legend-text {
   font-size: 11px;
   font-weight: 600;
@@ -124,7 +98,6 @@
   letter-spacing: 0.5px;
 }
 
-/* Legend color bars */
 .legend-colors {
   display: flex;
   gap: 3px;
@@ -147,9 +120,6 @@
   }
 }
 
-/* ============================================
-   COUNTRY BADGE STYLES (Top Left) - FIXED
-   ============================================ */
 
 .map-badge {
   position: absolute;
@@ -183,9 +153,6 @@
   }
 }
 
-/* ============================================
-   WATERMARK STYLES
-   ============================================ */
 
 .map-watermark {
   position: absolute;
@@ -209,9 +176,8 @@
   }
 }
 
-/* ============================================
-   ZOOM CONTROLS - FIXED POSITION
-   ============================================ */
+/* 
+   ZOOM CONTROLS  */
 
 .map-zoom-controls {
   position: absolute;
@@ -265,7 +231,6 @@
   stroke: #4ADE80;
 }
 
-/* Dark theme zoom controls */
 .dark .map-zoom-btn {
   background: rgba(0, 0, 0, 0.8);
   border-color: rgba(255, 255, 255, 0.1);
@@ -276,7 +241,6 @@
   border-color: rgba(74, 222, 128, 0.3);
 }
 
-/* Mobile responsive */
 @media (max-width: 640px) {
   .map-zoom-controls {
     top: 12px;
@@ -292,11 +256,7 @@
   }
 }
 
-/* ============================================
-   COUNTRY LIST CARD STYLES
-   ============================================ */
 
-/* Individual country card */
 .country-card {
   display: flex;
   align-items: center;
@@ -314,7 +274,6 @@
   border-color: rgba(255, 255, 255, 0.08);
 }
 
-/* Country card hover effect */
 .country-card:hover {
   background: rgba(255, 255, 255, 0.15);
   border-color: rgba(74, 222, 128, 0.4);
@@ -328,7 +287,6 @@
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
 }
 
-/* Country flag styling */
 .country-flag {
   font-size: 26px;
   width: 36px;
@@ -337,7 +295,6 @@
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
 }
 
-/* Country name styling - FIXED visibility */
 .country-name {
   font-weight: 600;
   color: #1F2937;
@@ -360,7 +317,6 @@
   }
 }
 
-/* Click count badge */
 .country-clicks {
   font-family: monospace;
   font-size: 15px;
@@ -379,9 +335,8 @@
   border-color: rgba(74, 222, 128, 0.15);
 }
 
-/* ============================================
-   COUNTRY GRID LAYOUT
-   ============================================ */
+/*
+   COUNTRY GRID LAYOUT */
 
 .country-grid {
   display: grid;
@@ -389,32 +344,28 @@
   margin-top: 20px;
 }
 
-/* Responsive grid columns */
 .country-grid {
-  grid-template-columns: 1fr; /* 1 column on mobile */
+  grid-template-columns: 1fr; 
 }
 
 @media (min-width: 640px) {
   .country-grid {
-    grid-template-columns: repeat(2, 1fr); /* 2 columns on small tablets */
+    grid-template-columns: repeat(2, 1fr); 
   }
 }
 
 @media (min-width: 768px) {
   .country-grid {
-    grid-template-columns: repeat(3, 1fr); /* 3 columns on tablets */
+    grid-template-columns: repeat(3, 1fr); 
   }
 }
 
 @media (min-width: 1024px) {
   .country-grid {
-    grid-template-columns: repeat(4, 1fr); /* 4 columns on desktop */
-  }
+    grid-template-columns: repeat(4, 1fr);
 }
 
-/* ============================================
-   SECTION HEADER STYLES
-   ============================================ */
+
 
 .section-header {
   display: flex;
@@ -459,21 +410,13 @@
   background: rgba(255, 255, 255, 0.05);
 }
 
-/* ============================================
-   RESPONSIVE MAP SCALE
-   ============================================ */
 
-/* Map SVG container */
 .map-svg {
   width: 100%;
   height: 100%;
 }
 
-/* ============================================
-   ANIMATIONS
-   ============================================ */
 
-/* Pulsing animation for markers */
 @keyframes pulse {
   0% {
     transform: scale(1);
@@ -493,7 +436,6 @@
   animation: pulse 2s ease-in-out infinite;
 }
 
-/* Ping animation for marker rings */
 @keyframes ping {
   0% {
     transform: scale(1);
@@ -509,9 +451,8 @@
   animation: ping 2.5s ease-in-out infinite;
 }
 
-/* ============================================
-   GLASS CARD OVERRIDES FOR MAP
-   ============================================ */
+/* 
+   GLASS CARD OVERRIDES FOR MAP*/
 
 .map-glass-card {
   background: rgba(255, 255, 255, 0.7);
@@ -527,9 +468,6 @@
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
-/* ============================================
-   RESPONSIVE FONT SIZES
-   ============================================ */
 
 @media (max-width: 640px) {
   .country-flag {
@@ -546,9 +484,9 @@
   }
 }
 
-/* ============================================
-   SKELETON LOADING - FIXED
-   ============================================ */
+/* 
+   SKELETON LOADING 
+*/
 
 .skeleton-card {
   overflow: hidden;
@@ -576,4 +514,5 @@
   100% {
     transform: translateX(100%);
   }
+}
 }

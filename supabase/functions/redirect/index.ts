@@ -1,4 +1,3 @@
-// supabase/functions/redirect/index.ts
 
 import { createClient } from "@supabase/supabase-js"
 const corsHeaders = {
@@ -15,7 +14,7 @@ Deno.serve(async (req) => {
     const url = new URL(req.url);
     const shortCode = url.pathname.split('/').filter(Boolean).pop();
     
-    console.log("🔴 Processing short code:", shortCode);
+    console.log("Processing short code:", shortCode);
 
     if (!shortCode || shortCode === "favicon.ico") {
       return new Response(JSON.stringify({ error: "Missing short code" }), {
@@ -28,7 +27,7 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     
     if (!supabaseUrl || !supabaseKey) {
-      console.error("❌ Missing Supabase credentials");
+      console.error(" Missing Supabase credentials");
       return new Response(JSON.stringify({ error: "Server configuration error" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -39,7 +38,6 @@ Deno.serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // ✅ Find the link
     const { data: link, error: linkError } = await supabase
       .from("links")
       .select("id, original_url, is_active")
@@ -47,7 +45,7 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (linkError) {
-      console.error("❌ Database error:", linkError);
+      console.error(" Database error:", linkError);
       return new Response(JSON.stringify({ error: "Database error", details: linkError.message }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -55,9 +53,8 @@ Deno.serve(async (req) => {
     }
 
     if (!link) {
-      console.error("❌ Link not found:", shortCode);
+      console.error(" Link not found:", shortCode);
       
-      // ✅ Debug: Check if link exists in Short.io
       const apiKey = Deno.env.get("SHORTIO_API_KEY") || Deno.env.get("VITE_SHORTIO_API_KEY");
       if (apiKey) {
         const shortioResponse = await fetch(
@@ -80,7 +77,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    console.log("✅ Link found:", link.id, link.original_url);
+    console.log(" Link found:", link.id, link.original_url);
 
     if (!link.is_active) {
       return new Response(JSON.stringify({ error: "Link is inactive" }), {
@@ -89,7 +86,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ✅ RECORD THE CLICK
     console.log("📝 Recording click for link:", link.id);
     
     const clickData = {
@@ -105,24 +101,22 @@ Deno.serve(async (req) => {
     const { error: clickError } = await supabase.from("clicks").insert(clickData);
 
     if (clickError) {
-      console.error("❌ Click recording error:", clickError);
+      console.error(" Click recording error:", clickError);
     } else {
-      console.log("✅ Click recorded successfully!");
+      console.log(" Click recorded successfully!");
       
-      // ✅ Also directly update the clicks count
       const { error: updateError } = await supabase
         .from("links")
         .update({ clicks: supabase.rpc('increment_clicks', { row_id: link.id }) })
         .eq("id", link.id);
         
       if (updateError) {
-        console.error("❌ Update error:", updateError);
+        console.error(" Update error:", updateError);
       } else {
-        console.log("✅ Clicks count updated!");
+        console.log(" Clicks count updated!");
       }
     }
 
-    // ✅ Redirect to original URL
     console.log("➡️ Redirecting to:", link.original_url);
     
     return new Response(null, {
@@ -134,7 +128,7 @@ Deno.serve(async (req) => {
       },
     });
   } catch (err) {
-    console.error("❌ Error:", err);
+    console.error(" Error:", err);
     return new Response(JSON.stringify({ error: "Internal error", details: err.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

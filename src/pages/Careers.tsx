@@ -15,7 +15,6 @@ export default function Careers() {
     <div className="min-h-screen bg-background text-foreground">
       <Navbar />
       <main className="pt-28 pb-20">
-        {/* Hero */}
         <section className="container mx-auto px-6 sm:px-8 lg:px-12 text-center mb-20">
           <span className="inline-block text-xs font-semibold tracking-widest uppercase text-primary mb-4">Careers</span>
           <h1 className="font-heading text-4xl md:text-5xl font-bold mb-5">Build the Future of Links</h1>
@@ -24,7 +23,6 @@ export default function Careers() {
           </p>
         </section>
 
-        {/* Perks */}
         <section className="container mx-auto px-6 sm:px-8 lg:px-12 mb-20">
           <h2 className="font-heading text-2xl font-bold text-center mb-10">Why LinkForge?</h2>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -40,7 +38,6 @@ export default function Careers() {
           </div>
         </section>
 
-        {/* No openings */}
         <section className="container mx-auto px-6 sm:px-8 lg:px-12 max-w-2xl text-center">
           <div className="rounded-2xl border border-border bg-card p-10">
             <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center mx-auto mb-5">

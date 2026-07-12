@@ -27,7 +27,6 @@ export function Navbar() {
           </span>
         </a>
 
-        {/* Desktop */}
         <div className="hidden md:flex items-center gap-6">
           {navLinks.map((l) => (
             <a key={l.href + l.label} href={l.href} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
@@ -46,7 +45,6 @@ export function Navbar() {
           )}
         </div>
 
-        {/* Mobile toggle */}
         <div className="flex md:hidden items-center gap-3">
           <ThemeToggle />
           <button className="text-accent hover:text-accent/80 transition-colors" onClick={() => setOpen(!open)}>

@@ -4,10 +4,10 @@ import { ArrowRight, Link2, QrCode, BarChart3, Copy, Check, Lock } from "lucide-
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { NetworkVisualization } from "./NetworkVisualization";
-import { useAuth } from "@/hooks/useClerkAuth";  // ✅ FIXED
+import { useAuth } from "@/hooks/useClerkAuth";  
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { createShortLink } from '@/lib/shortio';  // ✅ FIXED: Use Short.io
+import { createShortLink } from '@/lib/shortio';  
 
 export function HeroSection() {
   const { user } = useAuth();
@@ -27,15 +27,12 @@ export function HeroSection() {
       return;
     }
     
-    // Prevent duplicate submissions
     if (loading) return;
     
     setLoading(true);
     try {
-      // ✅ FIXED: Use Short.io instead of TinyURL
       const { shortUrl, shortCode } = await createShortLink(url);
       
-      // Save to Supabase (only if user is logged in)
       if (user) {
         const { error } = await supabase.from("links").insert({
           user_id: user.id,
@@ -71,13 +68,11 @@ export function HeroSection() {
     <section className="relative min-h-screen flex items-center overflow-hidden">
       <NetworkVisualization />
 
-      {/* Gradient overlays */}
       <div className="absolute inset-0 bg-gradient-to-b from-background via-transparent to-background pointer-events-none" />
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] rounded-full bg-primary/5 blur-[120px] pointer-events-none" />
 
       <div className="container relative z-10 mx-auto px-3 sm:px-6 lg:px-12 py-20">
         <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center max-w-6xl mx-auto w-full min-w-0">
-          {/* Left: Value Proposition */}
           <motion.div
             initial={{ opacity: 0, x: -30 }}
             animate={{ opacity: 1, x: 0 }}
@@ -102,7 +97,6 @@ export function HeroSection() {
                   </Button>
                 </Link>
               ) : (
-                // ✅ FIXED: Direct Clerk sign-in URL
                 <a href="https://accounts.www.linkforge.website/sign-in">
                   <Button variant="hero" size="lg" className="group">
                     Get Started Free
@@ -117,7 +111,6 @@ export function HeroSection() {
               </a>
             </div>
 
-            {/* Stats row */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -137,7 +130,6 @@ export function HeroSection() {
             </motion.div>
           </motion.div>
 
-          {/* Right: Interactive Playground */}
           <motion.div
             initial={{ opacity: 0, x: 30 }}
             animate={{ opacity: 1, x: 0 }}
@@ -197,7 +189,6 @@ export function HeroSection() {
                   </motion.div>
                 )}
 
-                {/* Signup prompt for non-auth users */}
                 {showSignupPrompt && !user && (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
@@ -211,7 +202,6 @@ export function HeroSection() {
                     <p className="text-xs text-muted-foreground mb-2">
                       Sign up to save links, view analytics & generate custom QR codes.
                     </p>
-                    {/* ✅ FIXED: Direct Clerk sign-in URL */}
                     <a href="https://accounts.www.linkforge.website/sign-in">
                       <Button variant="hero" size="sm">
                         Sign Up Free <ArrowRight className="w-3 h-3" />
@@ -220,7 +210,6 @@ export function HeroSection() {
                   </motion.div>
                 )}
 
-                {/* Feature pills */}
                 <div className="relative flex flex-wrap gap-2 pt-1">
                   {[
                     { icon: Link2, label: "Custom Aliases" },
