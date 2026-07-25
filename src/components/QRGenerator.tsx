@@ -1,9 +1,10 @@
-import { useState, useRef } from "react";
+import { useState, useRef, ChangeEvent } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import QRCode from "qrcode";
 import { motion } from "framer-motion";
-import { Download, Palette, Square, Circle, Image } from "lucide-react";
+import { Download, Palette, Square, Circle, Image, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 const STYLE_OPTIONS = [
   { id: "squares", label: "Squares", icon: Square },
@@ -28,7 +29,64 @@ export function QRGenerator({ hideHeader = false }: { hideHeader?: boolean } = {
   const [size, setSize] = useState(186);
   const [level, setLevel] = useState<"L" | "M" | "Q" | "H">("M");
   const [includeImage, setIncludeImage] = useState(false);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [logoSize, setLogoSize] = useState(40);
+  const [isDragging, setIsDragging] = useState(false);
   const svgRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileUpload = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file");
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Logo must be less than 2MB");
+      return;
+    }
+
+    setLogoFile(file);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setLogoUrl(event.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+    setIncludeImage(true);
+  };
+
+  const removeLogo = () => {
+    setLogoFile(null);
+    setLogoUrl(null);
+    setIncludeImage(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      const syntheticEvent = { target: { files: [file] } } as unknown as ChangeEvent<HTMLInputElement>;
+      handleFileUpload(syntheticEvent);
+    }
+  };
 
   const handleDownload = () => {
     if (!svgRef.current) return;
@@ -50,13 +108,84 @@ export function QRGenerator({ hideHeader = false }: { hideHeader?: boolean } = {
         errorCorrectionLevel: level,
         color: { dark: fgColor, light: bgColor },
       });
-      const a = document.createElement("a");
-      a.href = dataUrl;
-      a.download = "qrcode.png";
-      a.click();
+      
+      // If logo is included, combine them
+      if (logoUrl && includeImage) {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        
+        const img = new Image();
+        img.src = dataUrl;
+        await img.decode();
+        
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+        
+        // Draw logo on top
+        const logoImg = new Image();
+        logoImg.src = logoUrl;
+        await logoImg.decode();
+        
+        const logoSizePx = (logoSize / 100) * img.width;
+        const x = (img.width - logoSizePx) / 2;
+        const y = (img.height - logoSizePx) / 2;
+        
+        // White background for logo
+        ctx.fillStyle = 'white';
+        ctx.beginPath();
+        ctx.arc(x + logoSizePx/2, y + logoSizePx/2, logoSizePx/2 + 10, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Clip logo to circle
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(x + logoSizePx/2, y + logoSizePx/2, logoSizePx/2, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.drawImage(logoImg, x, y, logoSizePx, logoSizePx);
+        ctx.restore();
+        
+        const finalDataUrl = canvas.toDataURL('image/png');
+        const a = document.createElement("a");
+        a.href = finalDataUrl;
+        a.download = "qrcode-with-logo.png";
+        a.click();
+      } else {
+        const a = document.createElement("a");
+        a.href = dataUrl;
+        a.download = "qrcode.png";
+        a.click();
+      }
     } catch (e) {
       console.error(e);
+      toast.error("Failed to generate PNG");
     }
+  };
+
+  const QRCodeWithLogo = () => {
+    return (
+      <div className="relative" style={{ width: size, height: size }}>
+        <QRCodeSVG
+          value={url || " "}
+          size={size}
+          bgColor={bgColor}
+          fgColor={fgColor}
+          level={level}
+          includeMargin={false}
+          imageSettings={
+            includeImage && logoUrl
+              ? {
+                  src: logoUrl,
+                  height: (logoSize / 100) * size,
+                  width: (logoSize / 100) * size,
+                  excavate: true,
+                }
+              : undefined
+          }
+        />
+      </div>
+    );
   };
 
   return (
@@ -90,8 +219,82 @@ export function QRGenerator({ hideHeader = false }: { hideHeader?: boolean } = {
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 className="w-full rounded-lg border border-border bg-secondary/50 px-3 py-2.5 text-sm font-mono text-foreground outline-none focus:border-primary/50 transition-colors"
+                placeholder="https://example.com"
               />
             </div>
+
+            <div>
+              <label className="text-sm font-medium text-foreground mb-1.5 block flex items-center gap-1.5">
+                <Image className="w-3.5 h-3.5" /> Logo (Optional)
+              </label>
+              
+              <div
+                className={`relative border-2 border-dashed rounded-xl p-4 text-center transition-all ${
+                  isDragging ? "border-primary bg-primary/10" : "border-border"
+                } ${includeImage ? "bg-secondary/30" : ""}`}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleFileUpload}
+                />
+                
+                {includeImage && logoUrl ? (
+                  <div className="flex items-center gap-4">
+                    <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-border flex-shrink-0">
+                      <img src={logoUrl} alt="Logo preview" className="w-full h-full object-contain" />
+                    </div>
+                    <div className="flex-1 text-left">
+                      <p className="text-sm font-medium text-foreground truncate">{logoFile?.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {(logoFile?.size || 0) / 1024 < 1024 
+                          ? `${Math.round((logoFile?.size || 0) / 1024)} KB` 
+                          : `${Math.round((logoFile?.size || 0) / 1024 / 1024)} MB`}
+                      </p>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={removeLogo} className="text-destructive hover:text-destructive">
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="py-4">
+                    <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                    <p className="text-sm text-muted-foreground">
+                      Drag & drop your logo here, or{" "}
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="text-primary hover:underline"
+                      >
+                        browse files
+                      </button>
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">PNG, JPG, SVG (Max 2MB)</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {includeImage && logoUrl && (
+              <div>
+                <label className="text-sm font-medium text-foreground mb-1.5 flex justify-between">
+                  Logo Size <span className="text-muted-foreground font-mono">{logoSize}%</span>
+                </label>
+                <input
+                  type="range"
+                  min={15}
+                  max={60}
+                  value={logoSize}
+                  onChange={(e) => setLogoSize(Number(e.target.value))}
+                  className="w-full accent-primary"
+                />
+              </div>
+            )}
 
             <div>
               <label className="text-sm font-medium text-foreground mb-2 block flex items-center gap-1.5">
@@ -159,14 +362,7 @@ export function QRGenerator({ hideHeader = false }: { hideHeader?: boolean } = {
             className="glass-card rounded-2xl p-6 flex flex-col items-center justify-center"
           >
             <div ref={svgRef} className="rounded-xl p-4" style={{ backgroundColor: bgColor }}>
-              <QRCodeSVG
-                value={url || " "}
-                size={size}
-                bgColor={bgColor}
-                fgColor={fgColor}
-                level={level}
-                includeMargin={false}
-              />
+              <QRCodeWithLogo />
             </div>
             <div className="flex flex-wrap gap-3 mt-6 justify-center">
               <Button variant="hero" onClick={handleDownload}>
@@ -175,8 +371,14 @@ export function QRGenerator({ hideHeader = false }: { hideHeader?: boolean } = {
               </Button>
               <Button variant="hero-outline" onClick={handleDownloadPNG}>
                 <Download className="w-4 h-4" />
-                PNG
+                {includeImage ? "PNG with Logo" : "PNG"}
               </Button>
+              {includeImage && (
+                <Button variant="outline" size="sm" onClick={removeLogo}>
+                  <X className="w-4 h-4" />
+                  Remove Logo
+                </Button>
+              )}
             </div>
           </motion.div>
         </div>

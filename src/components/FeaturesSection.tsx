@@ -5,7 +5,7 @@ const features = [
   {
     icon: Link2,
     title: "Smart URL Shortening",
-    description: "Custom aliases, expiration dates, password protection, and bulk shortening via CSV.",
+    description: "Custom aliases, export CSV data, and track analytics for your short links.",
   },
   {
     icon: QrCode,

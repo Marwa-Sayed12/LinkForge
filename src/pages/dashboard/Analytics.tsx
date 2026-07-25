@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
   BarChart3, MousePointerClick, Globe, Monitor, TrendingUp, Clock, Link2,
-  Download, Filter, ChevronDown, MapPin, Activity, Users, Zap,
+  Download, ChevronDown, MapPin, Activity, Users, Zap,
   Smartphone, Laptop, Tablet, Chrome, 
   ChevronRight, Calendar, Eye, Target, PieChart as PieChartIcon
 } from "lucide-react";
@@ -1004,10 +1004,6 @@ export default function Analytics() {
           <Button variant="outline" size="sm" onClick={handleExport} disabled={isExporting || totalClicks === 0} className="text-xs md:text-sm">
             <Download className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
             {isExporting ? "Exporting..." : "Export CSV"}
-          </Button>
-          <Button variant="outline" size="sm" className="text-xs md:text-sm">
-            <Filter className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
-            Filter
           </Button>
         </div>
       </div>
