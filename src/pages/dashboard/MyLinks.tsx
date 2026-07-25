@@ -1,9 +1,11 @@
+
 import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
+import { Info } from "lucide-react";
 import { 
   Plus, Link2, Copy, Check, Trash2, QrCode, ExternalLink, 
   Download, MousePointerClick, RefreshCw, Globe, Calendar,
-  Clock, BarChart3, TrendingUp, Users, Eye, Zap, Info
+  Clock, BarChart3, TrendingUp, Users, Eye, Zap
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import QRCode from "qrcode";
@@ -53,6 +55,7 @@ export default function MyLinks() {
   const [clickCounts, setClickCounts] = useState<Record<string, number>>({});
   const [loadingClicks, setLoadingClicks] = useState<Record<string, boolean>>({});
 
+
   const fetchLinks = useCallback(async () => {
     if (!user) {
       setLoading(false);
@@ -88,6 +91,7 @@ export default function MyLinks() {
     }
   }, [user]);
 
+
   const refreshClicks = useCallback(async () => {
     if (!links.length) {
       toast.info("No links to refresh");
@@ -109,7 +113,7 @@ export default function MyLinks() {
         result[link.id] = counts[link.short_code] || 0;
       });
       setClickCounts(result);
-      toast.success(`✅ Click counts updated from Short.io!`);
+      toast.success(` Click counts updated from Short.io!`);
     } catch (e) {
       console.error("Refresh error:", e);
       toast.error("Failed to refresh clicks");
@@ -124,6 +128,7 @@ export default function MyLinks() {
   useEffect(() => {
     fetchLinks();
   }, [fetchLinks]);
+
 
   const checkAliasExists = async (alias: string): Promise<boolean> => {
     const { data } = await supabase
@@ -180,7 +185,7 @@ export default function MyLinks() {
       if (error) {
         toast.error(error.message);
       } else {
-        toast.success(`✅ Link created: ${result.shortUrl}`);
+        toast.success(` Link created: ${result.shortUrl}`);
         setUrl("");
         setCustomAlias("");
         setSuggestedAlias("");
@@ -204,6 +209,7 @@ export default function MyLinks() {
       setCreating(false);
     }
   };
+
 
   const downloadQR = async (link: LinkData) => {
     try {
@@ -242,6 +248,7 @@ export default function MyLinks() {
       setSuggestedAlias("");
     }
   };
+
 
   if (!user) {
     return (
@@ -284,26 +291,12 @@ export default function MyLinks() {
         </div>
       </div>
 
-      {/* ✅ NEW: Info box about click analytics */}
-      {links.length > 0 && (
-        <motion.div 
-          initial={{ opacity: 0, y: -5 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-primary/5 border border-primary/20 rounded-xl p-3 md:p-4 flex items-start gap-3"
-        >
-          <Info className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
-          <div className="text-xs md:text-sm text-muted-foreground">
-            <span className="font-medium text-foreground">📊 Click Analytics:</span> Clicks are updated from Short.io. 
-            New clicks may take a few minutes to appear. Use the 
-            <span className="text-primary font-medium mx-1">"Refresh Clicks"</span> 
-            button to manually update your click counts, or visit the 
-            <Link to="/dashboard/analytics" className="text-primary font-medium hover:underline mx-1">
-              Analytics
-            </Link>
-            page for detailed insights.
-          </div>
-        </motion.div>
-      )}
+          {links.length > 0 && (
+      <p className="text-xs text-muted-foreground flex items-center gap-1.5 bg-primary/5 px-3 py-1.5 rounded-lg border border-primary/10">
+        <Info className="w-3.5 h-3.5 text-primary" />
+        Clicks may take a few minutes to appear. Refresh or check <Link to="/dashboard/analytics" className="text-primary hover:underline font-medium">Analytics</Link> for details.
+      </p>
+    )}
 
       {showCreate && (
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="glass-card rounded-xl p-5">
