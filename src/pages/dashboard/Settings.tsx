@@ -139,10 +139,10 @@ export default function DashboardSettings() {
         </div>
             <div className="glass-card rounded-xl p-6 space-y-6 min-h-[400px]">
             <div className="flex flex-col items-center gap-3">
-            <div className="w-24 h-24 rounded-full bg-secondary/50 animate-pulse" />
+            <div className="w-24 h-24 rounded-full bg-secondary/50 " />
           </div>
-          <div className="h-10 bg-secondary/50 animate-pulse rounded" />
-          <div className="h-10 bg-secondary/50 animate-pulse rounded" />
+          <div className="h-10 bg-secondary/50 rounded" />
+          <div className="h-10 bg-secondary/50 rounded" />
         </div>
       </div>
     );

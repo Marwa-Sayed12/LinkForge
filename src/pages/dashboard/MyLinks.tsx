@@ -162,7 +162,7 @@ export default function MyLinks() {
           const suggestion = `${shortCode}-${generateRandomCode().substring(0, 3)}`;
           setSuggestedAlias(suggestion);
           toast.error(
-            `Alias "${shortCode}" is already taken. Try "${suggestion}" instead.`,
+          `The alias "${shortCode}" is unavailable. Try "${suggestion}" instead.`,
             { duration: 5000 }
           );
           setCreating(false);
@@ -291,12 +291,14 @@ export default function MyLinks() {
         </div>
       </div>
 
-          {links.length > 0 && (
-      <p className="text-xs text-muted-foreground flex items-center gap-1.5 bg-primary/5 px-3 py-1.5 rounded-lg border border-primary/10">
-        <Info className="w-3.5 h-3.5 text-primary" />
-        Clicks may take a few minutes to appear. Refresh or check <Link to="/dashboard/analytics" className="text-primary hover:underline font-medium">Analytics</Link> for details.
-      </p>
-    )}
+         {links.length > 0 && (
+  <p className="text-[10px] xs:text-xs text-muted-foreground flex items-center gap-1 bg-primary/5 px-2 py-1 rounded-lg border border-primary/10">
+    <Info className="w-3 h-3 xs:w-3.5 xs:h-3.5 text-primary flex-shrink-0" />
+    <span className="truncate">
+      Clicks take a few minutes. <Link to="/dashboard/analytics" className="text-primary hover:underline font-medium whitespace-nowrap">View Analytics →</Link>
+    </span>
+  </p>
+)}
 
       {showCreate && (
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="glass-card rounded-xl p-5">
@@ -351,9 +353,9 @@ export default function MyLinks() {
       )}
 
       {loading ? (
-  <div className="space-y-3 min-h-[300px]">
+          <div className="space-y-3 min-h-[300px]">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="glass-card rounded-xl p-5 animate-pulse">
+            <div key={i} className="glass-card rounded-xl p-5 ">
               <div className="h-4 bg-secondary rounded w-1/3 mb-2" />
               <div className="h-3 bg-secondary rounded w-2/3" />
             </div>
@@ -404,7 +406,7 @@ export default function MyLinks() {
                     <span className="flex items-center gap-1 text-primary font-semibold">
                       <MousePointerClick className="w-3 h-3" />
                       {loadingClicks[link.id] ? (
-                        <span className="animate-pulse">...</span>
+                        <span className="">...</span>
                       ) : (
                         clickCounts[link.id] ?? 0
                       )} clicks
