@@ -137,8 +137,8 @@ export default function DashboardSettings() {
           <h1 className="font-heading text-2xl font-bold text-foreground">Settings</h1>
           <p className="text-sm text-muted-foreground">Loading your profile...</p>
         </div>
-        <div className="glass-card rounded-xl p-6 space-y-6">
-          <div className="flex flex-col items-center gap-3">
+            <div className="glass-card rounded-xl p-6 space-y-6 min-h-[400px]">
+            <div className="flex flex-col items-center gap-3">
             <div className="w-24 h-24 rounded-full bg-secondary/50 animate-pulse" />
           </div>
           <div className="h-10 bg-secondary/50 animate-pulse rounded" />

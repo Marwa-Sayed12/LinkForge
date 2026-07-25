@@ -1037,8 +1037,8 @@ allStats.forEach((stats) => {
         </div>
       )}
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 md:gap-4">
-        {stats.map((stat, i) => (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 md:gap-4 min-h-[100px]">
+            {stats.map((stat, i) => (
           <motion.div
             key={stat.label}
             initial={{ opacity: 0, y: 20 }}
@@ -1383,7 +1383,7 @@ function AnalyticsSkeleton({ progress = 0 }) {
         </div>
       )}
       
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 md:gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 md:gap-4 min-h-[100px]">
         {[...Array(6)].map((_, i) => (
           <div key={i} className="glass-card rounded-xl p-3 md:p-4 border border-border/50">
             <Skeleton className="h-4 w-4 md:h-5 md:w-5 mb-1 md:mb-2" />
@@ -1392,7 +1392,7 @@ function AnalyticsSkeleton({ progress = 0 }) {
           </div>
         ))}
       </div>
-      <div className="glass-card rounded-xl p-4 md:p-5 border border-border/50">
+      <div className="glass-card rounded-xl p-4 md:p-5 border border-border/50 min-h-[250px]">
         <Skeleton className="h-5 md:h-6 w-28 md:w-40 mb-3 md:mb-4" />
         <Skeleton className="h-[200px] md:h-[300px] w-full rounded-lg" />
       </div>

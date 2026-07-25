@@ -113,7 +113,7 @@ export default function MyLinks() {
         result[link.id] = counts[link.short_code] || 0;
       });
       setClickCounts(result);
-      toast.success(` Click counts updated from Short.io!`);
+      toast.success(` Click counts updated!`);
     } catch (e) {
       console.error("Refresh error:", e);
       toast.error("Failed to refresh clicks");
@@ -351,7 +351,7 @@ export default function MyLinks() {
       )}
 
       {loading ? (
-        <div className="space-y-3">
+  <div className="space-y-3 min-h-[300px]">
           {[1, 2, 3].map((i) => (
             <div key={i} className="glass-card rounded-xl p-5 animate-pulse">
               <div className="h-4 bg-secondary rounded w-1/3 mb-2" />
