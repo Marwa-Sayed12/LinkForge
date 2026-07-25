@@ -7,7 +7,7 @@ export default function Cookies() {
       <Navbar />
       <main className="container mx-auto px-6 sm:px-8 lg:px-12 pt-28 pb-20 max-w-3xl">
         <h1 className="font-heading text-3xl md:text-4xl font-bold mb-8">Cookie Policy</h1>
-        <p className="text-sm text-muted-foreground mb-8">Last updated: March 15, 2026</p>
+        {/* <p className="text-sm text-muted-foreground mb-8">Last updated: March 15, 2026</p> */}
 
         <div className="space-y-8 text-muted-foreground leading-relaxed">
           <section>
@@ -75,7 +75,7 @@ export default function Cookies() {
 
           <section>
             <h2 className="font-heading text-xl font-semibold text-foreground mb-3">7. Contact Us</h2>
-            <p>If you have questions about our use of cookies, please contact us at <a href="mailto:privacy@linkforge.io" className="text-primary hover:underline">privacy@linkforge.io</a>.</p>
+            <p>If you have questions about our use of cookies, please contact us at <a href="mailto:link.forge.company@gmail.com" className="text-primary hover:underline">link.forge.company@gmail.com</a>.</p>
           </section>
         </div>
       </main>

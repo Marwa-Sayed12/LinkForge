@@ -12,7 +12,7 @@ const steps = [
     icon: Settings2,
     step: "02",
     title: "Customize & Generate",
-    description: "Add custom aliases, set expiry dates, and generate branded QR codes with your colors and logo.",
+    description: "Add custom aliases and generate branded QR codes with your colors and logo, download analysis CSV file.",
   },
   {
     icon: Share2,

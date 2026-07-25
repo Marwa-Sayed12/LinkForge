@@ -19,7 +19,7 @@ export default function Careers() {
           <span className="inline-block text-xs font-semibold tracking-widest uppercase text-primary mb-4">Careers</span>
           <h1 className="font-heading text-4xl md:text-5xl font-bold mb-5">Build the Future of Links</h1>
           <p className="text-muted-foreground max-w-xl mx-auto leading-relaxed">
-            Join a passionate, remote-first team building the tools that power millions of shortened links, QR codes, and analytics dashboards every day.
+            Join a passionate, remote-first the tools that power millions of shortened links, QR codes, and analytics dashboards every day.
           </p>
         </section>
 

@@ -9,7 +9,7 @@ import {
 const faqs = [
   {
     q: "Is LinkForge free to use?",
-    a: "Yes! Our Free plan lets you shorten up to 50 links per month with basic analytics. Upgrade to Pro or Business for unlimited links, custom QR codes, and advanced features.",
+    a: "Yes! LinkForge is completely free lets you shorten unlimited links, custom QR codes and with full analytics.",
   },
   {
     q: "How does URL shortening work?",
@@ -17,7 +17,7 @@ const faqs = [
   },
   {
     q: "Can I customize my QR codes?",
-    a: "Absolutely. Pro and Business plans include our QR Studio with custom colors, shapes, logo embedding, and export in PNG, SVG, or PDF formats.",
+    a: "Absolutely. Our QR Studio with custom colors, shapes, logo embedding, and export in PNG or SVG formats.",
   },
   {
     q: "What analytics do you track?",
@@ -27,10 +27,7 @@ const faqs = [
     q: "Is my data private and secure?",
     a: "Yes. We use encryption at rest and in transit, GDPR-compliant data handling, and never sell your data. Enterprise users also get role-based access controls.",
   },
-  {
-    q: "Do shortened links expire?",
-    a: "By default, links never expire. However, you can set custom expiration dates on any link from the dashboard, perfect for time-limited campaigns.",
-  },
+
 ];
 
 export function FAQSection() {

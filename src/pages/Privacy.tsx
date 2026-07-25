@@ -66,7 +66,7 @@ export default function Privacy() {
 
           <section>
             <h2 className="font-heading text-xl font-semibold text-foreground mb-3">7. Contact Us</h2>
-            <p>If you have questions about this Privacy Policy, please contact us at <a href="mailto:privacy@linkforge.io" className="text-primary hover:underline">privacy@linkforge.io</a>.</p>
+            <p>If you have questions about this Privacy Policy, please contact us at <a href="mailto:link.forge.company@gmail.com" className="text-primary hover:underline">link.forge.company@gmail.com</a>.</p>
           </section>
         </div>
       </main>

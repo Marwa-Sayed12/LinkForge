@@ -72,7 +72,7 @@ export default function Terms() {
 
           <section>
             <h2 className="font-heading text-xl font-semibold text-foreground mb-3">10. Contact</h2>
-            <p>For questions about these Terms, contact us at <a href="mailto:legal@linkforge.io" className="text-primary hover:underline">legal@linkforge.io</a>.</p>
+            <p>For questions about these Terms, contact us at <a href="mailto:link.forge.company@gmail.com" className="text-primary hover:underline">link.forge.company@gmail.com</a>.</p>
           </section>
         </div>
       </main>

@@ -10,7 +10,7 @@ const features = [
   {
     icon: QrCode,
     title: "Advanced QR Generator",
-    description: "10+ styles, custom colors, logo embedding, frames, and export in PNG, SVG, or PDF.",
+    description: "10+ styles, custom colors, logo embedding, frames, and export in PNG or SVG.",
   },
   {
     icon: BarChart3,
@@ -37,11 +37,7 @@ const features = [
     title: "Dynamic QR Codes",
     description: "Change destinations without reprinting. A/B test and schedule different URLs.",
   },
-  {
-    icon: Users,
-    title: "Team Collaboration",
-    description: "Workspaces, role-based access, shared link collections, and team analytics.",
-  },
+  
 ];
 
 export function FeaturesSection() {
@@ -60,11 +56,11 @@ export function FeaturesSection() {
             <span className="gradient-text">own your links</span>
           </h2>
           <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-            From shortening to analytics, QR codes to team management — all in one powerful platform.
+            From shortening to analytics and QR codes — all in one powerful platform.
           </p>
         </motion.div>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 max-w-5xl mx-auto">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 max-w-5xl mx-auto ">
           {features.map((feature, i) => (
             <motion.div
               key={feature.title}
@@ -72,7 +68,7 @@ export function FeaturesSection() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.05 }}
-              className="glass-card rounded-xl p-5 group hover:border-primary/30 transition-colors"
+              className="glass-card rounded-xl p-5 group hover:border-primary/30 transition-colors "
             >
               <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
                 <feature.icon className="w-5 h-5 text-primary" />

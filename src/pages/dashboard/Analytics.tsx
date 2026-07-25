@@ -471,32 +471,55 @@ export default function Analytics() {
     }
     setDailyClicksData(days);
 
-    const deviceMap: Record<string, number> = {};
-    allStats.forEach((stats) => {
-      if (stats.devices) {
-        Object.entries(stats.devices).forEach(([device, count]: [string, any]) => {
-          const countNum = typeof count === 'number' ? count : 0;
-          if (countNum > 0) {
-            let cleanDevice = device;
-            const deviceLower = device.toLowerCase();
-            if (deviceLower.includes('mobile') || deviceLower.includes('phone') || 
-                deviceLower.includes('android') || deviceLower.includes('ios') || 
-                deviceLower.includes('iphone') || deviceLower.includes('ipod')) {
-              cleanDevice = '📱 Mobile';
-            } else if (deviceLower.includes('tablet') || deviceLower.includes('ipad')) {
-              cleanDevice = '📱 Tablet';
-            } else if (deviceLower.includes('desktop') || deviceLower.includes('pc') || 
-                       deviceLower.includes('laptop') || deviceLower.includes('mac') ||
-                       deviceLower.includes('windows') || deviceLower.includes('linux')) {
-              cleanDevice = '💻 Desktop';
-            } else {
-              cleanDevice = '💻 ' + device;
-            }
-            deviceMap[cleanDevice] = (deviceMap[cleanDevice] || 0) + countNum;
+const deviceMap: Record<string, number> = {};
+allStats.forEach((stats) => {
+  if (stats.devices) {
+    Object.entries(stats.devices).forEach(([device, count]: [string, any]) => {
+      const countNum = typeof count === 'number' ? count : 0;
+      if (countNum > 0) {
+        let cleanDevice = device;
+        const deviceLower = device.toLowerCase();
+        
+        if (deviceLower.includes('mobile') || 
+            deviceLower.includes('phone') || 
+            deviceLower.includes('android') || 
+            deviceLower.includes('ios') || 
+            deviceLower.includes('iphone') || 
+            deviceLower.includes('ipod') ||
+            deviceLower.includes('android') ||
+            deviceLower.includes('huawei') ||
+            deviceLower.includes('samsung') ||
+            deviceLower.includes('pixel')) {
+          cleanDevice = '📱 Mobile';
+        } else if (deviceLower.includes('tablet') || 
+                   deviceLower.includes('ipad')) {
+          cleanDevice = '📱 Tablet';
+        } else if (deviceLower.includes('desktop') || 
+                   deviceLower.includes('pc') || 
+                   deviceLower.includes('laptop') || 
+                   deviceLower.includes('mac') ||
+                   deviceLower.includes('windows') || 
+                   deviceLower.includes('linux')) {
+          cleanDevice = '💻 Desktop';
+        } else {
+          let isMobileBrowser = false;
+          if (stats.browsers) {
+            Object.keys(stats.browsers).forEach((browser) => {
+              const browserLower = browser.toLowerCase();
+              if (browserLower.includes('mobile') || 
+                  browserLower.includes('android') || 
+                  browserLower.includes('ios')) {
+                isMobileBrowser = true;
+              }
+            });
           }
-        });
+          cleanDevice = isMobileBrowser ? '📱 Mobile' : '💻 ' + device;
+        }
+        deviceMap[cleanDevice] = (deviceMap[cleanDevice] || 0) + countNum;
       }
     });
+  }
+});
 
     if (Object.keys(deviceMap).length === 0 && total > 0) {
       let hasMobile = false;
@@ -1155,7 +1178,7 @@ export default function Analytics() {
               </div>
             </motion.div>
 
-            {deviceData.length > 0 && (
+                    {deviceData.length > 0 && (
   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-3 md:p-6">
     <h3 className="font-heading font-semibold text-foreground mb-2 md:mb-4 text-sm md:text-lg flex items-center gap-2">
       <PieChartIcon className="w-4 h-4 md:w-5 md:h-5 text-info" />
@@ -1192,14 +1215,14 @@ export default function Analytics() {
       {deviceData.map((entry, index) => (
         <div 
           key={entry.name} 
-          className="flex items-center gap-1 sm:gap-1.5 text-sm xs:text-base sm:text-sm md:text-base whitespace-nowrap px-2 py-1 sm:px-3 sm:py-1.5 rounded-full bg-secondary/20 border border-border/30"
+          className="flex items-center gap-1.5 sm:gap-2 text-xs xs:text-sm sm:text-sm md:text-base whitespace-nowrap px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-full bg-secondary/20 border border-border/30"
         >
           <span 
             className="w-2 h-2 sm:w-2.5 sm:h-2.5 md:w-3 md:h-3 rounded-full flex-shrink-0" 
             style={{ backgroundColor: colors.chartColors[index % colors.chartColors.length] }} 
           />
-          <span className="font-medium truncate max-w-[50px] sm:max-w-[70px] md:max-w-none">{entry.name}</span>
-          <span className="font-bold text-sm xs:text-base sm:text-sm md:text-base">{entry.value}</span>
+          <span className="font-medium text-xs xs:text-sm sm:text-sm md:text-base">{entry.name}</span>
+          <span className="font-bold text-xs xs:text-sm sm:text-sm md:text-base">{entry.value}</span>
         </div>
       ))}
     </div>
