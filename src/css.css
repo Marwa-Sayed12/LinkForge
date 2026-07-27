@@ -176,8 +176,7 @@
   }
 }
 
-/* 
-   ZOOM CONTROLS  */
+
 
 .map-zoom-controls {
   position: absolute;
@@ -335,8 +334,7 @@
   border-color: rgba(74, 222, 128, 0.15);
 }
 
-/*
-   COUNTRY GRID LAYOUT */
+
 
 .country-grid {
   display: grid;
@@ -365,7 +363,7 @@
     grid-template-columns: repeat(4, 1fr);
 }
 
-
+}
 
 .section-header {
   display: flex;
@@ -451,8 +449,7 @@
   animation: ping 2.5s ease-in-out infinite;
 }
 
-/* 
-   GLASS CARD OVERRIDES FOR MAP*/
+
 
 .map-glass-card {
   background: rgba(255, 255, 255, 0.7);
@@ -484,28 +481,6 @@
   }
 }
 
-/* 
-   SKELETON LOADING 
-*/
-
-.skeleton-card {
-  overflow: hidden;
-  position: relative;
-}
-
-.skeleton-card .skeleton-shimmer {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.05),
-    rgba(255, 255, 255, 0.1),
-    rgba(255, 255, 255, 0.05),
-    transparent
-  );
-  animation: shimmer 2s infinite;
-}
 
 @keyframes shimmer {
   0% {
@@ -515,4 +490,71 @@
     transform: translateX(100%);
   }
 }
+
+.shimmer {
+  position: relative;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.08),
+    rgba(255, 255, 255, 0.15),
+    rgba(255, 255, 255, 0.08),
+    transparent
+  );
+  animation: shimmer 2s infinite;
+}
+
+
+.dark .shimmer::after {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.05),
+    rgba(255, 255, 255, 0.1),
+    rgba(255, 255, 255, 0.05),
+    transparent
+  );
+}
+
+
+.shimmer-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.shimmer-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.06),
+    rgba(255, 255, 255, 0.12),
+    rgba(255, 255, 255, 0.06),
+    transparent
+  );
+  animation: shimmer 2.5s infinite;
+}
+
+.dark .shimmer-card::after {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.04),
+    rgba(255, 255, 255, 0.08),
+    rgba(255, 255, 255, 0.04),
+    transparent
+  );
+
 }

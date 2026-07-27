@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useClerkAuth"
 import { toast } from "sonner";
+import '../../css.css';
 
 export default function DashboardSettings() {
   const { user } = useAuth();
@@ -137,7 +138,7 @@ export default function DashboardSettings() {
           <h1 className="font-heading text-2xl font-bold text-foreground">Settings</h1>
           <p className="text-sm text-muted-foreground">Loading your profile...</p>
         </div>
-            <div className="glass-card rounded-xl p-6 space-y-6 min-h-[400px]">
+            <div className="glass-card rounded-xl p-6 space-y-6 min-h-[400px] shimmer-card">
             <div className="flex flex-col items-center gap-3">
             <div className="w-24 h-24 rounded-full bg-secondary/50 " />
           </div>
@@ -156,7 +157,6 @@ export default function DashboardSettings() {
       </div>
 
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-6 space-y-6">
-        {/* Avatar Upload */}
         <div className="flex flex-col items-center gap-3">
           <div
             className="relative w-24 h-24 rounded-full cursor-pointer group"

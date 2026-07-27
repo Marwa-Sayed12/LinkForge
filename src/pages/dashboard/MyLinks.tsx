@@ -19,6 +19,7 @@ import {
   getMultipleLinkClicks,
   getLinkClicks 
 } from "@/lib/shortio";
+import '../../css.css';
 
 interface LinkData {
   id: string;
@@ -355,7 +356,7 @@ export default function MyLinks() {
       {loading ? (
           <div className="space-y-3 min-h-[300px]">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="glass-card rounded-xl p-5 ">
+            <div key={i} className="glass-card rounded-xl p-5 shimmer-card">
               <div className="h-4 bg-secondary rounded w-1/3 mb-2" />
               <div className="h-3 bg-secondary rounded w-2/3" />
             </div>

@@ -1368,12 +1368,12 @@ function AnalyticsSkeleton({ progress = 0 }) {
     <div className="space-y-4 md:space-y-6 px-2 md:px-0">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 md:gap-4">
         <div>
-          <Skeleton className="h-6 md:h-8 w-24 md:w-32" />
-          <Skeleton className="h-3 md:h-4 w-32 md:w-48 mt-1" />
+          <Skeleton className="h-6 md:h-8 w-24 md:w-32 shimmer-card" />
+          <Skeleton className="h-3 md:h-4 w-32 md:w-48 mt-1 shimmer-card" />
         </div>
         <div className="flex items-center gap-2">
-          <Skeleton className="h-8 md:h-9 w-20 md:w-28" />
-          <Skeleton className="h-8 md:h-9 w-16 md:w-20" />
+          <Skeleton className="h-8 md:h-9 w-20 md:w-28 shimmer-card" />
+          <Skeleton className="h-8 md:h-9 w-16 md:w-20 shimmer-card" />
         </div>
       </div>
       
@@ -1385,7 +1385,7 @@ function AnalyticsSkeleton({ progress = 0 }) {
       
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 md:gap-4 min-h-[100px]">
         {[...Array(6)].map((_, i) => (
-          <div key={i} className="glass-card rounded-xl p-3 md:p-4 border border-border/50">
+          <div key={i} className="glass-card rounded-xl p-3 md:p-4 border border-border/50 shimmer-card">
             <Skeleton className="h-4 w-4 md:h-5 md:w-5 mb-1 md:mb-2" />
             <Skeleton className="h-5 md:h-8 w-10 md:w-16" />
             <Skeleton className="h-2 md:h-3 w-14 md:w-20 mt-0.5" />
