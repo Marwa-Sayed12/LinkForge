@@ -7,7 +7,7 @@ export default function Cookies() {
       <Navbar />
       <main className="container mx-auto px-6 sm:px-8 lg:px-12 pt-28 pb-20 max-w-3xl">
         <h1 className="font-heading text-3xl md:text-4xl font-bold mb-8">Cookie Policy</h1>
-        {/* <p className="text-sm text-muted-foreground mb-8">Last updated: March 15, 2026</p> */}
+      
 
         <div className="space-y-8 text-muted-foreground leading-relaxed">
           <section>

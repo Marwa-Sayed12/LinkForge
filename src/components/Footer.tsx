@@ -33,7 +33,7 @@ export function Footer() {
     <footer className="border-t border-border py-16">
       <div className="container mx-auto px-6 sm:px-8 lg:px-12">
         <div className="grid md:grid-cols-5 gap-12 mb-12">
-          {/* Brand */}
+         
           <div className="md:col-span-2">
             <Link to="/" className="flex items-center gap-2 mb-4">
               <Link2 className="w-6 h-6 text-accent" />
@@ -59,7 +59,7 @@ export function Footer() {
             </div>
           </div>
 
-          {/* Link columns */}
+         
           {Object.entries(footerLinks).map(([title, links]) => (
             <div key={title}>
               <h4 className="font-heading font-semibold text-foreground mb-4 text-sm">{title}</h4>

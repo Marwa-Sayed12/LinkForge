@@ -1,4 +1,4 @@
-// src/pages/dashboard/Analytics.tsx
+
 
 import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
@@ -40,9 +40,7 @@ const getFlagEmoji = (countryCode: string) => {
   }
 };
 
-// ============================================
-// OS ICONS - Using CDN URLs
-// ============================================
+
 const OS_ICON_URLS: Record<string, string> = {
   'Windows': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/windows8/windows8-original.svg',
   'Mac OS X': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/apple/apple-original.svg',
@@ -55,9 +53,7 @@ const OS_ICON_URLS: Record<string, string> = {
   'Unknown': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/devicon/devicon-original.svg',
 };
 
-// ============================================
-// BROWSER ICONS - Using CDN URLs
-// ============================================
+
 const BROWSER_ICON_URLS: Record<string, string> = {
   'Chrome': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/chrome/chrome-original.svg',
   'Firefox': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/firefox/firefox-original.svg',
@@ -72,9 +68,7 @@ const BROWSER_ICON_URLS: Record<string, string> = {
   'Unknown': 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/devicon/devicon-original.svg',
 };
 
-// ============================================
-// Helper Functions to Get Icons
-// ============================================
+
 const getOSIcon = (osName: string) => {
   const iconUrl = OS_ICON_URLS[osName] || OS_ICON_URLS['Unknown'];
   return (
@@ -1303,7 +1297,7 @@ allStats.forEach((stats) => {
             </motion.div>
           )}
 
-          {/* ✅ TOP BROWSERS - WITH PROPER ICONS */}
+         
           {browserData.length > 0 && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-4 md:p-6">
               <h3 className="font-heading font-semibold text-foreground mb-3 md:mb-4 text-base md:text-lg flex items-center gap-2">
@@ -1336,7 +1330,7 @@ allStats.forEach((stats) => {
             </motion.div>
           )}
 
-          {/* ✅ OPERATING SYSTEMS - WITH PROPER ICONS */}
+        
           {osData.length > 0 && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl p-4 md:p-6">
               <h3 className="font-heading font-semibold text-foreground mb-3 md:mb-4 text-base md:text-lg flex items-center gap-2">
